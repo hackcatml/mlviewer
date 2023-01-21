@@ -1,0 +1,8 @@
+venv
+test.py
+__pycache__
+.idea
+test
+ui_test.py
+ui_win-test.py
+ui_win-test.ui
