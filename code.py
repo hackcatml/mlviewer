@@ -139,6 +139,12 @@ class Instrument:
         dumpresult = self.script.exports.dumpmodule(name)
         if dumpresult == 1:
             dumpmodule_path = self.script.exports.dumpmodulepath()
+            dumped_module_buffer = self.script.exports.getdumpedmodule()
+            dumpdir = os.getcwd() + "/dump"
+            dumpmodule_path = f"{dumpdir}/{dumpmodule_path.rsplit('/', 1)[-1]}"
+            with open(dumpmodule_path, "wb") as f:
+                f.write(dumped_module_buffer)
+                f.close()
             return dumpmodule_path
         else:
             return False
@@ -149,11 +155,12 @@ class Instrument:
             base = module_info["base"]
             size = module_info["size"]
             module_buffer = self.script.exports.dumpmodule(name)
-            dump_so_name = f"{name}_{base}_{size}.dump.so"
+            dumpdir = os.getcwd() + "/dump"
+            dump_so_name = f"{dumpdir}/{name}_{base}_{size}.dump.so"
             with open(dump_so_name, "wb") as f:
                 f.write(module_buffer)
                 f.close()
-            return f"{os.getcwd()}/{dump_so_name}"
+            return dump_so_name
         else:
             return False
 
@@ -164,4 +171,3 @@ class Instrument:
     def il2cpp_dump(self):
         result = self.script.exports.il2cppdump()
         return result
-

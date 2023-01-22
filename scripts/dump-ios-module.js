@@ -69,6 +69,7 @@ var read = getExportFunction("f", "read", "int", ["int", "pointer", "int"]);
 var write = getExportFunction("f", "write", "int", ["int", "pointer", "int"]);
 var lseek = getExportFunction("f", "lseek", "int64", ["int", "int64", "int"]);
 var close = getExportFunction("f", "close", "int", ["int"]);
+var unlink = getExportFunction("f", "unlink", "int", ["pointer"])
 
 function getCacheDir(index) {
 	var NSUserDomainMask = 1;
@@ -212,5 +213,28 @@ rpc.exports = {
         export_dumpmodpath = newmodpath
         return 1;
     },
-    dumpmodulepath: () => { return export_dumpmodpath }
+    dumpmodulepath: () => { return export_dumpmodpath },
+    getdumpedmodule: () => {
+        var BUFSIZE = 4096;
+        var buffer = malloc(BUFSIZE);
+        var count = 0
+
+        var dumpedmodule = open(export_dumpmodpath, O_RDONLY, 0);
+        if (dumpedmodule === -1) {
+            console.log("Cannot open file");
+            return 0;
+        }
+
+        while (read(dumpedmodule, buffer, BUFSIZE)) {
+            count++
+        }
+
+        buffer = malloc(BUFSIZE * count)
+        read(dumpedmodule, buffer, BUFSIZE * count)
+        var module_buffer = ptr(buffer).readByteArray(BUFSIZE * count)
+        close(dumpedmodule)
+        unlink(Memory.allocUtf8String(export_dumpmodpath))
+
+        return module_buffer
+    }
 }
