@@ -6,4 +6,3 @@ test
 ui_test.py
 ui_win-test.py
 ui_win-test.ui
-dump/dummy
