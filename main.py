@@ -116,10 +116,12 @@ class MemScanWorker(QThread):
 
     def run(self) -> None:
         while True:
+            # print("muffin")
             self.memscansig.emit(0)
             if type(code.MESSAGE) is str and code.MESSAGE.find('[!] Memory Scan Done') != -1:
                 # print(code.MESSAGE)
                 self.memscansig.emit(1)
+                break
             self.msleep(100)
 
 
@@ -720,12 +722,14 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     if result == 'module not found':
                         self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {result}", 3000)
                         self.memSearchBtn.setText("GO")
-                        self.memscanworker.terminate()
+                        # self.memscanworker.terminate()
+                        self.memscanworker.quit()
                         return False
                 return True
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-            self.memscanworker.terminate()
+            # self.memscanworker.terminate()
+            self.memscanworker.quit()
             try:
                 globvar.fridaInstrument.stop_mem_scan()
             except Exception as err:
@@ -755,7 +759,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         pass
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-            self.memscanworker.terminate()
+            # self.memscanworker.terminate()
+            self.memscanworker.quit()
             if str(e) == globvar.errorType1:
                 globvar.fridaInstrument.sessions.clear()
             return
@@ -796,7 +801,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.memSearchFoundCount.setText(str(matchcount) + ' found')
             # terminate memory scan thread
             code.MESSAGE = ''
-            self.memscanworker.terminate()
+            # self.memscanworker.terminate()
+            self.memscanworker.quit()
 
     def search_mem_search_result(self):
         if self.arrangedresult2 != '':
