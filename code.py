@@ -139,12 +139,6 @@ class Instrument:
         dumpresult = self.script.exports.dumpmodule(name)
         if dumpresult == 1:
             dumpmodule_path = self.script.exports.dumpmodulepath()
-            dumped_module_buffer = self.script.exports.getdumpedmodule()
-            dumpdir = os.getcwd() + "/dump"
-            dumpmodule_path = f"{dumpdir}/{dumpmodule_path.rsplit('/', 1)[-1]}"
-            with open(dumpmodule_path, "wb") as f:
-                f.write(dumped_module_buffer)
-                f.close()
             return dumpmodule_path
         else:
             return False
