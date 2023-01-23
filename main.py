@@ -103,7 +103,7 @@ class Worker(QThread):
                     globvar.isFridaAttached = True
                 self.sig.emit(1)
                 # don't know why but while loop without sleep makes app freeze :(
-                self.msleep(500)
+                self.msleep(2000)
             except Exception as e:
                 print(e)
 
@@ -717,6 +717,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 elif self.ismemsearchwithimgchecked is True:
                     result = globvar.fridaInstrument.mem_scan_with_img(self.memSearchTargetImgInput.text(), pattern)
                     self.memSearchBtn.setText("STOP")
+                    if result == 'module not found':
+                        self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {result}", 3000)
+                        self.memSearchBtn.setText("GO")
+                        self.memscanworker.terminate()
+                        return False
                 return True
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)

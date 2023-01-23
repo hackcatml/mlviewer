@@ -124,7 +124,9 @@ class Instrument:
     def mem_scan_with_img(self, name, pattern):
         global MESSAGE
         MESSAGE = ''
-        self.script.exports.memscanwithimg(name, pattern)
+        result = self.script.exports.memscanwithimg(name, pattern)
+        if result == 'module not found':
+            return result
 
     def mem_scan_and_replace(self, replacecode):
         self.script.exports.memscanandreplace(replacecode)

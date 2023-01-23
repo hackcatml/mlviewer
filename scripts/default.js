@@ -142,6 +142,9 @@ rpc.exports = {
     },
     memscanwithimg: function scanImg(name, pattern) {
         var module = Process.findModuleByName(name)
+        if(module == null){
+            return 'module not found'
+        }
         var mempattern = pattern
         var returnmessage = ''
         var scancompleted = 0
