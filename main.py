@@ -30,14 +30,14 @@ def revert_frida_script():
 
 def is_readable_addr(addr):
     for i in range(len(globvar.enumerateRanges)):
-        if globvar.enumerateRanges[i][0] <= addr <= globvar.enumerateRanges[i][1]:
+        if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
             return True
     return False
 
 
 def size_to_read(addr):
     for i in range(len(globvar.enumerateRanges)):
-        if globvar.enumerateRanges[i][0] <= addr <= globvar.enumerateRanges[i][1]:
+        if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
             return int(globvar.enumerateRanges[i][1], 16) - int(addr, 16)
 
 
@@ -48,7 +48,7 @@ def set_mem_range(prot):
     except Exception as e:
         print(e)
         return
-    # enumerateRanges 형식 [(base, base + size - 1, prot, size), ... ]
+    # enumerateRanges --> [(base, base + size - 1, prot, size), ... ]
     globvar.enumerateRanges.clear()
     for i in range(len(result)):
         globvar.enumerateRanges.append(
@@ -59,13 +59,24 @@ def set_mem_range(prot):
 
 def hex_calculator(s):
     """ https://leetcode.com/problems/basic-calculator-ii/solutions/658480/Python-Basic-Calculator-I-II-III-easy-solution-detailed-explanation/comments/881191/ """
-    s = s.replace('0x', '')
+    def twos_complement(input_value: int, num_bits: int) -> int:
+        mask = 2 ** num_bits - 1
+        return ((input_value ^ mask) + 1) & mask
+
+    def replace(match):
+        num = int(match.group(0), 16)
+        return "- " + hex(twos_complement(num, 64))
+
     # multiply, divide op are not supported
     if re.search(r"[*/]", s):
         return False
 
+    # find negative hex value which starts with ffffffff and replace it with "- 2's complement"
+    pattern = re.compile(r'[fF]{8}\w*')
+    s = pattern.sub(replace, s)
+    s = s.replace('0x', '')
+
     num, op, arr, stack = '', "+", collections.deque(s + "+"), []
-    # print(num, op, arr, stack)
     while sym := arr.popleft() if arr else None:
         if str.isdigit(sym):
             num += sym
@@ -116,7 +127,6 @@ class MemScanWorker(QThread):
 
     def run(self) -> None:
         while True:
-            # print("muffin")
             self.memscansig.emit(0)
             if type(code.MESSAGE) is str and code.MESSAGE.find('[!] Memory Scan Done') != -1:
                 # print(code.MESSAGE)
@@ -282,7 +292,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     def attach_frida(self):
         if globvar.isFridaAttached is True:
             try:
-                # check if script is still alive. if not exception will happen
+                # check if script is still alive. if not exception will occur
                 globvar.fridaInstrument.dummy_script()
                 QMessageBox.information(self, "info", "Already attached")
             except Exception as e:
@@ -321,7 +331,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.offsetInput.clear()
             return
 
-        set_mem_range('r--')
+        set_mem_range('---')
 
         self.platform = globvar.fridaInstrument.platform()
         name = globvar.fridaInstrument.list_modules()[0]['name']
@@ -415,12 +425,20 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.addrInput.setText(addr)
 
         if is_readable_addr(addr) is False:
-            self.statusBar().showMessage(f"{addr} is not readable. access violation", 3000)
-            return
+            # refresh memory ranges just in case and if it's still not readable then return
+            set_mem_range('---')
+            if is_readable_addr(addr) is False:
+                self.statusBar().showMessage(f"{addr} is not readable. access violation", 3000)
+                return
 
         try:
             if is_readable_addr(hex_calculator(f"{addr} + 2000")):
-                result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+                size = size_to_read(addr)
+                if size < 8192:
+                    # check there's an empty memory space betwean from address to (address + 0x2000). if then read maximum readable size
+                    result = globvar.fridaInstrument.read_mem_addr(addr, size)
+                else:
+                    result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
             else:
                 size = size_to_read(addr)
                 result = globvar.fridaInstrument.read_mem_addr(addr, size)
@@ -504,7 +522,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         tc = self.hexViewer.textCursor()
         tcx = tc.positionInBlock()
         # print("[hackcatml] text changed: " + tc.block().text())
-        # tc.block().text() == "" 경우 index out of error 발생하므로 return 필요
+        # if tc.block().text() == "", index out of error occurs so need to return
         if tc.block().text() == "": return
         indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
         hexstart = indices[1] + 1
