@@ -412,6 +412,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             return
 
         addr = self.addrInput.text()
+        global result
+        result = ''
         try:
             addr = hex_calculator(addr)
         except Exception as e:
@@ -428,6 +430,23 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # refresh memory ranges just in case and if it's still not readable then return
             set_mem_range('---')
             if is_readable_addr(addr) is False:
+                try:
+                    # hmm...really? on iOS frida's Process.enumerateRangesSync('---') doesn't show me every memory regions...
+                    if globvar.fridaInstrument.get_module_name_by_addr(addr)['name'] is not None:
+                        # there is a module
+                        size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
+                        if size < 8192:
+                            result = globvar.fridaInstrument.read_mem_addr(addr, size)
+                        else:
+                            result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+                        self.show_mem_result_on_viewer(addr, result)
+                        return
+                except Exception as e:
+                    self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+                    if str(e) == globvar.errorType1:
+                        globvar.fridaInstrument.sessions.clear()
+                    return
+
                 self.statusBar().showMessage(f"{addr} is not readable. access violation", 3000)
                 return
 
@@ -442,6 +461,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             else:
                 size = size_to_read(addr)
                 result = globvar.fridaInstrument.read_mem_addr(addr, size)
+            self.show_mem_result_on_viewer(addr, result)
+            return
 
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
@@ -449,6 +470,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 globvar.fridaInstrument.sessions.clear()
             return
 
+    def show_mem_result_on_viewer(self, addr, result):
         # empty changed hex list before refresh hexviewer
         globvar.hexEdited.clear()
         # show hex dump result
@@ -555,7 +577,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         prot = '---'
         for i in range(len(globvar.enumerateRanges)):
-            if globvar.enumerateRanges[i][0] <= addr <= globvar.enumerateRanges[i][1]:
+            if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
                 prot = globvar.enumerateRanges[i][2]
 
         for i in range(len(globvar.hexEdited)):
@@ -939,13 +961,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.status_img_base.setPlainText(result['base'])
 
         offsetinput = self.offsetInput.text()
-        if inspect.currentframe().f_back.f_code.co_name == "addr_btn_func":
+        if inspect.stack()[2].function == "addr_btn_func":
             offsetinput = self.addrInput.text()
 
         if offsetinput.startswith('0x') is False:
             offsetinput = "".join(("0x0", offsetinput))
         current_addr = hex(int(result['base'], 16) + int(offsetinput, 16)) + f"({offsetinput})"
-        if inspect.currentframe().f_back.f_code.co_name == "addr_btn_func":
+        if inspect.stack()[2].function == "addr_btn_func":
             current_addr = hex(int(offsetinput, 16)) + f"({hex(int(offsetinput, 16) - int(result['base'], 16))})"
 
         # caller function 찾기. https://stackoverflow.com/questions/900392/getting-the-caller-function-name-inside-another-function-in-python

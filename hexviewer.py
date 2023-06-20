@@ -66,7 +66,6 @@ class HexViewerClass(QTextEdit):
             self.moveCursor(QTextCursor.MoveOperation.Left, QTextCursor.MoveMode.KeepAnchor)
             self.setTextColor(QtGui.QColor("Red"))
             self.moveCursor(QTextCursor.MoveOperation.Right)
-            self.setTextColor(QtGui.QColor("black"))
 
         if tcx in range(indices[2], indices[len(indices) - 2] + 3, 3) and e.key() != Qt.Key.Key_Left:
             if tcx == indices[len(indices) - 2]:
