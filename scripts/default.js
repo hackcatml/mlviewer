@@ -35,6 +35,9 @@ rpc.exports = {
         // console.log("muffin")
         send("")
     },
+    arch:() => {
+        send(Process.arch)
+    },
     platform:() => {
         send(Process.platform)
     },

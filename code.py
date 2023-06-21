@@ -78,6 +78,10 @@ class Instrument:
         self.script.exports.dummy()
         return MESSAGE
 
+    def arch(self):
+        self.script.exports.arch()
+        return MESSAGE
+
     def platform(self):
         self.script.exports.platform()
         return MESSAGE

@@ -1,9 +1,10 @@
+import inspect
 import re
 
 from PyQt6 import QtGui, QtCore
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QTextCursor
-from PyQt6.QtWidgets import QTextEdit
+from PyQt6.QtGui import QTextCursor, QAction, QCursor
+from PyQt6.QtWidgets import QTextEdit, QApplication, QWidget, QVBoxLayout
 
 import globvar
 
@@ -109,13 +110,6 @@ class HexViewerClass(QTextEdit):
 
         super(HexViewerClass, self).keyPressEvent(e)
 
-    def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
-        # hexedit 모드인 경우 마우스 우측 버튼 클릭으로 메뉴 생성 안되게 하기 https://freeprog.tistory.com/334
-        if self.isReadOnly() is False:
-            return
-        else:
-            return super(HexViewerClass, self).contextMenuEvent(e)
-
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         super(HexViewerClass, self).mousePressEvent(e)
         pos = e.pos()
@@ -153,6 +147,116 @@ class HexViewerClass(QTextEdit):
                 self.moveCursor(QTextCursor.MoveOperation.PreviousWord)
                 return
 
+    def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
+        # hexedit 모드인 경우 마우스 우측 버튼 클릭으로 메뉴 생성 안되게 하기 https://freeprog.tistory.com/334
+        if self.isReadOnly() is False:
+            return
+        else:
+            menu = super(HexViewerClass, self).createStandardContextMenu()  # Get the default context menu
+            select_all_action = None
+            for action in menu.actions():  # loop over the existing actions
+                if action.text() == "Select All":
+                    select_all_action = action
+                    break
+
+            if select_all_action:  # if the "Select All" action was found then insert menus
+                # define "Copy Hex" menu
+                copy_hex_action = QAction("Copy Hex", self)
+                copy_hex_action.setEnabled(bool(self.textCursor().selectedText()))
+                copy_hex_action.triggered.connect(self.copy_hex)
+                # define "Hex to Arm" menu
+                disassemble_action = QAction("Hex to Arm", self)
+                disassemble_action.setEnabled(bool(self.textCursor().selectedText()))
+                disassemble_action.triggered.connect(self.request_armconverter)
+                # insert menus
+                menu.insertAction(select_all_action, copy_hex_action)
+                menu.insertAction(select_all_action, disassemble_action)
+
+            menu.exec(e.globalPos())
+
+    def selected_text(self, request_to_armconverter: bool) -> str:
+        selected_text = self.textCursor().selectedText()  # gets the currently selected text
+        selected_text = selected_text.replace('\u2029', '\n')
+        lines = selected_text.strip().split('\n')
+        hex_string = ''
+        if len(lines) <= 2:
+            hex_data = []
+            for line in lines:
+                matches = re.findall(r'\b[0-9a-fA-F]{2}\b', line)
+                hex_data.append(' '.join(matches))
+            if request_to_armconverter is False:
+                hex_string = '\n'.join(hex_data)
+            else:
+                hex_string = ''.join(hex_data)
+            return hex_string
+        elif len(lines) > 2:
+            # Determine the length of the second line
+            second_line_length = len(lines[1])
+            # If the first line is shorter, pad it with spaces at the beginning
+            if len(lines[0]) < second_line_length:
+                difference = second_line_length - len(lines[0])
+                lines[0] = ' ' * difference + lines[0]
+            # If the last line is shorter, pad it with spaces at the end
+            if len(lines[-1]) < second_line_length:
+                difference = second_line_length - len(lines[-1])
+                lines[-1] += ' ' * difference
+            hex_data = []
+            for line in lines:
+                # Calculate hex start and end positions
+                hex_start = len(line) - 65
+                hex_end = len(line) - 16
+
+                # Extract hex part
+                hex_part = line[hex_start:hex_end]
+
+                # Extract two-digit hex numbers from the part
+                matches = re.findall(r'\b[0-9a-fA-F]{2}\b', hex_part)
+                hex_data.append(' '.join(matches))
+            # Join hex data into a single string
+            if request_to_armconverter is False:
+                hex_string = '\n'.join(hex_data)
+            else:
+                hex_string = ''.join(hex_data)
+            return hex_string
+
+    def copy_hex(self):
+        hex_string = self.selected_text(False)
+        QApplication.clipboard().setText(hex_string)  # copies the hex text to the clipboard
+
+    def request_armconverter(self):
+        import requests
+
+        url = 'https://armconverter.com/api/convert'
+        hex_string = self.selected_text(True)
+        arch = ''
+        try:
+            arch = globvar.fridaInstrument.arch()
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+
+        payload = {"hex":hex_string,"offset":"","arch":[arch]}
+        response = requests.post(url, json=payload)
+        data = response.json()
+
+        if data['asm'][arch][0] is True:
+            hex_to_arm_result = data['asm'][arch][1]
+            # Show the copied text in a new widget
+            self.new_widget = NewTextWidget(hex_to_arm_result)
+            cursor_pos = QCursor.pos()
+            # Move the widget to the cursor position
+            self.new_widget.move(cursor_pos)
+            self.new_widget.show()
+        else:
+            print("Fail to hex to arm convert")
 
 
-
+class NewTextWidget(QWidget):
+    def __init__(self, text):
+        super().__init__()
+        self.setWindowTitle("HEX to ARM")
+        self.text_edit = QTextEdit()
+        self.text_edit.setPlainText(text)
+        self.text_edit.setReadOnly(True)  # Make the text edit read-only
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.text_edit)
+        self.setLayout(self.layout)
