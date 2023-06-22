@@ -233,6 +233,7 @@ class HexViewerClass(QTextEdit):
             arch = globvar.fridaInstrument.arch()
         except Exception as e:
             print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            return
 
         payload = {"hex":hex_string,"offset":"","arch":[arch]}
         response = requests.post(url, json=payload)
