@@ -41,6 +41,9 @@ rpc.exports = {
     platform:() => {
         send(Process.platform)
     },
+    findexportbyname:(name) => {
+        send(Module.findExportByName(null, name))
+    },
     enumerateranges:(prot) => {
         // send(Process.enumerateRangesSync(prot))
         return Process.enumerateRangesSync(prot)

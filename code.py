@@ -86,6 +86,10 @@ class Instrument:
         self.script.exports.platform()
         return MESSAGE
 
+    def find_export_by_name(self, name):
+        self.script.exports.findexportbyname(name)
+        return MESSAGE
+
     def list_modules(self):
         self.script.exports.listmodules()
         return MESSAGE

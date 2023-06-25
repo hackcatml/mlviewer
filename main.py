@@ -412,8 +412,20 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             return
 
         addr = self.addrInput.text()
-        global result
-        result = ''
+        hex_regex = re.compile(r'(\b0x[a-fA-F0-9]+\b|\b[a-fA-F0-9]{6,}\b)')
+        match = hex_regex.match(addr)
+        # in case it's not a hex expression on addrInput field. for example "fopen", "sysctl", ...
+        if match is None:
+            try:
+                func_addr = globvar.fridaInstrument.find_export_by_name(addr)
+                if func_addr is None:
+                    self.statusBar().showMessage(f"cannot find address for {addr}", 3000)
+                    return
+                addr = func_addr
+            except Exception as e:
+                self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+                return
+
         try:
             addr = hex_calculator(addr)
         except Exception as e:
