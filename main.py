@@ -375,11 +375,23 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             if self.status_img_base.toPlainText() == '':
                 result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
             else:
-                if is_readable_addr(hex_calculator(f"{self.status_img_base.toPlainText()} + {offset} + 2000")):
+                addr = hex_calculator(f"{self.status_img_base.toPlainText()} + {offset} + 2000")
+                # check addr in mem regions
+                if is_readable_addr(addr):
                     result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
                 else:
-                    size = size_to_read(hex_calculator(f"{self.status_img_base.toPlainText()} + {offset}"))
-                    result = globvar.fridaInstrument.read_mem_offset(name, offset, size)
+                    # check module existence
+                    if globvar.fridaInstrument.get_module_name_by_addr(addr)['name'] is not None:
+                        # there is a module
+                        size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + \
+                               globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
+                        if size < 8192:
+                            result = globvar.fridaInstrument.read_mem_offset(name, offset, size)
+                        else:
+                            result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
+                    else:
+                        size = size_to_read(hex_calculator(f"{self.status_img_base.toPlainText()} + {offset}"))
+                        result = globvar.fridaInstrument.read_mem_offset(name, offset, size)
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
             if str(e) == globvar.errorType1:
