@@ -4,7 +4,7 @@ import platform
 import re
 
 from PyQt6 import QtCore
-from PyQt6.QtCore import QThread, pyqtSlot, Qt
+from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent
 from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, QIcon
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
@@ -214,6 +214,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memDumpModuleName.textChanged.connect(self.search_img)
         self.searchMemSearchResult.textChanged.connect(self.search_mem_search_result)
         self.unityCheckBox.stateChanged.connect(self.il2cpp_checkbox)
+
+        # install event filter to use tab and move to some input fields
+        self.interested_widgets = []
+        QApplication.instance().installEventFilter(self)
 
     @pyqtSlot(int)
     def sig_func(self, onoffsig: int):
@@ -1016,6 +1020,27 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.statusBar().removeWidget(self.statusLight)
         self.statusBar().addPermanentWidget(self.statusLight)
         self.statusLight.show()
+
+    def eventFilter(self, obj, event):
+        self.interested_widgets = [self.offsetInput, self.addrInput]
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
+            try:
+                if self.tabWidget2.currentIndex() == 0:
+                    self.interested_widgets.append(self.status_img_name)
+                # Get the index of the currently focused widget in our list
+                index = self.interested_widgets.index(self.focusWidget())
+
+                # Try to focus the next widget in the list
+                self.interested_widgets[(index + 1) % len(self.interested_widgets)].setFocus()
+            except ValueError:
+                # The currently focused widget is not in our list, so we focus the first one
+                self.interested_widgets[0].setFocus()
+
+            # We've handled the event ourselves, so we don't pass it on
+            return True
+
+        # For other events, we let them be handled normally
+        return super().eventFilter(obj, event)
 
 
 if __name__ == "__main__":
