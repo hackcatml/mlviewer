@@ -385,7 +385,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
                 else:
                     # check module existence
-                    if globvar.fridaInstrument.get_module_name_by_addr(addr)['name'] is not None:
+                    if globvar.fridaInstrument.get_module_name_by_addr(addr) is not None:
                         # there is a module
                         size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + \
                                globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
@@ -456,27 +456,32 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         if is_readable_addr(addr) is False:
             # refresh memory ranges just in case and if it's still not readable then return
-            set_mem_range('---')
-            if is_readable_addr(addr) is False:
-                try:
-                    # hmm...really? on iOS frida's Process.enumerateRangesSync('---') doesn't show me every memory regions...
-                    if globvar.fridaInstrument.get_module_name_by_addr(addr)['name'] is not None:
-                        # there is a module
-                        size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
-                        if size < 8192:
-                            result = globvar.fridaInstrument.read_mem_addr(addr, size)
-                        else:
-                            result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
-                        self.show_mem_result_on_viewer(addr, result)
-                        return
-                except Exception as e:
-                    self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-                    if str(e) == globvar.errorType1:
-                        globvar.fridaInstrument.sessions.clear()
+            # set_mem_range('---')
+            # if is_readable_addr(addr) is False:
+            try:
+                # on iOS in case frida's Process.enumerateRangesSync('---') doesn't show up every memory regions
+                if globvar.fridaInstrument.get_module_name_by_addr(addr) is not None:
+                    # there is a module
+                    size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
+                    if size < 8192:
+                        result = globvar.fridaInstrument.read_mem_addr(addr, size)
+                    else:
+                        result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+                    self.show_mem_result_on_viewer(addr, result)
                     return
-
-                self.statusBar().showMessage(f"{addr} is not readable. access violation", 3000)
+                else:
+                    # there is no module. but let's try to read it anyway
+                    result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+                    self.show_mem_result_on_viewer(addr, result)
+                    return
+            except Exception as e:
+                self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+                if str(e) == globvar.errorType1:
+                    globvar.fridaInstrument.sessions.clear()
                 return
+
+            # self.statusBar().showMessage(f"{addr} is not readable. access violation", 3000)
+            # return
 
         try:
             if is_readable_addr(hex_calculator(f"{addr} + 2000")):
