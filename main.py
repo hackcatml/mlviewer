@@ -402,24 +402,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 globvar.fridaInstrument.sessions.clear()
             return
 
-        # empty changed hex list
-        globvar.hexEdited.clear()
-        # show hexdump result
-        self.hexViewer.setPlainText(result[result.find('\n') + 1:])
-        # adjust label pos
-        self.adjust_label_pos()
-
-        self.set_status(name)
-        # reset offset input area
-        self.offsetInput.clear()
-        # move cursor
-        if self.hexViewer.textCursor().positionInBlock() == 0:
-            self.hexViewer.moveCursor(QTextCursor.MoveOperation.NextWord)
-        # set initial current frame block number
-        globvar.currentFrameBlockNumber = 0
-        # set initial currentFrameStartAddress
-        globvar.currentFrameStartAddress = "".join(
-            ("0x", self.hexViewer.textCursor().block().text()[:self.hexViewer.textCursor().block().text().find(' ')]))
+        self.show_mem_result_on_viewer(name, None, result)
 
     def addr_btn_func(self):
         if globvar.isFridaAttached is False:
@@ -467,12 +450,12 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         result = globvar.fridaInstrument.read_mem_addr(addr, size)
                     else:
                         result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
-                    self.show_mem_result_on_viewer(addr, result)
+                    self.show_mem_result_on_viewer(None, addr, result)
                     return
                 else:
                     # there is no module. but let's try to read it anyway
                     result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
-                    self.show_mem_result_on_viewer(addr, result)
+                    self.show_mem_result_on_viewer(None, addr, result)
                     return
             except Exception as e:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
@@ -487,14 +470,15 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             if is_readable_addr(hex_calculator(f"{addr} + 2000")):
                 size = size_to_read(addr)
                 if size < 8192:
-                    # check there's an empty memory space betwean from address to (address + 0x2000). if then read maximum readable size
+                    # check there's an empty memory space between from address to (address + 0x2000).
+                    # if then read maximum readable size
                     result = globvar.fridaInstrument.read_mem_addr(addr, size)
                 else:
                     result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
             else:
                 size = size_to_read(addr)
                 result = globvar.fridaInstrument.read_mem_addr(addr, size)
-            self.show_mem_result_on_viewer(addr, result)
+            self.show_mem_result_on_viewer(None, addr, result)
             return
 
         except Exception as e:
@@ -503,7 +487,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 globvar.fridaInstrument.sessions.clear()
             return
 
-    def show_mem_result_on_viewer(self, addr, result):
+    def show_mem_result_on_viewer(self, name, addr, result):
         # empty changed hex list before refresh hexviewer
         globvar.hexEdited.clear()
         # show hex dump result
@@ -511,7 +495,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # adjust label pos
         self.adjust_label_pos()
 
-        if globvar.fridaInstrument.get_module_name_by_addr(addr) is None:
+        if inspect.currentframe().f_back.f_code.co_name != "offset_ok_btn_func" and \
+                globvar.fridaInstrument.get_module_name_by_addr(addr) is None:
             self.status_img_name.clear()
             self.status_img_base.clear()
             self.status_size.clear()
@@ -528,9 +513,15 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
             return
 
-        self.set_status(globvar.fridaInstrument.get_module_name_by_addr(addr)['name'])
-        # reset offset input area
-        self.addrInput.clear()
+        if inspect.currentframe().f_back.f_code.co_name != "offset_ok_btn_func":
+            self.set_status(globvar.fridaInstrument.get_module_name_by_addr(addr)['name'])
+            # reset address input area
+            self.addrInput.clear()
+        else:
+            self.set_status(name)
+            # reset offset input area
+            self.offsetInput.clear()
+
         # move cursor
         if self.hexViewer.textCursor().positionInBlock() == 0:
             self.hexViewer.moveCursor(QTextCursor.MoveOperation.NextWord)
