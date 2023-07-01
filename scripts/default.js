@@ -5,6 +5,10 @@ var replacecode = []
 
 var count = 0
 var modules = []
+
+let num_args_to_watch = 0
+let read_args_options = {}
+let read_retval_options = {}
 function getmemprotection(name, addr){
     count++
     var result
@@ -29,6 +33,40 @@ function getmemprotection(name, addr){
     return result
 }
 
+function readargs(args, index, addr) {
+    // if the argument's index is in the read_args_options for the current address
+    if (read_args_options[addr] && read_args_options[addr][index]) {
+        // get the option from the read_args_options
+        var option = read_args_options[addr][index];
+        // read the argument based on the option
+        if(option === "readByteArray") {
+            let data = new Uint8Array(args[option](32))
+            return Object.keys(data).map(key => data[key].toString(16).padStart(2, '0')).join(' ');
+        }
+        return args[option]();
+    } else {
+        // just log the argument if it's not in the read_args_options
+        return args.toString();
+    }
+}
+
+function readretval(retval, addr) {
+    // if the argument's index is in the read_args_options for the current address
+    if (read_retval_options[addr]) {
+        // get the option from the read_retval_options
+        var option = read_retval_options[addr];
+        // read the argument based on the option
+        if(option === "readByteArray") {
+            let data = new Uint8Array(retval[option](32))
+            return Object.keys(data).map(key => data[key].toString(16).padStart(2, '0')).join(' ');
+        }
+        return retval[option]();
+    } else {
+        // just log the argument if it's not in the read_retval_options
+        return retval.toString();
+    }
+}
+
 rpc.exports = {
     // just dummy function for checking script is alive
     dummy:() => {
@@ -41,8 +79,25 @@ rpc.exports = {
     platform:() => {
         send(Process.platform)
     },
-    findexportbyname:(name) => {
-        send(Module.findExportByName(null, name))
+    findsymaddrbyname:(name) => {
+        let symbol_addr = Module.findExportByName(null, name)
+        if(symbol_addr == null) {
+            function findsymaddr(modules) {
+                for (let m of modules) {
+                    let symbols = Module.enumerateSymbolsSync(m['name']);
+                    for (let sym of symbols) {
+                        if (sym['name'].indexOf(name) !== -1) {
+                            return send(sym['address']);
+                        }
+                    }
+                }
+                return send(null)
+            }
+            let modules = Process.enumerateModules()
+            findsymaddr(modules)
+        } else {
+            send(symbol_addr)
+        }
     },
     enumerateranges:(prot) => {
         // send(Process.enumerateRangesSync(prot))
@@ -222,5 +277,76 @@ rpc.exports = {
         replacecode.length = 0
         count = 0
         modules.length = 0
+    },
+    setreadargsoptions: (addr, index, option) => {
+        // if the address is not in the read_args_options yet, add it
+        if (!read_args_options[addr]) {
+            read_args_options[addr] = {};
+        }
+        // add/update the index and option for the address
+        read_args_options[addr][index] = option;
+    },
+    setreadretvalsoptions: (addr, option) => {
+        // if the address is not in the read_args_options yet, add it
+        if (!read_retval_options[addr]) {
+            read_retval_options[addr] = {};
+        }
+        // add/update the index and option for the address
+        read_retval_options[addr] = option;
+    },
+    setnargs: (nargs) => {
+        num_args_to_watch = nargs;
+    },
+    setwatch: (addr, is_reg_watch) => {
+        Interceptor.attach(ptr(addr), {
+            onEnter: function (args) {
+                if(is_reg_watch) {
+                    let count = 0
+                    let log = `[+] ${ptr(addr)}:\n`
+                    let reg_context_string = JSON.stringify(this.context);
+                    let reg_context = JSON.parse(reg_context_string);
+                    for (let key in reg_context) {
+                        count++;
+                        if (count >= num_args_to_watch) {
+                            log += `${key}: ${reg_context[key]}`
+                            break;
+                        }
+                        log += `${key}: ${reg_context[key]}, `
+                    }
+                    send({'watchRegs':log})
+                } else {
+                    let log = `[+] ${ptr(addr)}\n`
+                    for (let index = 0; index < num_args_to_watch - 1; index++) {
+                        log += `args${index}: ${readargs(args[index], index, ptr(addr))}, `
+                    }
+                    log += `args${num_args_to_watch - 1}: ${readargs(args[num_args_to_watch - 1], num_args_to_watch - 1, ptr(addr))}`
+                    send({'watchArgs':log})
+                }
+            },
+            onLeave: function(retval) {
+                if(is_reg_watch){
+                    let count = 0
+                    let log = `[-] ${ptr(addr)}:\n`
+                    let reg_context_string = JSON.stringify(this.context);
+                    let reg_context = JSON.parse(reg_context_string);
+                    for (let key in reg_context) {
+                        count++;
+                        if (count >= num_args_to_watch) {
+                            log += `${key}: ${reg_context[key]}`
+                            break;
+                        }
+                        log += `${key}: ${reg_context[key]}, `
+                    }
+                    send({'watchRegs':log})
+                } else {
+                    let log = `return: ${readretval(retval, ptr(addr))}\n`
+                    log += `[-] ${ptr(addr)}`
+                    send({'watchArgs':log})
+                }
+            }
+        });
+    },
+    detachall: () => {
+        Interceptor.detachAll()
     },
 }

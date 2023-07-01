@@ -5,7 +5,7 @@ import re
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent
-from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, QIcon
+from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, QIcon, QPalette
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
 import code
@@ -58,7 +58,9 @@ def set_mem_range(prot):
 
 
 def hex_calculator(s):
-    """ https://leetcode.com/problems/basic-calculator-ii/solutions/658480/Python-Basic-Calculator-I-II-III-easy-solution-detailed-explanation/comments/881191/ """
+    """ https://leetcode.com/problems/basic-calculator-ii/solutions/658480/Python-Basic-Calculator-I-II-III-easy
+    -solution-detailed-explanation/comments/881191/"""
+
     def twos_complement(input_value: int, num_bits: int) -> int:
         mask = 2 ** num_bits - 1
         return ((input_value ^ mask) + 1) & mask
@@ -92,11 +94,12 @@ def hex_calculator(s):
 
 
 def process_read_mem_result(result: str) -> str:
-    removetarget = '0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F  0123456789ABCDEF\n'
-    result = result.replace(result[result.find('\n') + 1:result.find(removetarget)], '')
-    result = result.replace(removetarget, '')
+    remove_target = '0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F  0123456789ABCDEF\n'
+    result = result.replace(result[result.find('\n') + 1:result.find(remove_target)], '')
+    result = result.replace(remove_target, '')
     # remove any residual whitespace
-    for i in range(5): result = result.replace(' ' * (14 - i), '')
+    for i in range(5):
+        result = result.replace(' ' * (14 - i), '')
     return result
 
 
@@ -416,7 +419,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # in case it's not a hex expression on addrInput field. for example "fopen", "sysctl", ...
         if match is None:
             try:
-                func_addr = globvar.fridaInstrument.find_export_by_name(addr)
+                func_addr = globvar.fridaInstrument.find_sym_addr_by_name(addr)
                 if func_addr is None:
                     self.statusBar().showMessage(f"cannot find address for {addr}", 3000)
                     return
@@ -445,7 +448,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 # on iOS in case frida's Process.enumerateRangesSync('---') doesn't show up every memory regions
                 if globvar.fridaInstrument.get_module_name_by_addr(addr) is not None:
                     # there is a module
-                    size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
+                    size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + \
+                           globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
                     if size < 8192:
                         result = globvar.fridaInstrument.read_mem_addr(addr, size)
                     else:
@@ -956,13 +960,16 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.statusBar().showMessage("dump fail. try again", 3000)
         else:
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
+            # Create a temporary QLabel to get the default text color
+            temp_label = QLabel()
+            default_color = temp_label.palette().color(QPalette.ColorRole.WindowText)
             self.listImgViewer.setTextColor(QColor("Red"))
             if self.platform == 'darwin':
                 self.listImgViewer.insertPlainText('Dumped file at: ' + result + "\n\n")
             elif self.platform == 'linux':
                 self.listImgViewer.insertPlainText(
                     'Dumped file at: ' + result + "\n\nYou need to fix so file using SoFixer\n\n")
-            self.listImgViewer.setTextColor(QColor("Black"))
+            self.listImgViewer.setTextColor(default_color)  # Revert to the default color
         revert_frida_script()
 
     def search_img(self):

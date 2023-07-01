@@ -2,9 +2,10 @@ import inspect
 import re
 
 from PyQt6 import QtGui, QtCore
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QTextCursor, QAction, QCursor
-from PyQt6.QtWidgets import QTextEdit, QApplication, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QTextEdit, QApplication, QWidget, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QListWidget, \
+    QPushButton, QMenu
 
 import globvar
 
@@ -16,6 +17,8 @@ class HexViewerClass(QTextEdit):
         super(HexViewerClass, self).__init__(args)
         self.hitcount = 0
         self.verticalScrollBar().sliderMoved.connect(self.setScrollBarPos)
+
+        self.new_watch_widget = NewWatchWidget()
 
     def setScrollBarPos(self, value):
         # print("[hackcatml] slidermoved: ", value)
@@ -160,14 +163,39 @@ class HexViewerClass(QTextEdit):
                     break
 
             if select_all_action:  # if the "Select All" action was found then insert menus
+                hex_regex = re.compile(r'(\b0x[a-fA-F0-9]+\b|\b[a-fA-F0-9]{6,}\b)')
+                match = hex_regex.match(self.textCursor().selectedText())
+
                 # define "Copy Hex" menu
                 copy_hex_action = QAction("Copy Hex", self)
                 copy_hex_action.setEnabled(bool(self.textCursor().selectedText()))
+                # in address region, not selectable
+                if match is not None:
+                    copy_hex_action.setEnabled(False)
                 copy_hex_action.triggered.connect(self.copy_hex)
+
                 # define "Hex to Arm" menu
                 disassemble_action = QAction("Hex to Arm", self)
                 disassemble_action.setEnabled(bool(self.textCursor().selectedText()))
+                # in address region, not selectable
+                if match is not None:
+                    disassemble_action.setEnabled(False)
                 disassemble_action.triggered.connect(self.request_armconverter)
+
+                # define "Set Watch" menu only selectable in address region
+                watch_action = QAction("Set Watch Func")
+                if match is not None:
+                    watch_action.setEnabled(True)
+                    watch_action.triggered.connect(lambda: self.set_watch_on_addr("watch_func"))
+                    menu.insertAction(select_all_action, watch_action)
+
+                # define "Set Watch Regs" menu only selectable in address region
+                watch_regs_action = QAction("Set Watch Regs")
+                if match is not None:
+                    watch_regs_action.setEnabled(True)
+                    watch_regs_action.triggered.connect(lambda: self.set_watch_on_addr("watch_regs"))
+                    menu.insertAction(select_all_action, watch_regs_action)
+
                 # insert menus
                 menu.insertAction(select_all_action, copy_hex_action)
                 menu.insertAction(select_all_action, disassemble_action)
@@ -242,16 +270,59 @@ class HexViewerClass(QTextEdit):
         if data['asm'][arch][0] is True:
             hex_to_arm_result = data['asm'][arch][1]
             # Show the copied text in a new widget
-            self.new_widget = NewTextWidget(hex_to_arm_result)
+            self.new_hex_to_arm_widget = NewHexToArmWidget(hex_to_arm_result)
             cursor_pos = QCursor.pos()
             # Move the widget to the cursor position
-            self.new_widget.move(cursor_pos)
-            self.new_widget.show()
+            self.new_hex_to_arm_widget.move(cursor_pos)
+            self.new_hex_to_arm_widget.show()
         else:
             print("Fail to hex to arm convert")
 
+    @pyqtSlot(str)
+    def messagesig_func(self, message: str):
+        # print(f"watching...{message}")
+        # Append the new message to the text edit
+        self.new_watch_widget.text_edit.append(message)
 
-class NewTextWidget(QWidget):
+    def set_watch_on_addr(self, action_type):
+        tc = self.textCursor()
+        indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
+        self.new_watch_widget.addr_to_watch = ''.join(('0x', tc.block().text()[:indices[0]])).strip()
+        try:
+            if not self.new_watch_widget.watch_list:
+                # watch list is empty. set connect once
+                globvar.fridaInstrument.messagesig.connect(self.messagesig_func)
+
+            if self.new_watch_widget.addr_to_watch not in self.new_watch_widget.watch_list:
+                watch_regs = False
+                minimum_nargs = 1
+                default_nargs = 3
+                maximum_nargs = 10
+
+                if action_type == "watch_regs":
+                    watch_regs = True
+                    default_nargs = 5
+                    maximum_nargs = 34
+
+                self.new_watch_widget.slider.setMinimum(minimum_nargs)  # Minimum number of arguments to watch
+                self.new_watch_widget.slider.setMaximum(maximum_nargs)  # Maximum number of arguments to watch
+                self.new_watch_widget.slider.setValue(default_nargs)  # Default number of arguments to watchZ
+                # print(f"set watch on {self.new_watch_widget.addr_to_watch}")
+                globvar.fridaInstrument.set_nargs(default_nargs)
+                globvar.fridaInstrument.set_watch(self.new_watch_widget.addr_to_watch, watch_regs)
+                self.new_watch_widget.watch_list.append(self.new_watch_widget.addr_to_watch)
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            return
+
+        cursor_pos = QCursor.pos()
+        # Move the widget to the cursor position
+        self.new_watch_widget.move(cursor_pos)
+        self.new_watch_widget.setWindowFlags(Qt.WindowType.Dialog)
+        self.new_watch_widget.show()
+
+
+class NewHexToArmWidget(QWidget):
     def __init__(self, text):
         super().__init__()
         self.setWindowTitle("HEX to ARM")
@@ -261,3 +332,157 @@ class NewTextWidget(QWidget):
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.text_edit)
         self.setLayout(self.layout)
+
+
+# Custom TextEdit class for NewWatchWidget
+class CustomTextEdit(QTextEdit):
+    def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
+        menu = super(CustomTextEdit, self).createStandardContextMenu()  # Get the default context menu
+        select_all_action = None
+
+        for action in menu.actions():  # loop over the existing actions
+            if action.text() == "Select All":
+                select_all_action = action
+                break
+
+        if select_all_action:  # if the "Select All" action was found then insert menus
+            args_regx = re.compile(r'(\bargs\d+\b|\breturn\b)')
+            match = args_regx.match(self.textCursor().selectedText())
+
+            read_pointer_action = QAction("readPointer", self)
+            if match is not None:
+                read_pointer_action.setEnabled(True)
+                read_pointer_action.triggered.connect(self.read_pointer)
+                menu.insertAction(select_all_action, read_pointer_action)
+
+            read_utf8_action = QAction("readUtf8String", self)
+            if match is not None:
+                read_utf8_action.setEnabled(True)
+                read_utf8_action.triggered.connect(self.read_utf8_string)
+                menu.insertAction(select_all_action, read_utf8_action)
+
+            read_utf16_action = QAction("readUtf16String", self)
+            if match is not None:
+                read_utf16_action.setEnabled(True)
+                read_utf16_action.triggered.connect(self.read_utf16_string)
+                menu.insertAction(select_all_action, read_utf16_action)
+
+            read_float_action = QAction("readFloat", self)
+            if match is not None:
+                read_float_action.setEnabled(True)
+                read_float_action.triggered.connect(self.read_float)
+                menu.insertAction(select_all_action, read_float_action)
+
+            read_double_action = QAction("readDouble", self)
+            if match is not None:
+                read_double_action.setEnabled(True)
+                read_double_action.triggered.connect(self.read_double)
+                menu.insertAction(select_all_action, read_double_action)
+
+            read_bytearray_action = QAction("readByteArray", self)
+            if match is not None:
+                read_bytearray_action.setEnabled(True)
+                read_bytearray_action.triggered.connect(self.read_bytearray)
+                menu.insertAction(select_all_action, read_bytearray_action)
+
+            read_reset_action = QAction("reset", self)
+            if match is not None:
+                read_reset_action.setEnabled(True)
+                read_reset_action.triggered.connect(self.reset)
+                menu.insertAction(select_all_action, read_reset_action)
+
+            # Show the context menu.
+            menu.exec(e.globalPos())
+
+    def read_pointer(self):
+        self.read_args_with_options("readPointer")
+
+    def read_utf8_string(self):
+        self.read_args_with_options("readUtf8String")
+
+    def read_utf16_string(self):
+        self.read_args_with_options("readUtf16String")
+
+    def read_float(self):
+        self.read_args_with_options("readFloat")
+
+    def read_double(self):
+        self.read_args_with_options("readDouble")
+
+    def read_bytearray(self):
+        self.read_args_with_options("readByteArray")
+
+    def reset(self):
+        self.read_args_with_options("")
+
+    def read_args_with_options(self, option):
+        tc = self.textCursor()
+        args_index = self.textCursor().selectedText()[4:]
+        while True:
+            tc.movePosition(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor)
+            if re.search(r"] 0x[a-f0-9]+", tc.block().text()):
+                addr = tc.block().text()[4:].strip()
+                break
+        try:
+            if self.textCursor().selectedText() == "return":
+                globvar.fridaInstrument.set_read_retval_options(addr, option)
+            else:
+                globvar.fridaInstrument.set_read_args_options(addr, args_index, option)
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            return
+
+
+class NewWatchWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Watch on Addr")
+        self.addr_to_watch = ''
+        self.watch_list = []
+        self.text_edit = CustomTextEdit()
+        self.text_edit.setReadOnly(True)  # Make the text edit read-only
+
+        # Create a QSlider
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+
+        # Create a QLabel for the slider value
+        self.slider_value_label = QLabel()
+
+        # Update the nargs, label when the slider value changes
+        self.slider.valueChanged.connect(self.update_num_args)
+        self.slider.valueChanged.connect(self.update_slider_value_label)
+
+        # Create a QPushButton for clearing the QTextEdit
+        self.clear_button = QPushButton("Clear")
+        self.clear_button.clicked.connect(self.text_edit.clear)
+
+        # Create a QHBoxLayout
+        slider_layout = QHBoxLayout()
+        slider_layout.addWidget(self.slider)
+        slider_layout.addWidget(self.slider_value_label)
+        slider_layout.addWidget(self.clear_button)
+
+        self.layout = QVBoxLayout()
+        # Add the QHBoxLayout to the QVBoxLayout
+        self.layout.addLayout(slider_layout)
+        self.layout.addWidget(self.text_edit)
+        self.setLayout(self.layout)
+
+    def closeEvent(self, e: QtGui.QCloseEvent) -> None:
+        self.text_edit.clear()
+        self.watch_list.clear()
+        globvar.fridaInstrument.detach_all()
+        super().closeEvent(e)
+
+    @pyqtSlot(int)
+    def update_num_args(self, num_args: int):
+        try:
+            globvar.fridaInstrument.set_nargs(num_args)
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            return
+
+    @pyqtSlot(int)
+    def update_slider_value_label(self, value):
+        self.slider_value_label.setText(str(value))
+

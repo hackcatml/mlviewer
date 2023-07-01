@@ -1,8 +1,11 @@
+import inspect
 import os
 import platform
 from math import floor
 
 import frida
+from PyQt6 import QtCore
+from PyQt6.QtCore import QObject
 
 import globvar
 
@@ -10,8 +13,11 @@ MESSAGE = ""
 ERRMESSAGE = ""
 
 
-class Instrument:
+class Instrument(QObject):
+    messagesig = QtCore.pyqtSignal(str)
+
     def __init__(self, script_text, isremote, remoteaddr, spawntargetid):
+        super().__init__()
         self.name = None
         self.sessions = []
         self.script = None
@@ -42,6 +48,12 @@ class Instrument:
             if message['payload'] is not None and 'scancompletedratio' in message['payload']:
                 globvar.scanProgressRatio = floor(message['payload']['scancompletedratio'])
                 # print(globvar.scanProgressRatio)
+            if message['payload'] is not None and 'watchArgs' in message['payload']:
+                self.messagesig.emit(message['payload']['watchArgs'])
+                return
+            if message['payload'] is not None and 'watchRegs' in message['payload']:
+                self.messagesig.emit(message['payload']['watchRegs'])
+                return
             MESSAGE = message['payload']
         if message['type'] == 'error':
             ERRMESSAGE = message['description']
@@ -86,8 +98,10 @@ class Instrument:
         self.script.exports.platform()
         return MESSAGE
 
-    def find_export_by_name(self, name):
-        self.script.exports.findexportbyname(name)
+    def find_sym_addr_by_name(self, name):
+        # global MESSAGE
+        # MESSAGE = ''
+        self.script.exports.findsymaddrbyname(name)
         return MESSAGE
 
     def list_modules(self):
@@ -175,3 +189,22 @@ class Instrument:
     def il2cpp_dump(self):
         result = self.script.exports.il2cppdump()
         return result
+
+    # set the number of arguments to watch
+    def set_nargs(self, nargs):
+        self.script.exports.setnargs(nargs)
+
+    # set watch on address
+    def set_watch(self, addr, is_reg_watch):
+        global MESSAGE
+        MESSAGE = ''
+        self.script.exports.setwatch(addr, is_reg_watch)
+
+    def detach_all(self):
+        self.script.exports.detachall()
+
+    def set_read_args_options(self, addr, index, option):
+        self.script.exports.setreadargsoptions(addr, index, option)
+
+    def set_read_retval_options(self, addr, option):
+        self.script.exports.setreadretvalsoptions(addr, option)
