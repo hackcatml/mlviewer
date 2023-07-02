@@ -184,6 +184,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memReplaceBtn.setEnabled(False)
         self.memReplacePattern.setEnabled(False)
         self.hexViewer.wheelupsig.connect(self.wheelupsig_func)
+        self.defaultcolor = QLabel().palette().color(QPalette.ColorRole.WindowText)
         self.listImgViewer.modulenamesig.connect(self.modulenamesig_func)
         self.memSearchResult.searchresultaddrsig.connect(self.searchresultaddrsig_func)
         self.arrangedresult = None
@@ -275,7 +276,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
             self.listImgViewer.setTextColor(QColor("Red"))
             self.listImgViewer.insertPlainText("Dumped file at: " + il2cppdumpsig + "\n\n")
-            self.listImgViewer.setTextColor(QColor("Black"))
+            self.listImgViewer.setTextColor(self.defaultcolor)
             # after il2cpp dump some android apps crash
             self.il2cppdumpworker.terminate()
 
@@ -960,16 +961,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.statusBar().showMessage("dump fail. try again", 3000)
         else:
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
-            # Create a temporary QLabel to get the default text color
-            temp_label = QLabel()
-            default_color = temp_label.palette().color(QPalette.ColorRole.WindowText)
             self.listImgViewer.setTextColor(QColor("Red"))
             if self.platform == 'darwin':
                 self.listImgViewer.insertPlainText('Dumped file at: ' + result + "\n\n")
             elif self.platform == 'linux':
                 self.listImgViewer.insertPlainText(
                     'Dumped file at: ' + result + "\n\nYou need to fix so file using SoFixer\n\n")
-            self.listImgViewer.setTextColor(default_color)  # Revert to the default color
+            self.listImgViewer.setTextColor(self.defaultcolor)  # Revert to the default color
         revert_frida_script()
 
     def search_img(self):
