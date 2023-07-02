@@ -5,7 +5,7 @@ from PyQt6 import QtGui, QtCore
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QTextCursor, QAction, QCursor
 from PyQt6.QtWidgets import QTextEdit, QApplication, QWidget, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QListWidget, \
-    QPushButton, QMenu
+    QPushButton, QMenu, QCheckBox, QWidgetAction
 
 import globvar
 
@@ -336,9 +336,35 @@ class NewHexToArmWidget(QWidget):
 
 # Custom TextEdit class for NewWatchWidget
 class CustomTextEdit(QTextEdit):
+    def __init__(self, parent=None):
+        super(CustomTextEdit, self).__init__(parent)
+        self.key = None
+        self.args_index = None
+        self.addr = None
+        self.checkedStates = {}
+
+    def closeEvent(self, e: QtGui.QCloseEvent) -> None:
+        self.checkedStates.clear()
+
+    def get_args_index_and_addr_from_selected_text(self):
+        # Get the currently selected text
+        tc = self.textCursor()
+        selected_text = self.textCursor().selectedText()
+        if ":" in selected_text:
+            self.args_index = selected_text[4:selected_text.index(":")]
+        else:
+            self.args_index = selected_text[4:]
+
+        while True:
+            tc.movePosition(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor)
+            if re.search(r"] 0x[a-f0-9]+", tc.block().text()):
+                self.addr = tc.block().text()[4:].strip()
+                break
+
     def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
         menu = super(CustomTextEdit, self).createStandardContextMenu()  # Get the default context menu
         select_all_action = None
+        self.get_args_index_and_addr_from_selected_text()
 
         for action in menu.actions():  # loop over the existing actions
             if action.text() == "Select All":
@@ -348,6 +374,21 @@ class CustomTextEdit(QTextEdit):
         if select_all_action:  # if the "Select All" action was found then insert menus
             args_regx = re.compile(r'(\bargs\d+\b|\breturn\b)')
             match = args_regx.match(self.textCursor().selectedText())
+
+            on_leave_check = QCheckBox("OnLeave", self)
+            if match is not None:
+                self.key = (self.addr, self.args_index)  # Use a tuple as the key
+                # If the key is not in the checkedStates dictionary, add it with a default state of unchecked
+                if self.key not in self.checkedStates:
+                    self.checkedStates[self.key] = Qt.CheckState.Unchecked
+                # Set the checked state based on the checkedStates dictionary
+                on_leave_check.setCheckState(Qt.CheckState(self.checkedStates[self.key]))
+                # Connect the checkbox's stateChanged signal to a function
+                on_leave_check.stateChanged.connect(lambda state: self.on_leave_check_state_changed(state, self.key))
+
+                check_action = QWidgetAction(self)
+                check_action.setDefaultWidget(on_leave_check)
+                menu.insertAction(select_all_action, check_action)
 
             read_pointer_action = QAction("readPointer", self)
             if match is not None:
@@ -394,6 +435,11 @@ class CustomTextEdit(QTextEdit):
             # Show the context menu.
             menu.exec(e.globalPos())
 
+    # handle the checkbox state change
+    def on_leave_check_state_changed(self, state, key):
+        # Update the checked state in the checkedStates dictionary
+        self.checkedStates[key] = state
+
     def read_pointer(self):
         self.read_args_with_options("readPointer")
 
@@ -416,18 +462,12 @@ class CustomTextEdit(QTextEdit):
         self.read_args_with_options("")
 
     def read_args_with_options(self, option):
-        tc = self.textCursor()
-        args_index = self.textCursor().selectedText()[4:]
-        while True:
-            tc.movePosition(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor)
-            if re.search(r"] 0x[a-f0-9]+", tc.block().text()):
-                addr = tc.block().text()[4:].strip()
-                break
         try:
             if self.textCursor().selectedText() == "return":
-                globvar.fridaInstrument.set_read_retval_options(addr, option)
+                globvar.fridaInstrument.set_read_retval_options(self.addr, option)
             else:
-                globvar.fridaInstrument.set_read_args_options(addr, args_index, option)
+                globvar.fridaInstrument.set_read_args_options(self.addr, self.args_index, option,
+                                                              self.checkedStates[self.key])
         except Exception as e:
             print(f"{inspect.currentframe().f_code.co_name}: {e}")
             return
@@ -470,6 +510,7 @@ class NewWatchWidget(QWidget):
 
     def closeEvent(self, e: QtGui.QCloseEvent) -> None:
         self.text_edit.clear()
+        self.text_edit.closeEvent(e)
         self.watch_list.clear()
         try:
             globvar.fridaInstrument.detach_all()

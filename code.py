@@ -203,8 +203,8 @@ class Instrument(QObject):
     def detach_all(self):
         self.script.exports.detachall()
 
-    def set_read_args_options(self, addr, index, option):
-        self.script.exports.setreadargsoptions(addr, index, option)
+    def set_read_args_options(self, addr, index, option, on_leave):
+        self.script.exports.setreadargsoptions(addr, index, option, on_leave)
 
     def set_read_retval_options(self, addr, option):
         self.script.exports.setreadretvalsoptions(addr, option)

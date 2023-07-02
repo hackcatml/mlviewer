@@ -37,11 +37,14 @@ function readargs(args, index, addr) {
     // if the argument's index is in the read_args_options for the current address
     if (read_args_options[addr] && read_args_options[addr][index]) {
         // get the option from the read_args_options
-        var option = read_args_options[addr][index];
+        var option = read_args_options[addr][index]["readOption"];
         // read the argument based on the option
         if(option === "readByteArray") {
             let data = new Uint8Array(args[option](32))
             return Object.keys(data).map(key => data[key].toString(16).padStart(2, '0')).join(' ');
+        }
+        if(option === '') {
+            return args
         }
         return args[option]();
     } else {
@@ -278,13 +281,15 @@ rpc.exports = {
         count = 0
         modules.length = 0
     },
-    setreadargsoptions: (addr, index, option) => {
+    setreadargsoptions: (addr, index, option, onleave) => {
         // if the address is not in the read_args_options yet, add it
         if (!read_args_options[addr]) {
             read_args_options[addr] = {};
         }
-        // add/update the index and option for the address
-        read_args_options[addr][index] = option;
+        // add/update the index and read options for the address
+        read_args_options[addr][index] = {};
+        read_args_options[addr][index]["readOption"] = option
+        read_args_options[addr][index]["onLeave"] = onleave !== 0;
     },
     setreadretvalsoptions: (addr, option) => {
         // if the address is not in the read_args_options yet, add it
@@ -300,6 +305,11 @@ rpc.exports = {
     setwatch: (addr, is_reg_watch) => {
         Interceptor.attach(ptr(addr), {
             onEnter: function (args) {
+                this.argv = []
+                for (let index = 0; index < num_args_to_watch; index++) {
+                    this.argv[index] = args[index]
+                }
+
                 if(is_reg_watch) {
                     let count = 0
                     let log = `[+] ${ptr(addr)}:\n`
@@ -317,10 +327,17 @@ rpc.exports = {
                 } else {
                     let log = `[+] ${ptr(addr)}\n`
                     for (let index = 0; index < num_args_to_watch - 1; index++) {
+                        if(read_args_options[ptr(addr)] && read_args_options[ptr(addr)][index] && read_args_options[ptr(addr)][index]["onLeave"]) {
+                            continue;
+                        }
                         log += `args${index}: ${readargs(args[index], index, ptr(addr))}, `
                     }
-                    log += `args${num_args_to_watch - 1}: ${readargs(args[num_args_to_watch - 1], num_args_to_watch - 1, ptr(addr))}`
-                    send({'watchArgs':log})
+                    if(read_args_options[ptr(addr)] && read_args_options[ptr(addr)][num_args_to_watch - 1] && read_args_options[ptr(addr)][num_args_to_watch - 1]["onLeave"]) {
+                        send({'watchArgs':log})
+                    } else {
+                        log += `args${num_args_to_watch - 1}: ${readargs(args[num_args_to_watch - 1], num_args_to_watch - 1, ptr(addr))}`
+                        send({'watchArgs':log})
+                    }
                 }
             },
             onLeave: function(retval) {
@@ -340,6 +357,15 @@ rpc.exports = {
                     send({'watchRegs':log})
                 } else {
                     let log = `return: ${readretval(retval, ptr(addr))}\n`
+                    for (let index = 0; index < num_args_to_watch; index++) {
+                        if(read_args_options[ptr(addr)] && read_args_options[ptr(addr)][index] && read_args_options[ptr(addr)][index]["onLeave"]){
+                            log += `args${index}: ${readargs(this.argv[index], index, ptr(addr))}, `
+                            this.onleave = true
+                        }
+                    }
+                    if (this.onleave) {
+                        log += '\n'
+                    }
                     log += `[-] ${ptr(addr)}`
                     send({'watchArgs':log})
                 }
