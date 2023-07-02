@@ -31,7 +31,8 @@ Drag some hex bytes, mouse right button, click "Hex to Arm"<br>
 
 - Simple watching arguments, regs on address<br>
 Select address, mouse right button, click "Set Watch Func" or "Set Watch Regs"<br>
-You can watch arguments function's onEnter or onLeave<br>
+You can monitor arguments with the read option during a function's onEnter or onLeave<br>
+Select args, mouse right button, choose options(ex. select 'args0', check 'onLeave', 'readUtf8String' will log args0.readUtf8String() at onLeave)<br>
 ![화면 기록 2023-07-02 오후 10 22 58](https://github.com/hackcatml/mlviewer/assets/75507443/fb6d8a34-cc16-4334-a128-2970a0fb3317)
 
 - Other examples<br>
