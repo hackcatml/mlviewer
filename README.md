@@ -1,7 +1,6 @@
 # mlviewer
-Memory View & Edit PyQt6 application powered by Frida<br>
-It's a program running some useful frida scripts with ui
-
+An iOS, Android application memory view & edit PyQt6 application powered by Frida<br>
+It's a program running some useful frida scripts with ui to help mobile app analysis
 
 # Prerequisite
 ```
