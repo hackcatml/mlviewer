@@ -471,7 +471,14 @@ class NewWatchWidget(QWidget):
     def closeEvent(self, e: QtGui.QCloseEvent) -> None:
         self.text_edit.clear()
         self.watch_list.clear()
-        globvar.fridaInstrument.detach_all()
+        try:
+            globvar.fridaInstrument.detach_all()
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            if str(e) == globvar.errorType1:
+                globvar.fridaInstrument.sessions.clear()
+            return
+
         super().closeEvent(e)
 
     @pyqtSlot(int)
