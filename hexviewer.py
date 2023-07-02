@@ -380,7 +380,7 @@ class CustomTextEdit(QTextEdit):
                 self.key = (self.addr, self.args_index)  # Use a tuple as the key
                 # If the key is not in the checkedStates dictionary, add it with a default state of unchecked
                 if self.key not in self.checkedStates:
-                    self.checkedStates[self.key] = Qt.CheckState.Unchecked
+                    self.checkedStates[self.key] = Qt.CheckState.Unchecked.value
                 # Set the checked state based on the checkedStates dictionary
                 on_leave_check.setCheckState(Qt.CheckState(self.checkedStates[self.key]))
                 # Connect the checkbox's stateChanged signal to a function
