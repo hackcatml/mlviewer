@@ -29,7 +29,7 @@ python main.py
 Drag some hex bytes, mouse right button, click "Hex to Arm"<br>
 ![화면 기록 2023-06-22 오전 12 06 56](https://github.com/hackcatml/mlviewer/assets/75507443/330f2847-3f3e-4434-b4d1-1a2c1bb3d8be)
 
-- Simple watching arguments, regs on address<br>
+- Watch arguments, regs on address<br>
 Select address, mouse right button, click "Set Watch Func" or "Set Watch Regs"<br>
 You can monitor arguments with the read option during a function's onEnter or onLeave<br>
 Select args, mouse right button, choose options(ex. select 'args0', check 'onLeave', 'readUtf8String' will log args0.readUtf8String() at onLeave)<br>
