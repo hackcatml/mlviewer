@@ -507,6 +507,7 @@ class NewWatchWidget(QWidget):
         self.layout.addLayout(slider_layout)
         self.layout.addWidget(self.text_edit)
         self.setLayout(self.layout)
+        self.resize(450, 250)
 
     def closeEvent(self, e: QtGui.QCloseEvent) -> None:
         self.text_edit.clear()
