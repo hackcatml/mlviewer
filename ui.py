@@ -15,8 +15,8 @@ import listimgviewer
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1007, 785)
-        MainWindow.setMinimumSize(QtCore.QSize(1007, 785))
+        MainWindow.resize(1007, 670)
+        MainWindow.setMinimumSize(QtCore.QSize(1007, 670))
         font = QtGui.QFont()
         font.setFamily("Courier New")
         MainWindow.setFont(font)

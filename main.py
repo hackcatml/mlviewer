@@ -4,7 +4,7 @@ import platform
 import re
 
 from PyQt6 import QtCore
-from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent
+from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent, QSize
 from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, QIcon, QPalette
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
@@ -282,8 +282,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
     def adjust_label_pos(self):
         tc = self.hexViewer.textCursor()
-        self.label_3.setIndent(28 - (77 - len(tc.block().text())) * 7) if len(
-            tc.block().text()) < 77 else self.label_3.setIndent(28)
+        text_length = len(tc.block().text())
+        current_height = self.height()
+        self.resize(text_length * 13, current_height)
+        if text_length >= 77:
+            self.label_3.setIndent(28 + (text_length - 77) * 8)
+        else:
+            self.label_3.setIndent(28 - (77 - text_length) * 7)
 
     def remote_attach(self, state):
         if state == Qt.CheckState.Checked.value:
