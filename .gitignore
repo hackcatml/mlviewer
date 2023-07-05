@@ -5,5 +5,6 @@ __pycache__
 .idea
 test
 ui_test.py
+ui_test.ui
 ui_win-test.py
 ui_win-test.ui

@@ -16,13 +16,15 @@ ERRMESSAGE = ""
 class Instrument(QObject):
     messagesig = QtCore.pyqtSignal(str)
 
-    def __init__(self, script_text, isremote, remoteaddr, spawntargetid):
+    def __init__(self, script_text, isremote, remoteaddr, target, isspawn):
         super().__init__()
         self.name = None
         self.sessions = []
         self.script = None
         self.script_text = script_text
         self.device = None
+        self.isspawn = isspawn
+        self.attachtarget = None
         self.spawntarget = None
         self.remoteaddr = ''
         if isremote is True and remoteaddr != '':
@@ -33,8 +35,12 @@ class Instrument(QObject):
         else:
             self.device = frida.get_usb_device(1)
 
-        if spawntargetid is not None:
-            self.spawntarget = spawntargetid
+        # spawn mode
+        if target is not None and isspawn:
+            self.spawntarget = target
+        # list pid mode
+        else:
+            self.attachtarget = target
 
     def __del__(self):
         for session in self.sessions:
@@ -44,14 +50,14 @@ class Instrument(QObject):
     def on_message(self, message, data):
         # print(message)
         global MESSAGE
-        if 'payload' in message:
-            if message['payload'] is not None and 'scancompletedratio' in message['payload']:
+        if 'payload' in message and message['payload'] is not None:
+            if 'scancompletedratio' in message['payload']:
                 globvar.scanProgressRatio = floor(message['payload']['scancompletedratio'])
                 # print(globvar.scanProgressRatio)
-            if message['payload'] is not None and 'watchArgs' in message['payload']:
+            if 'watchArgs' in message['payload']:
                 self.messagesig.emit(message['payload']['watchArgs'])
                 return
-            if message['payload'] is not None and 'watchRegs' in message['payload']:
+            if 'watchRegs' in message['payload']:
                 self.messagesig.emit(message['payload']['watchRegs'])
                 return
             MESSAGE = message['payload']
@@ -67,20 +73,24 @@ class Instrument(QObject):
             return f.read()
 
     def instrument(self):
-        if self.spawntarget is None and self.device.get_frontmost_application() is None:
-            msg = "Launch the target app first"
-            return msg
+        if not any([self.spawntarget, self.attachtarget, self.device.get_frontmost_application()]):
+            return "Launch the target app first"
 
-        if self.spawntarget is not None:
-            pid = self.device.spawn([self.spawntarget])
+        if self.attachtarget:  # list pid mode
+            session = self.device.attach(self.attachtarget)
+            self.name = self.attachtarget
         else:
-            pid = self.device.get_frontmost_application().pid
-        session = self.device.attach(pid)
-        self.sessions.append(session)
-        # print("[hackcatml] fridaInstrument sessions: ", self.sessions)
-        if self.spawntarget is not None:
+            if self.spawntarget:  # spawn mode
+                pid = self.device.spawn([self.spawntarget])
+            else:  # attach frontmost application
+                pid = self.device.get_frontmost_application().pid
+
+            session = self.device.attach(pid)
             self.device.resume(pid)
-        self.name = self.device.get_frontmost_application().name
+            if self.device.get_frontmost_application():
+                self.name = self.device.get_frontmost_application().name
+
+        self.sessions.append(session)
         self.script = session.create_script(self.read_frida_js_source())
         self.script.on('message', self.on_message)
         self.script.load()

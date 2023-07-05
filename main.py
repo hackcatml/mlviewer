@@ -190,7 +190,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.arrangedresult = None
         self.arrangedresult2 = None
         self.platform = None
-        self.spawntargetid = None
+        self.islistpidchecked = False
+        self.attachtargetname = None    # name to attach. need to provide on the AppList widget
+        self.attachedname = None    # main module name after frida attached successfully
+        self.spawntargetid = None   # target identifier to do frida spawn. need to provide on the AppList widget
         self.remoteaddr = ''
 
         self.attachBtn.clicked.connect(self.attach_frida)
@@ -210,6 +213,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memReplaceBtn.clicked.connect(self.mem_search_replace_func)
         self.memSearchTargetImgCheckBox.stateChanged.connect(self.mem_search_with_img_checkbox)
         self.memScanPatternTypeCheckBox.stateChanged.connect(self.mem_scan_pattern_checkbox)
+        self.listPIDCheckBox.stateChanged.connect(self.list_pid)
         self.attachTypeCheckBox.stateChanged.connect(self.remote_attach)
         self.spawnModeCheckBox.stateChanged.connect(self.spawn_mode)
         self.memSearchReplaceCheckBox.stateChanged.connect(self.mem_search_replace_checkbox)
@@ -256,17 +260,22 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.addr_btn_func()
 
     @pyqtSlot(str)
-    def spawntargetsig_func(self, spawntargetidsig: str):
-        self.spawntargetid = spawntargetidsig
+    def targetsig_func(self, targetsig: str):
+        if self.isspawnchecked:
+            self.spawntargetid = targetsig
+        else:
+            self.attachtargetname = targetsig
         if self.isremoteattachchecked is True:
             if re.search(r"^\d+\.\d+\.\d+\.\d+:\d+$", self.spawndialog.spawnui.remoteAddrInput.text()) is None:
                 QMessageBox.information(self, "info", "Enter IP:PORT")
                 self.spawntargetid = None
+                self.attachtargetname = None
                 return
             self.remoteaddr = self.spawndialog.spawnui.remoteAddrInput.text()
         self.attach_frida()
         self.spawndialog = None
         self.spawntargetid = None
+        self.attachtargetname = None
         self.remoteaddr = ''
 
     @pyqtSlot(str)
@@ -290,17 +299,14 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         else:
             self.label_3.setIndent(28 - (77 - text_length) * 7)
 
+    def list_pid(self, state):
+        self.islistpidchecked = state == Qt.CheckState.Checked.value
+
     def remote_attach(self, state):
-        if state == Qt.CheckState.Checked.value:
-            self.isremoteattachchecked = True
-        else:
-            self.isremoteattachchecked = False
+        self.isremoteattachchecked = state == Qt.CheckState.Checked.value
 
     def spawn_mode(self, state):
-        if state == Qt.CheckState.Checked.value:
-            self.isspawnchecked = True
-        else:
-            self.isspawnchecked = False
+        self.isspawnchecked = state == Qt.CheckState.Checked.value
 
     def attach_frida(self):
         if globvar.isFridaAttached is True:
@@ -314,10 +320,18 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             return
 
         try:
-            if self.isspawnchecked and self.spawntargetid is None:
+            if (self.islistpidchecked and not self.isspawnchecked and self.attachtargetname is None) or \
+                    (self.isspawnchecked and self.spawntargetid is None):
                 self.spawndialog = spawn.SpawnDialogClass() if (
                         platform.system() == 'Darwin') else spawn_win.SpawnDialogClass()
-                self.spawndialog.spawntargetidsig.connect(self.spawntargetsig_func)
+                if self.islistpidchecked and not self.isspawnchecked:
+                    self.spawndialog.ispidlistchecked = True
+                    self.spawndialog.spawnui.spawnTargetIdInput.setPlaceholderText("AppStore")
+                    self.spawndialog.spawnui.appListLabel.setText("PID           Name")
+                    self.spawndialog.spawnui.spawnBtn.setText("Attach")
+                    self.spawndialog.attachtargetnamesig.connect(self.targetsig_func)
+
+                self.spawndialog.spawntargetidsig.connect(self.targetsig_func)
 
                 if self.isremoteattachchecked is False:
                     self.spawndialog.spawnui.remoteAddrInput.setEnabled(False)
@@ -332,7 +346,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     return
 
             globvar.fridaInstrument = code.Instrument("scripts/default.js", self.isremoteattachchecked, self.remoteaddr,
-                                                      self.spawntargetid)
+                                                      self.attachtargetname if (self.islistpidchecked and not self.isspawnchecked) else self.spawntargetid,
+                                                      self.isspawnchecked)
             msg = globvar.fridaInstrument.instrument()
             self.remoteaddr = ''
         except Exception as e:
@@ -348,6 +363,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         self.platform = globvar.fridaInstrument.platform()
         name = globvar.fridaInstrument.list_modules()[0]['name']
+        self.attachedname = name
         self.set_status(name)
 
     def detach_frida(self):
@@ -889,36 +905,23 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.memSearchFoundCount.setText(str(len(searchresult)) + ' found')
 
     def mem_search_with_img_checkbox(self, state):
-        if state == Qt.CheckState.Checked.value:
-            self.ismemsearchwithimgchecked = True
-            self.memSearchTargetImgInput.setEnabled(True)
-        else:
-            self.ismemsearchwithimgchecked = False
-            self.memSearchTargetImgInput.setEnabled(False)
+        isChecked = state == Qt.CheckState.Checked.value
+        self.ismemsearchwithimgchecked = isChecked
+        self.memSearchTargetImgInput.setEnabled(isChecked)
 
     def mem_scan_pattern_checkbox(self, state):
-        if state == Qt.CheckState.Checked.value:
-            self.ismemscanstrchecked = True
-        else:
-            self.ismemscanstrchecked = False
+        self.ismemscanstrchecked = state == Qt.CheckState.Checked.value
 
     def mem_search_replace_checkbox(self, state):
-        if state == Qt.CheckState.Checked.value:
-            self.memReplaceBtn.setEnabled(True)
-            self.memReplacePattern.setEnabled(True)
-            self.ismemsearchreplacechecked = True
-        else:
-            self.memReplaceBtn.setEnabled(False)
-            self.memReplacePattern.setEnabled(False)
-            self.ismemsearchreplacechecked = False
+        isChecked = state == Qt.CheckState.Checked.value
+        self.memReplaceBtn.setEnabled(isChecked)
+        self.memReplacePattern.setEnabled(isChecked)
+        self.ismemsearchreplacechecked = isChecked
 
     def il2cpp_checkbox(self, state):
-        if state == Qt.CheckState.Checked.value:
-            self.isil2cppchecked = True
-            self.memDumpModuleName.setEnabled(False)
-        else:
-            self.isil2cppchecked = False
-            self.memDumpModuleName.setEnabled(True)
+        isChecked = state == Qt.CheckState.Checked.value
+        self.isil2cppchecked = isChecked
+        self.memDumpModuleName.setEnabled(not isChecked)
 
     def dump_module(self):
         # il2cpp dump
@@ -938,7 +941,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # print("[hackcatml] il2cppFridaInstrument: ", self.il2cppFridaInstrument)
             if self.il2cppFridaInstrument is None or len(self.il2cppFridaInstrument.sessions) == 0:
                 self.il2cppFridaInstrument = code.Instrument("scripts/il2cppdump.js", self.isremoteattachchecked,
-                                                             globvar.fridaInstrument.remoteaddr, None)
+                                                             globvar.fridaInstrument.remoteaddr, self.attachedname, False)
                 msg = self.il2cppFridaInstrument.instrument()
                 if msg is not None:
                     QMessageBox.information(self, "info", msg)

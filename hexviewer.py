@@ -26,12 +26,13 @@ class HexViewerClass(QTextEdit):
 
     # wheelevent https://spec.tistory.com/449
     def wheelEvent(self, e: QtGui.QWheelEvent) -> None:
+        delta = e.angleDelta().y()
         # wheel down
-        if e.angleDelta().y() < 0:
-            globvar.currentFrameBlockNumber += -1 * e.angleDelta().y() / 120 * 4
+        if delta < 0:
+            globvar.currentFrameBlockNumber += -1 * delta / 120 * 4
         # wheel up
-        elif e.angleDelta().y() > 0 and globvar.currentFrameBlockNumber > 0:
-            globvar.currentFrameBlockNumber -= e.angleDelta().y() / 120 * 4
+        elif delta > 0 and globvar.currentFrameBlockNumber > 0:
+            globvar.currentFrameBlockNumber -= delta / 120 * 4
 
         tc = self.textCursor()
         tc.movePosition(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor, 1)
@@ -40,7 +41,7 @@ class HexViewerClass(QTextEdit):
 
         if tc.blockNumber() == 0 and re.search(r"\d+\. 0x[0-9a-f]+, module:", tc.block().text()) is None:
             self.hitcount += 1
-            if self.hitcount > 0:
+            if self.hitcount > 0 and delta > 0:
                 self.wheelupsig.emit(globvar.currentFrameStartAddress)
                 self.hitcount = 0
 
@@ -390,47 +391,21 @@ class CustomTextEdit(QTextEdit):
                 check_action.setDefaultWidget(on_leave_check)
                 menu.insertAction(select_all_action, check_action)
 
-            read_pointer_action = QAction("readPointer", self)
-            if match is not None:
-                read_pointer_action.setEnabled(True)
-                read_pointer_action.triggered.connect(self.read_pointer)
-                menu.insertAction(select_all_action, read_pointer_action)
+                actions = [
+                    ("readPointer", self.read_pointer),
+                    ("readUtf8String", self.read_utf8_string),
+                    ("readUtf16String", self.read_utf16_string),
+                    ("readFloat", self.read_float),
+                    ("readDouble", self.read_double),
+                    ("readByteArray", self.read_bytearray),
+                    ("reset", self.reset)
+                ]
 
-            read_utf8_action = QAction("readUtf8String", self)
-            if match is not None:
-                read_utf8_action.setEnabled(True)
-                read_utf8_action.triggered.connect(self.read_utf8_string)
-                menu.insertAction(select_all_action, read_utf8_action)
-
-            read_utf16_action = QAction("readUtf16String", self)
-            if match is not None:
-                read_utf16_action.setEnabled(True)
-                read_utf16_action.triggered.connect(self.read_utf16_string)
-                menu.insertAction(select_all_action, read_utf16_action)
-
-            read_float_action = QAction("readFloat", self)
-            if match is not None:
-                read_float_action.setEnabled(True)
-                read_float_action.triggered.connect(self.read_float)
-                menu.insertAction(select_all_action, read_float_action)
-
-            read_double_action = QAction("readDouble", self)
-            if match is not None:
-                read_double_action.setEnabled(True)
-                read_double_action.triggered.connect(self.read_double)
-                menu.insertAction(select_all_action, read_double_action)
-
-            read_bytearray_action = QAction("readByteArray", self)
-            if match is not None:
-                read_bytearray_action.setEnabled(True)
-                read_bytearray_action.triggered.connect(self.read_bytearray)
-                menu.insertAction(select_all_action, read_bytearray_action)
-
-            read_reset_action = QAction("reset", self)
-            if match is not None:
-                read_reset_action.setEnabled(True)
-                read_reset_action.triggered.connect(self.reset)
-                menu.insertAction(select_all_action, read_reset_action)
+                for text, method in actions:
+                    action = QAction(text, self)
+                    action.setEnabled(True)
+                    action.triggered.connect(method)
+                    menu.insertAction(select_all_action, action)
 
             # Show the context menu.
             menu.exec(e.globalPos())
