@@ -98,10 +98,8 @@ class SpawnDialogClass(QtWidgets.QDialog):
 
     @pyqtSlot(str)
     def clickedtargetidsig_func(self, clickedtargetidsig: str):
-        if self.ispidlistchecked:
-            self.spawnui.spawnTargetIdInput.setText(clickedtargetidsig[clickedtargetidsig.find("\t"):].strip())
-        else:
-            self.spawnui.spawnTargetIdInput.setText(clickedtargetidsig[:clickedtargetidsig.find("\t")])
+        spawn_target_id_input = self.spawnui.spawnTargetIdInput
+        spawn_target_id_input.setText(clickedtargetidsig[clickedtargetidsig.find("\t"):].strip()) if self.ispidlistchecked else spawn_target_id_input.setText(clickedtargetidsig[:clickedtargetidsig.find("\t")])
 
     def set_spawn_target(self):
         self.spawntargetid = self.spawnui.spawnTargetIdInput.text().strip()
@@ -110,10 +108,9 @@ class SpawnDialogClass(QtWidgets.QDialog):
     def spawn_launch(self):
         if self.spawntargetid is None:
             self.spawntargetid = self.spawnui.spawnTargetIdInput.text().strip()
-        if self.spawnui.spawnBtn.text() == "Spawn":
-            self.spawntargetidsig.emit(self.spawntargetid)
-        elif self.spawnui.spawnBtn.text() == "Attach":
-            self.attachtargetnamesig.emit(self.spawntargetid)
+        btn_name = self.spawnui.spawnBtn.text()
+        sig = self.spawntargetidsig if btn_name == "Spawn" else self.attachtargetnamesig
+        sig.emit(self.spawntargetid)
 
     def get_app_list(self):
         if self.spawnui.remoteAddrInput.isEnabled() is False:
@@ -133,20 +130,17 @@ class SpawnDialogClass(QtWidgets.QDialog):
                 print(e)
                 return
         try:
-            if self.ispidlistchecked:
-                self.applicationlist = [app for app in device.enumerate_processes()]
-            else:
-                self.applicationlist = [app for app in device.enumerate_applications()]
+            enumeration_function = device.enumerate_processes if self.ispidlistchecked else device.enumerate_applications
+            self.applicationlist = [app for app in enumeration_function()]
         except Exception as e:
             print(e)
             return
 
         applisttext = ''
         for app in self.applicationlist:
-            if self.ispidlistchecked:
-                applisttext += str(app.pid) + '\t' + app.name + '\n'
-            else:
-                applisttext += app.identifier + '\t' + app.name + '\n'
+            applisttext += (str(app.pid) + '\t' + app.name + '\n') if self.ispidlistchecked \
+                else (app.identifier + '\t' + app.name + '\n')
+
         self.spawnui.appListBrowser.setText(applisttext)
 
     def search_target(self):
@@ -156,10 +150,7 @@ class SpawnDialogClass(QtWidgets.QDialog):
         if len(self.applicationlist) > 0:
             applisttext = ''
             for app in self.applicationlist:
-                if self.ispidlistchecked:
-                    appid = str(app.pid)
-                else:
-                    appid = app.identifier
+                appid = str(app.pid) if self.ispidlistchecked else app.identifier
                 appname = app.name
                 if appid.lower().find(self.spawnui.spawnTargetIdInput.text().lower()) != -1 or appname.lower().find(self.spawnui.spawnTargetIdInput.text().lower()) != -1:
                     applisttext += appid + '\t' + appname + '\n'

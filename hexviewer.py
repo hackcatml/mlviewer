@@ -152,56 +152,40 @@ class HexViewerClass(QTextEdit):
                 return
 
     def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
-        # hexedit 모드인 경우 마우스 우측 버튼 클릭으로 메뉴 생성 안되게 하기 https://freeprog.tistory.com/334
-        if self.isReadOnly() is False:
+        # If in hexedit mode, don't create a context menu on right click
+        if not self.isReadOnly():
             return
-        else:
-            menu = super(HexViewerClass, self).createStandardContextMenu()  # Get the default context menu
-            select_all_action = None
-            for action in menu.actions():  # loop over the existing actions
-                if action.text() == "Select All":
-                    select_all_action = action
-                    break
 
-            if select_all_action:  # if the "Select All" action was found then insert menus
-                hex_regex = re.compile(r'(\b0x[a-fA-F0-9]+\b|\b[a-fA-F0-9]{6,}\b)')
-                match = hex_regex.match(self.textCursor().selectedText())
+        menu = super(HexViewerClass, self).createStandardContextMenu()  # Get the default context menu
+        select_all_action = next((action for action in menu.actions() if action.text() == "Select All"), None)
 
-                # define "Copy Hex" menu
-                copy_hex_action = QAction("Copy Hex", self)
-                copy_hex_action.setEnabled(bool(self.textCursor().selectedText()))
-                # in address region, not selectable
-                if match is not None:
-                    copy_hex_action.setEnabled(False)
-                copy_hex_action.triggered.connect(self.copy_hex)
+        if select_all_action:
+            # Check if the selected text matches the hex_regex
+            hex_regex = re.compile(r'(\b0x[a-fA-F0-9]+\b|\b[a-fA-F0-9]{6,}\b)')
+            match = hex_regex.match(self.textCursor().selectedText())
+            is_selected = bool(self.textCursor().selectedText())
 
-                # define "Hex to Arm" menu
-                disassemble_action = QAction("Hex to Arm", self)
-                disassemble_action.setEnabled(bool(self.textCursor().selectedText()))
-                # in address region, not selectable
-                if match is not None:
-                    disassemble_action.setEnabled(False)
-                disassemble_action.triggered.connect(self.request_armconverter)
+            def createAction(text, enabled, func):
+                action = QAction(text, self)
+                action.setEnabled(enabled)
+                action.triggered.connect(func)
+                return action
 
-                # define "Set Watch" menu only selectable in address region
-                watch_action = QAction("Set Watch Func")
-                if match is not None:
-                    watch_action.setEnabled(True)
-                    watch_action.triggered.connect(lambda: self.set_watch_on_addr("watch_func"))
-                    menu.insertAction(select_all_action, watch_action)
+            # Create and insert the actions
+            copy_hex_action = createAction("Copy Hex", is_selected and match is None, self.copy_hex)
+            disassemble_action = createAction("Hex to Arm", is_selected and match is None, self.request_armconverter)
 
-                # define "Set Watch Regs" menu only selectable in address region
-                watch_regs_action = QAction("Set Watch Regs")
-                if match is not None:
-                    watch_regs_action.setEnabled(True)
-                    watch_regs_action.triggered.connect(lambda: self.set_watch_on_addr("watch_regs"))
-                    menu.insertAction(select_all_action, watch_regs_action)
+            if match:
+                watch_action = createAction("Set Watch Func", True, lambda: self.set_watch_on_addr("watch_func"))
+                watch_regs_action = createAction("Set Watch Regs", True, lambda: self.set_watch_on_addr("watch_regs"))
 
-                # insert menus
-                menu.insertAction(select_all_action, copy_hex_action)
-                menu.insertAction(select_all_action, disassemble_action)
+                menu.insertAction(select_all_action, watch_action)
+                menu.insertAction(select_all_action, watch_regs_action)
 
-            menu.exec(e.globalPos())
+            menu.insertAction(select_all_action, copy_hex_action)
+            menu.insertAction(select_all_action, disassemble_action)
+
+        menu.exec(e.globalPos())
 
     def selected_text(self, request_to_armconverter: bool) -> str:
         selected_text = self.textCursor().selectedText()  # gets the currently selected text

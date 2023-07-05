@@ -109,8 +109,6 @@ class Instrument(QObject):
         return MESSAGE
 
     def find_sym_addr_by_name(self, name):
-        # global MESSAGE
-        # MESSAGE = ''
         self.script.exports.findsymaddrbyname(name)
         return MESSAGE
 
