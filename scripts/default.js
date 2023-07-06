@@ -90,16 +90,16 @@ rpc.exports = {
                     let symbols = Module.enumerateSymbolsSync(m['name']);
                     for (let sym of symbols) {
                         if (sym['name'].indexOf(name) !== -1) {
-                            return send(sym['address']);
+                            return sym['address'];
                         }
                     }
                 }
-                return send(null)
             }
             let modules = Process.enumerateModules()
-            findsymaddr(modules)
+            symbol_addr = findsymaddr(modules)
+            return symbol_addr
         } else {
-            send(symbol_addr)
+            return symbol_addr
         }
     },
     enumerateranges:(prot) => {

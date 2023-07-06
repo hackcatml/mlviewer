@@ -4,7 +4,7 @@ import platform
 import re
 
 from PyQt6 import QtCore
-from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent, QSize
+from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent
 from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, QIcon, QPalette
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
@@ -103,25 +103,6 @@ def process_read_mem_result(result: str) -> str:
     return result
 
 
-class Worker(QThread):
-    sig = QtCore.pyqtSignal(int)
-
-    def __init__(self):
-        super(Worker, self).__init__()
-
-    def run(self) -> None:
-        while True:
-            try:
-                globvar.isFridaAttached = False
-                if globvar.fridaInstrument is not None and len(globvar.fridaInstrument.sessions) != 0:
-                    globvar.isFridaAttached = True
-                self.sig.emit(1)
-                # don't know why but while loop without sleep makes app freeze :(
-                self.msleep(2000)
-            except Exception as e:
-                print(e)
-
-
 class MemScanWorker(QThread):
     memscansig = QtCore.pyqtSignal(int)
 
@@ -167,9 +148,6 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.statusBar()
         self.statusLight = QLabel()
         self.set_status_light()
-        self.worker = Worker()
-        self.worker.start()
-        self.worker.sig.connect(self.sig_func)
         self.memscanworker = MemScanWorker()
         self.memscanworker.memscansig.connect(self.memscansig_func)
         self.isil2cppchecked = None
@@ -289,6 +267,15 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # after il2cpp dump some android apps crash
             self.il2cppdumpworker.terminate()
 
+    @pyqtSlot(int)
+    def fridaattachsig_func(self, attach_sig: int):
+        if attach_sig:
+            globvar.isFridaAttached = True
+        else:
+            globvar.isFridaAttached = False
+            self.detach_frida()
+        self.set_status_light()
+
     def adjust_label_pos(self):
         tc = self.hexViewer.textCursor()
         text_length = len(tc.block().text())
@@ -348,6 +335,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             globvar.fridaInstrument = code.Instrument("scripts/default.js", self.isremoteattachchecked, self.remoteaddr,
                                                       self.attachtargetname if (self.islistpidchecked and not self.isspawnchecked) else self.spawntargetid,
                                                       self.isspawnchecked)
+            # connect frida attach signal function
+            globvar.fridaInstrument.attachsig.connect(self.fridaattachsig_func)
             msg = globvar.fridaInstrument.instrument()
             self.remoteaddr = ''
         except Exception as e:
@@ -367,17 +356,24 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.set_status(name)
 
     def detach_frida(self):
-        try:
-            for session in globvar.fridaInstrument.sessions:
-                session.detach()
-            globvar.fridaInstrument.sessions.clear()
-            globvar.enumerateRanges.clear()
-            globvar.hexEdited.clear()
-            globvar.listModules.clear()
-            self.remoteaddr = ''
-            self.il2cppFridaInstrument = None
-        except Exception as e:
-            self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+        if globvar.fridaInstrument is None:
+            pass
+        else:
+            try:
+                for session in globvar.fridaInstrument.sessions:
+                    session.detach()
+                globvar.fridaInstrument.sessions.clear()
+                globvar.enumerateRanges.clear()
+                globvar.hexEdited.clear()
+                globvar.listModules.clear()
+                globvar.isFridaAttached = False
+                globvar.fridaInstrument = None
+                self.remoteaddr = ''
+                self.il2cppFridaInstrument = None
+                if self.hexViewer.new_watch_widget is not None:
+                    self.hexViewer.new_watch_widget.close()
+            except Exception as e:
+                self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
 
     def offset_ok_btn_func(self):
         if globvar.isFridaAttached is False:
@@ -443,7 +439,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             try:
                 func_addr = globvar.fridaInstrument.find_sym_addr_by_name(addr)
                 if func_addr is None:
-                    self.statusBar().showMessage(f"cannot find address for {addr}", 3000)
+                    self.statusBar().showMessage(f"Cannot find address for {addr}", 3000)
                     return
                 addr = func_addr
             except Exception as e:
@@ -457,7 +453,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             return
 
         if addr is False:
-            self.statusBar().showMessage("can't operate *, /")
+            self.statusBar().showMessage("Can't operate *, /")
             return
 
         self.addrInput.setText(addr)
@@ -468,19 +464,20 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # if is_readable_addr(addr) is False:
             try:
                 # on iOS in case frida's Process.enumerateRangesSync('---') doesn't show up every memory regions
-                if globvar.fridaInstrument.get_module_name_by_addr(addr) is not None:
+                if globvar.fridaInstrument.get_module_name_by_addr(addr) != '':
                     # there is a module
+                    name = globvar.fridaInstrument.get_module_name_by_addr(addr)['name']
                     size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + \
                            globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
                     if size < 8192:
                         result = globvar.fridaInstrument.read_mem_addr(addr, size)
                     else:
                         result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
-                    self.show_mem_result_on_viewer(None, addr, result)
+                    self.show_mem_result_on_viewer(name, addr, result)
                     return
                 else:
                     # there is no module. but let's try to read it anyway
-                    result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+                    result = globvar.fridaInstrument.read_mem_addr(addr, 1024)
                     self.show_mem_result_on_viewer(None, addr, result)
                     return
             except Exception as e:
@@ -488,9 +485,6 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 if str(e) == globvar.errorType1:
                     globvar.fridaInstrument.sessions.clear()
                 return
-
-            # self.statusBar().showMessage(f"{addr} is not readable. access violation", 3000)
-            # return
 
         try:
             if is_readable_addr(hex_calculator(f"{addr} + 2000")):
@@ -522,7 +516,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.adjust_label_pos()
 
         if inspect.currentframe().f_back.f_code.co_name != "offset_ok_btn_func" and \
-                globvar.fridaInstrument.get_module_name_by_addr(addr) is None:
+                globvar.fridaInstrument.get_module_name_by_addr(addr) == '':
             self.status_img_name.clear()
             self.status_img_base.clear()
             self.status_size.clear()

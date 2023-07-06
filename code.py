@@ -14,6 +14,7 @@ ERRMESSAGE = ""
 
 
 class Instrument(QObject):
+    attachsig = QtCore.pyqtSignal(int)
     messagesig = QtCore.pyqtSignal(str)
 
     def __init__(self, script_text, isremote, remoteaddr, target, isspawn):
@@ -45,6 +46,9 @@ class Instrument(QObject):
     def __del__(self):
         for session in self.sessions:
             session.detach()
+
+    def is_attached(self, attached: bool):
+        self.attachsig.emit(1) if attached is True else self.attachsig.emit(0)
 
     # frida script에서 send 함수로 보내는 메시지는 on_message에서 처리됨
     def on_message(self, message, data):
@@ -90,10 +94,12 @@ class Instrument(QObject):
             if self.device.get_frontmost_application():
                 self.name = self.device.get_frontmost_application().name
 
+        session.on('detached', self.is_attached)    # register is_attached callback func for a session's on detach event
         self.sessions.append(session)
         self.script = session.create_script(self.read_frida_js_source())
         self.script.on('message', self.on_message)
         self.script.load()
+        self.is_attached(True)
 
     # just dummy func for checking script is destroyed or not
     def dummy_script(self):
@@ -109,14 +115,16 @@ class Instrument(QObject):
         return MESSAGE
 
     def find_sym_addr_by_name(self, name):
-        self.script.exports.findsymaddrbyname(name)
-        return MESSAGE
+        result = self.script.exports.findsymaddrbyname(name)
+        return result
 
     def list_modules(self):
         self.script.exports.listmodules()
         return MESSAGE
 
     def get_module_name_by_addr(self, addr):
+        global MESSAGE
+        MESSAGE = ''
         self.script.exports.getmodulenamebyaddr(addr)
         return MESSAGE
 

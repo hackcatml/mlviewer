@@ -473,7 +473,8 @@ class NewWatchWidget(QWidget):
         self.text_edit.closeEvent(e)
         self.watch_list.clear()
         try:
-            globvar.fridaInstrument.detach_all()
+            if globvar.fridaInstrument is not None:
+                globvar.fridaInstrument.detach_all()
         except Exception as e:
             print(f"{inspect.currentframe().f_code.co_name}: {e}")
             if str(e) == globvar.errorType1:
