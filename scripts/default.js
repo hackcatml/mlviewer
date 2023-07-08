@@ -94,10 +94,11 @@ rpc.exports = {
                         }
                     }
                 }
+                return null;
             }
             let modules = Process.enumerateModules()
             symbol_addr = findsymaddr(modules)
-            return symbol_addr
+            return (symbol_addr == null || symbol_addr.isNull()) ? null : symbol_addr;
         } else {
             return symbol_addr
         }

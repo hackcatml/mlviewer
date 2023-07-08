@@ -143,8 +143,8 @@ class Il2CppDumpWorker(QThread):
 class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin') else ui_win.Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        self.spawndialog = None
         self.setupUi(self)
+        self.spawndialog = None
         self.statusBar()
         self.statusLight = QLabel()
         self.set_status_light()
@@ -348,7 +348,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.offsetInput.clear()
             return
 
-        set_mem_range('---')
+        set_mem_range('r--')
 
         self.platform = globvar.fridaInstrument.platform()
         name = globvar.fridaInstrument.list_modules()[0]['name']
@@ -660,8 +660,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
     def hex_edit(self):
         # print(self.sender().__class__.__name__)
-        if self.sender().__class__.__name__ == "QShortcut" or (
-                self.sender().__class__.__name__ != "QShortcut" and self.sender().text()) == "Done":
+        if self.sender().__class__.__name__ == "QShortcut" or \
+                (self.sender().__class__.__name__ != "QShortcut" and self.sender().text() == "Done"):
             if globvar.isHexEditMode is True:
                 self.hexViewer.setReadOnly(True)
                 if len(globvar.hexEdited) == 0:
@@ -1060,4 +1060,4 @@ if __name__ == "__main__":
     app.setWindowIcon(QIcon('icon/mlviewerico.png'))
     myWindow = WindowClass()
     myWindow.show()
-    app.exec()
+    sys.exit(app.exec())

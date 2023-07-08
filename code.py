@@ -50,6 +50,9 @@ class Instrument(QObject):
     def is_attached(self, attached: bool):
         self.attachsig.emit(1) if attached is True else self.attachsig.emit(0)
 
+    def on_destroyed(self):
+        self.attachsig.emit(0)
+
     # frida script에서 send 함수로 보내는 메시지는 on_message에서 처리됨
     def on_message(self, message, data):
         # print(message)
@@ -98,6 +101,7 @@ class Instrument(QObject):
         self.sessions.append(session)
         self.script = session.create_script(self.read_frida_js_source())
         self.script.on('message', self.on_message)
+        self.script.on('destroyed', self.on_destroyed)
         self.script.load()
         self.is_attached(True)
 
