@@ -432,6 +432,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             return
 
         addr = self.addrInput.text()
+        if addr.strip() == '':
+            return
         hex_regex = re.compile(r'(\b0x[a-fA-F0-9]+\b|\b[a-fA-F0-9]{6,}\b)')
         match = hex_regex.match(addr)
         # in case it's not a hex expression on addrInput field. for example "fopen", "sysctl", ...
