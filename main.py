@@ -558,7 +558,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # status tab
         if index == 0:
             try:
-                globvar.fridaInstrument.dummy_script()
+                if globvar.fridaInstrument is not None:
+                    globvar.fridaInstrument.dummy_script()
             except Exception as e:
                 if str(e) == globvar.errorType1:
                     globvar.fridaInstrument.sessions.clear()

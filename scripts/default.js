@@ -123,12 +123,14 @@ rpc.exports = {
         send(hexdump(ptr(addr), {offset:0, length:size}))
     },
     writememaddr: (addr, code, prot) => {
+        // console.log("mem prot: " + prot)
         var newprot = prot
-        if(prot == "r--" || prot == "r-x") {
+        if(prot == "r--" || prot == "r-x" || prot == "---") {
             newprot = "rw-"
         }
         Memory.protect(ptr(addr), 4, newprot)
         Memory.writeByteArray(ptr(addr), [code])
+        if(prot == "---") return    // if mem protection '---' then remain else back to orig prot
         Memory.protect(ptr(addr), 4, prot)
     },
     modulestatus: (name) => {
