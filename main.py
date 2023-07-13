@@ -938,7 +938,9 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # print("[hackcatml] il2cppFridaInstrument: ", self.il2cppFridaInstrument)
             if self.il2cppFridaInstrument is None or len(self.il2cppFridaInstrument.sessions) == 0:
                 self.il2cppFridaInstrument = code.Instrument("scripts/il2cppdump.js", self.isremoteattachchecked,
-                                                             globvar.fridaInstrument.remoteaddr, self.attachedname, False)
+                                                             globvar.fridaInstrument.remoteaddr,
+                                                             self.attachtargetname if self.islistpidchecked else None,
+                                                             False)
                 msg = self.il2cppFridaInstrument.instrument()
                 if msg is not None:
                     QMessageBox.information(self, "info", msg)
