@@ -140,6 +140,28 @@ class Il2CppDumpWorker(QThread):
             return
 
 
+class MemRefreshWorker(QThread):
+    update_signal = QtCore.pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.status_current = None
+        self.addrInput = None
+        self.watchMemorySpinBox = None
+        self.interval = None
+
+    def run(self) -> None:
+        while True:
+            self.interval = int(self.watchMemorySpinBox.value() * 1000)
+            s = self.status_current.toPlainText()
+            match = re.search(r'(0x[a-fA-F0-9]+)', s)
+            if match:
+                addr = match.group(1)
+                self.addrInput.setText(addr)
+                self.update_signal.emit()
+            self.msleep(100) if self.interval == 0 else self.msleep(self.interval)
+
+
 class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin') else ui_win.Ui_MainWindow):
     def __init__(self):
         super().__init__()
@@ -173,6 +195,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.attachedname = None    # main module name after frida attached successfully
         self.spawntargetid = None   # target identifier to do frida spawn. need to provide on the AppList widget
         self.remoteaddr = ''
+        self.memrefreshworker = None
 
         self.attachBtn.clicked.connect(self.attach_frida)
         self.detachBtn.clicked.connect(self.detach_frida)
@@ -200,6 +223,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memDumpModuleName.textChanged.connect(self.search_img)
         self.searchMemSearchResult.textChanged.connect(self.search_mem_search_result)
         self.unityCheckBox.stateChanged.connect(self.il2cpp_checkbox)
+        self.watchMemoryCheckBox.stateChanged.connect(self.watch_mem_checkbox)
 
         # install event filter to use tab and move to some input fields
         self.interested_widgets = []
@@ -266,6 +290,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.listImgViewer.setTextColor(self.defaultcolor)
             # after il2cpp dump some android apps crash
             self.il2cppdumpworker.terminate()
+            self.memDumpBtn.setEnabled(True)
 
     @pyqtSlot(int)
     def fridaattachsig_func(self, attach_sig: int):
@@ -920,6 +945,19 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.isil2cppchecked = isChecked
         self.memDumpModuleName.setEnabled(not isChecked)
 
+    def watch_mem_checkbox(self, state):
+        isChecked = state == Qt.CheckState.Checked.value
+        if isChecked:
+            self.memrefreshworker = MemRefreshWorker()
+            self.memrefreshworker.status_current = self.status_current
+            self.memrefreshworker.addrInput = self.addrInput
+            self.memrefreshworker.watchMemorySpinBox = self.watchMemorySpinBox
+            self.memrefreshworker.update_signal.connect(self.addr_btn_func)
+            self.memrefreshworker.start()
+        else:
+            if self.memrefreshworker is not None:
+                self.memrefreshworker.terminate()
+
     def dump_module(self):
         # il2cpp dump
         if self.isil2cppchecked is True:
@@ -949,6 +987,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.il2cppdumpworker = Il2CppDumpWorker(self.il2cppFridaInstrument, self.statusBar())
             self.il2cppdumpworker.il2cppdumpsig.connect(self.il2cppdumpsig_func)
             self.il2cppdumpworker.start()
+            self.memDumpBtn.setEnabled(False)
             return
 
         # just normal module memory dump
