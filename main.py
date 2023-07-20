@@ -247,6 +247,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     @pyqtSlot(str)
     def wheelupsig_func(self, wheelupsig: str):
         # print(wheelupsig)
+        if self.status_img_base.toPlainText() == hex_calculator(f"{wheelupsig}"):
+            return
         addr = hex_calculator(f"{wheelupsig} - 10")
         # print(addr)
         self.addrInput.setText(addr)
