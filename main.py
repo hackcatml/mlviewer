@@ -192,6 +192,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.platform = None
         self.islistpidchecked = False
         self.attachtargetname = None    # name to attach. need to provide on the AppList widget
+        self.attachtargetnamereserved = None
         self.attachedname = None    # main module name after frida attached successfully
         self.spawntargetid = None   # target identifier to do frida spawn. need to provide on the AppList widget
         self.remoteaddr = ''
@@ -269,6 +270,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.spawntargetid = targetsig
         else:
             self.attachtargetname = targetsig
+            self.attachtargetnamereserved = targetsig
         if self.isremoteattachchecked is True:
             if re.search(r"^\d+\.\d+\.\d+\.\d+:\d+$", self.spawndialog.spawnui.remoteAddrInput.text()) is None:
                 QMessageBox.information(self, "info", "Enter IP:PORT")
@@ -979,7 +981,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             if self.il2cppFridaInstrument is None or len(self.il2cppFridaInstrument.sessions) == 0:
                 self.il2cppFridaInstrument = code.Instrument("scripts/il2cppdump.js", self.isremoteattachchecked,
                                                              globvar.fridaInstrument.remoteaddr,
-                                                             self.attachtargetname if self.islistpidchecked else None,
+                                                             self.attachtargetnamereserved if self.islistpidchecked else None,
                                                              False)
                 msg = self.il2cppFridaInstrument.instrument()
                 if msg is not None:
