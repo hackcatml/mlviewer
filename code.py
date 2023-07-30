@@ -89,11 +89,12 @@ class Instrument(QObject):
         else:
             if self.spawntarget:  # spawn mode
                 pid = self.device.spawn([self.spawntarget])
+                session = self.device.attach(pid)
+                self.device.resume(pid)
             else:  # attach frontmost application
                 pid = self.device.get_frontmost_application().pid
+                session = self.device.attach(pid)
 
-            session = self.device.attach(pid)
-            self.device.resume(pid)
             if self.device.get_frontmost_application():
                 self.name = self.device.get_frontmost_application().name
 
