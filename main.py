@@ -16,18 +16,6 @@ import ui
 import ui_win
 
 
-def change_frida_script(script_text):
-    globvar.fridaInstrument.script_text = script_text
-    globvar.fridaInstrument.script = globvar.fridaInstrument.sessions[0].create_script(
-        globvar.fridaInstrument.read_frida_js_source())
-    globvar.fridaInstrument.script.on('message', globvar.fridaInstrument.on_message)
-    globvar.fridaInstrument.script.load()
-
-
-def revert_frida_script():
-    change_frida_script("scripts/default.js")
-
-
 def is_readable_addr(addr):
     for i in range(len(globvar.enumerateRanges)):
         if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
@@ -185,7 +173,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memReplacePattern.setEnabled(False)
         self.hexViewer.wheelupsig.connect(self.wheelupsig_func)
         self.defaultcolor = QLabel().palette().color(QPalette.ColorRole.WindowText)
-        self.listImgViewer.modulenamesig.connect(self.modulenamesig_func)
+        self.listImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "listImgViewer"))
+        self.parseImgListImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "parseImgListImgViewer"))
         self.memSearchResult.searchresultaddrsig.connect(self.searchresultaddrsig_func)
         self.arrangedresult = None
         self.arrangedresult2 = None
@@ -205,6 +194,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.status_img_name.returnPressed.connect(self.offset_ok_btn_func)
         self.addrInput.returnPressed.connect(self.addr_btn_func)
         self.addrBtn.clicked.connect(self.addr_btn_func)
+        self.tabWidget.tabBarClicked.connect(self.util_tab_bar_click_func)
         self.tabWidget2.tabBarClicked.connect(self.status_tab_bar_click_func)
         # hexviewer text changed event
         self.hexViewer.textChanged.connect(self.text_changed)
@@ -221,10 +211,20 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memSearchReplaceCheckBox.stateChanged.connect(self.mem_search_replace_checkbox)
         self.memDumpBtn.clicked.connect(self.dump_module)
         self.memDumpModuleName.returnPressed.connect(self.dump_module)
-        self.memDumpModuleName.textChanged.connect(self.search_img)
+        self.memDumpModuleName.textChanged.connect(lambda: self.search_img("memDumpModuleName"))
+        self.parseImgName.textChanged.connect(lambda: self.search_img("parseImgName"))
         self.searchMemSearchResult.textChanged.connect(self.search_mem_search_result)
         self.unityCheckBox.stateChanged.connect(self.il2cpp_checkbox)
         self.watchMemoryCheckBox.stateChanged.connect(self.watch_mem_checkbox)
+
+        self.utilViewer.parse_img_name = self.parse_img_name
+        self.utilViewer.parse_img_base = self.parse_img_base
+        self.utilViewer.parse_img_path = self.parse_img_path
+        self.utilViewer.parseImgName = self.parseImgName
+        self.utilViewer.statusBar = self.statusBar()
+        self.parse_img_name.returnPressed.connect(lambda: self.utilViewer.parse("parse_img_name"))
+        self.parseBtn.clicked.connect(lambda: self.utilViewer.parse("parseBtn"))
+        self.parseImgName.returnPressed.connect(lambda: self.utilViewer.parse("parseImgName"))
 
         # install event filter to use tab and move to some input fields
         self.interested_widgets = []
@@ -256,8 +256,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.addr_btn_func()
 
     @pyqtSlot(str)
-    def modulenamesig_func(self, modulenamesig: str):
-        self.memDumpModuleName.setText(modulenamesig)
+    def modulenamesig_func(self, modulenamesig: str, caller):
+        if caller == "listImgViewer":
+            self.memDumpModuleName.setText(modulenamesig)
+        elif caller == "parseImgListImgViewer":
+            self.parseImgName.setText(modulenamesig)
 
     @pyqtSlot(str)
     def searchresultaddrsig_func(self, searchresultaddrsig: str):
@@ -380,6 +383,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         set_mem_range('r--')
 
         self.platform = globvar.fridaInstrument.platform()
+        self.utilViewer.platform = self.platform
         name = globvar.fridaInstrument.list_modules()[0]['name']
         self.attachedname = name
         self.set_status(name)
@@ -434,8 +438,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 if is_readable_addr(addr):
                     result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
                 else:
-                    # check module existence
-                    if globvar.fridaInstrument.get_module_name_by_addr(addr) is not None:
+                    # not in mem regions. but check module existence
+                    if globvar.fridaInstrument.get_module_name_by_addr(addr) != '':
                         # there is a module
                         size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + \
                                globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
@@ -444,8 +448,12 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         else:
                             result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
                     else:
+                        # there is no module. just try to read
                         size = size_to_read(hex_calculator(f"{self.status_img_base.toPlainText()} + {offset}"))
-                        result = globvar.fridaInstrument.read_mem_offset(name, offset, size)
+                        if size is not None:
+                            result = globvar.fridaInstrument.read_mem_offset(name, offset, size)
+                        else:
+                            result = globvar.fridaInstrument.read_mem_offset(name, offset, 4096)
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
             if str(e) == globvar.errorType1:
@@ -507,8 +515,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     self.show_mem_result_on_viewer(name, addr, result)
                     return
                 else:
-                    # there is no module. but let's try to read it anyway
-                    result = globvar.fridaInstrument.read_mem_addr(addr, 1024)
+                    # there is no module. but let's try to read small mem regions anyway
+                    result = globvar.fridaInstrument.read_mem_addr(addr, 4096)
                     self.show_mem_result_on_viewer(None, addr, result)
                     return
             except Exception as e:
@@ -582,6 +590,28 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             ("0x", self.hexViewer.textCursor().block().text()[:self.hexViewer.textCursor().block().text().find(' ')]))
         # print("[hackcatml] currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
         # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
+
+    def util_tab_bar_click_func(self, index):
+        # util tab
+        current_tab_name = self.tabWidget.tabText(index)
+        if current_tab_name == "Util":
+            text = ""
+            result = []
+            self.parseImgName.setText('')
+            if globvar.fridaInstrument is not None:
+                try:
+                    result = globvar.fridaInstrument.list_modules()
+                    globvar.listModules = result
+                except Exception as e:
+                    if str(e) == globvar.errorType1:
+                        globvar.fridaInstrument.sessions.clear()
+                    self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+                    return
+            if len(result) > 0:
+                for i in range(len(result) - 1):
+                    text += result[i]['name'] + '\n'
+                text += result[len(result) - 1]['name']
+            self.parseImgListImgViewer.setPlainText(text)
 
     def status_tab_bar_click_func(self, index):
         # status tab
@@ -691,6 +721,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         return False
 
     def hex_edit(self):
+        if self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Util":
+            return
         # print(self.sender().__class__.__name__)
         if self.sender().__class__.__name__ == "QShortcut" or \
                 (self.sender().__class__.__name__ != "QShortcut" and self.sender().text() == "Done"):
@@ -1001,10 +1033,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         result = False
         if self.platform == 'darwin':
-            change_frida_script("scripts/dump-ios-module.js")
+            code.change_frida_script("scripts/dump-ios-module.js")
             result = globvar.fridaInstrument.dump_ios_module(self.memDumpModuleName.text())
         elif self.platform == 'linux':
-            change_frida_script("scripts/dump-so.js")
+            code.change_frida_script("scripts/dump-so.js")
             result = globvar.fridaInstrument.dump_so(self.memDumpModuleName.text())
 
         if result is False:
@@ -1018,17 +1050,26 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.listImgViewer.insertPlainText(
                     'Dumped file at: ' + result + "\n\nYou need to fix so file using SoFixer\n\n")
             self.listImgViewer.setTextColor(self.defaultcolor)  # Revert to the default color
-        revert_frida_script()
+        code.revert_frida_script()
 
-    def search_img(self):
+    def search_img(self, caller):
         # print(self.memDumpModuleName.text())
+        text_to_find = ''
+        viewer = None
+        if caller == "memDumpModuleName":
+            text_to_find = self.memDumpModuleName.text().lower()
+            viewer = self.listImgViewer
+        elif caller == "parseImgName":
+            text_to_find = self.parseImgName.text().lower()
+            viewer = self.parseImgListImgViewer
+
         matched = ''
         if len(globvar.listModules) > 0:
             for module in globvar.listModules:
-                if module['name'].lower().find(self.memDumpModuleName.text().lower()) != -1:
+                if module['name'].lower().find(text_to_find) != -1:
                     # print(module['name'])
                     matched += module['name'] + '\n'
-        self.listImgViewer.setText(matched)
+        viewer.setText(matched)
 
     def set_status(self, name):
         # print(inspect.currentframe().f_back.f_code.co_name)
@@ -1076,8 +1117,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.interested_widgets = [self.offsetInput, self.addrInput]
         if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
             try:
-                if self.tabWidget2.currentIndex() == 0:
+                if self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Viewer" and self.tabWidget2.currentIndex() == 0:
                     self.interested_widgets.append(self.status_img_name)
+                elif self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Util":
+                    self.interested_widgets = [self.parse_img_name, self.parseImgName]
                 # Get the index of the currently focused widget in our list
                 index = self.interested_widgets.index(self.focusWidget())
 

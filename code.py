@@ -13,9 +13,27 @@ MESSAGE = ""
 ERRMESSAGE = ""
 
 
+def change_frida_script(script_text):
+    globvar.fridaInstrument.script_text = script_text
+    globvar.fridaInstrument.script = globvar.fridaInstrument.sessions[0].create_script(
+        globvar.fridaInstrument.read_frida_js_source())
+    globvar.fridaInstrument.script.on('message', globvar.fridaInstrument.on_message)
+    globvar.fridaInstrument.script.load()
+
+
+def revert_frida_script():
+    change_frida_script("scripts/default.js")
+
+
+def clean_message():
+    global MESSAGE
+    MESSAGE = ''
+
+
 class Instrument(QObject):
     attachsig = QtCore.pyqtSignal(int)
     messagesig = QtCore.pyqtSignal(str)
+    messagedictsig = QtCore.pyqtSignal(dict)
 
     def __init__(self, script_text, isremote, remoteaddr, target, isspawn):
         super().__init__()
@@ -66,6 +84,12 @@ class Instrument(QObject):
                 return
             if 'watchRegs' in message['payload']:
                 self.messagesig.emit(message['payload']['watchRegs'])
+                return
+            if 'parseMachO' in message['payload']:
+                self.messagedictsig.emit(message['payload']['parseMachO'])
+                return
+            if 'parseElf' in message['payload']:
+                self.messagedictsig.emit(message['payload']['parseElf'])
                 return
             MESSAGE = message['payload']
         if message['type'] == 'error':
@@ -128,8 +152,7 @@ class Instrument(QObject):
         return MESSAGE
 
     def get_module_name_by_addr(self, addr):
-        global MESSAGE
-        MESSAGE = ''
+        clean_message()
         self.script.exports.getmodulenamebyaddr(addr)
         return MESSAGE
 
@@ -204,6 +227,7 @@ class Instrument(QObject):
             return False
 
     def module_status(self, name):
+        clean_message()
         self.script.exports.modulestatus(name)
         return MESSAGE
 
@@ -217,8 +241,7 @@ class Instrument(QObject):
 
     # set watch on address
     def set_watch(self, addr, is_reg_watch):
-        global MESSAGE
-        MESSAGE = ''
+        clean_message()
         self.script.exports.setwatch(addr, is_reg_watch)
 
     def detach_all(self):
@@ -229,3 +252,11 @@ class Instrument(QObject):
 
     def set_read_retval_options(self, addr, option):
         self.script.exports.setreadretvalsoptions(addr, option)
+
+    def parse_macho(self, base):
+        clean_message()
+        self.script.exports.machoparse(base)
+
+    def parse_elf(self, base):
+        clean_message()
+        self.script.exports.elfparse(base)

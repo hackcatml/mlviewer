@@ -36,7 +36,7 @@ class HexViewerClass(QTextEdit):
 
         tc = self.textCursor()
         tc.movePosition(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor, 1)
-        tc.movePosition(QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor, globvar.currentFrameBlockNumber)
+        tc.movePosition(QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor, int(globvar.currentFrameBlockNumber))
         globvar.currentFrameStartAddress = "".join(("0x", tc.block().text()[:tc.block().text().find(' ')]))
 
         if tc.blockNumber() == 0 and re.search(r"\d+\. 0x[0-9a-f]+, module:", tc.block().text()) is None:
@@ -165,19 +165,19 @@ class HexViewerClass(QTextEdit):
             match = hex_regex.match(self.textCursor().selectedText())
             is_selected = bool(self.textCursor().selectedText())
 
-            def createAction(text, enabled, func):
+            def create_action(text, enabled, func):
                 action = QAction(text, self)
                 action.setEnabled(enabled)
                 action.triggered.connect(func)
                 return action
 
             # Create and insert the actions
-            copy_hex_action = createAction("Copy Hex", is_selected and match is None, self.copy_hex)
-            disassemble_action = createAction("Hex to Arm", is_selected and match is None, self.request_armconverter)
+            copy_hex_action = create_action("Copy Hex", is_selected and match is None, self.copy_hex)
+            disassemble_action = create_action("Hex to Arm", is_selected and match is None, self.request_armconverter)
 
             if match:
-                watch_action = createAction("Set Watch Func", True, lambda: self.set_watch_on_addr("watch_func"))
-                watch_regs_action = createAction("Set Watch Regs", True, lambda: self.set_watch_on_addr("watch_regs"))
+                watch_action = create_action("Set Watch Func", True, lambda: self.set_watch_on_addr("watch_func"))
+                watch_regs_action = create_action("Set Watch Regs", True, lambda: self.set_watch_on_addr("watch_regs"))
 
                 menu.insertAction(select_all_action, watch_action)
                 menu.insertAction(select_all_action, watch_regs_action)
