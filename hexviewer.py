@@ -157,7 +157,7 @@ class HexViewerClass(QTextEdit):
             return
 
         menu = super(HexViewerClass, self).createStandardContextMenu()  # Get the default context menu
-        select_all_action = next((action for action in menu.actions() if action.text() == "Select All"), None)
+        select_all_action = next((action for action in menu.actions() if "Select All" in action.text()), None)
 
         if select_all_action:
             # Check if the selected text matches the hex_regex
@@ -352,7 +352,7 @@ class CustomTextEdit(QTextEdit):
         self.get_args_index_and_addr_from_selected_text()
 
         for action in menu.actions():  # loop over the existing actions
-            if action.text() == "Select All":
+            if "Select All" in action.text():
                 select_all_action = action
                 break
 

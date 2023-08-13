@@ -113,7 +113,7 @@ class UtilViewerClass(QTextEdit):
 
     def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
         menu = super(UtilViewerClass, self).createStandardContextMenu()  # Get the default context menu
-        select_all_action = next((action for action in menu.actions() if action.text() == "Select All"), None)
+        select_all_action = next((action for action in menu.actions() if "Select All" in action.text()), None)
 
         if select_all_action:
             # parse more on __got, __la_symbol_ptr tables

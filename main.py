@@ -1102,8 +1102,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.status_path.setPlainText(result['path'])
 
     def set_status_light(self):
-        onicon = QPixmap("icon/greenlight.png").scaledToHeight(round(self.statusBar().height() // 2))
-        officon = QPixmap("icon/redlight.png").scaledToHeight(round(self.statusBar().height() // 2))
+        onicon = QPixmap("icon/greenlight.png").scaledToHeight(13)
+        officon = QPixmap("icon/redlight.png").scaledToHeight(13)
 
         self.statusLight.setPixmap(officon)
         if globvar.isFridaAttached is True:
