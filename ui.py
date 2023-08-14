@@ -242,7 +242,7 @@ class Ui_MainWindow(object):
         self.hexViewer.setReadOnly(True)
         self.hexViewer.setOverwriteMode(True)
         self.hexViewer.setAcceptRichText(True)
-        self.hexViewer.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
+        # self.hexViewer.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.hexViewer.setObjectName("hexViewer")
         self.gridLayout_2.addWidget(self.hexViewer, 4, 0, 16, 2)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
