@@ -2,7 +2,7 @@ import re
 
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSlot
-from PyQt6.QtGui import QAction, QTextCursor
+from PyQt6.QtGui import QAction, QTextCursor, QTextCharFormat, QFont
 from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget
 
 import code
@@ -20,7 +20,9 @@ class UtilViewerClass(QTextEdit):
         self.got_detail = ''
         self.la_symbol_ptr_detail = ''
 
+        self.dynsym_detail = ''
         self.rela_plt_detail = ''
+        self.got_plt_detail = ''
 
         self.platform = None
         self.statusBar = None
@@ -62,11 +64,36 @@ class UtilViewerClass(QTextEdit):
             if text != '':
                 self.append(text)
                 self.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
+
         elif self.platform == 'linux':
             text = ''
+            if (key := 'header') in message:
+                if message[key] == 'Elf_Ehdr':
+                    text += f"Elf_Ehdr(Elf Header)\n|--e_phoff: {message['e_phoff']}, e_shoff: {message['e_shoff']}, e_phentsize: {message['e_phentsize']}, e_phnum: {message['e_phnum']}, e_shentsize: {message['e_shentsize']}, e_shnum: {message['e_shnum']}, e_shstrndx: {message['e_shstrndx']}"
+                if message[key] == 'Elf_Phdr':
+                    header_text = "\nElf_Phdr(Program Header)\n" if 'Elf_Phdr' not in self.toPlainText() else ""
+                    details = f"|--p_type: {message['p_type']}, p_offset: {message['p_offset']}, p_vaddr: {message['p_vaddr']}, p_paddr: {message['p_paddr']}, p_filesz: {message['p_filesz']}, p_memsz: {message['p_memsz']}, p_flags: {message['p_flags']}, p_align: {message['p_align']}"
+                    text += header_text + details
             if (key := 'section') in message:
-                if message[key] == ".rela.plt":
-                    text += f"symbol: {message['symbol']} --> addr: {message['symbol_addr']}({message['location']})"
+                if message[key] == 'Dynamic Tags[.dynamic]':
+                    text += f"\n{message[key]} section({message['section_offset']})"
+                else:
+                    text += f"|--d_tag: {message['d_tag']}({message[key]}), d_value: {message['d_value']}"
+            if (key := 'section_detail') in message:
+                if message[key] == "Symbol Table[.dynsym]":
+                    header_text = f"\n{message[key]} section({message['section_offset']})" if 'Symbol Table' not in self.toPlainText() else ""
+                    self.dynsym_detail += f"st_name: {message['st_name']} --> symbol: {message['symbol_name']}, st_value: {message['st_value']}, st_size: {message['st_size']}, st_info: {message['st_info']}, st_other: {message['st_other']}, st_shndx: {message['st_shndx']}\n"
+                    text += header_text
+                if message[key] == "String Table[.dynstr]":
+                    header_text = f"{message[key]} section({message['section_offset']})" if 'String Table' not in self.toPlainText() else ""
+                    text += header_text
+                if message[key] == "RELA[.rela.plt]":
+                    header_text = f"{message[key]} section({message['section_offset']})" if 'RELA[.rela.plt]' not in self.toPlainText() else ""
+                    self.rela_plt_detail += f"r_offset: {message['r_offset']}, r_info: {message['r_info']}, r_addend: {message['r_addend']}\n"
+                    self.got_plt_detail += f"symbol: {message['symbol']} --> addr: {message['symbol_addr']}({message['location']})\n"
+                    text += header_text
+                if message[key] == ".got.plt":
+                    text += f"{message[key]} section({message['section_offset']})"
 
             if text != '':
                 self.append(text)
@@ -98,7 +125,9 @@ class UtilViewerClass(QTextEdit):
                         self.la_symbol_ptr_detail = ''
                         globvar.fridaInstrument.parse_macho(self.parse_img_base.toPlainText())
                     elif self.platform == 'linux':
+                        self.dynsym_detail = ''
                         self.rela_plt_detail = ''
+                        self.got_plt_detail = ''
                         globvar.fridaInstrument.parse_elf(self.parse_img_base.toPlainText())
                 else:
                     self.statusBar.showMessage(f"No module {self.parse_img_name.text() if caller == 'parse_img_name' else self.parseImgName.text()} found")
@@ -118,7 +147,12 @@ class UtilViewerClass(QTextEdit):
         if select_all_action:
             # parse more on __got, __la_symbol_ptr tables
             selected_text = self.textCursor().selectedText()
-            regex = re.compile(r'(\b__got\b|\b__la_symbol_ptr\b)')
+            if self.platform == 'linux':
+                detail_section = ['.dynsym', '.rela.plt', '.got.plt']
+                for item in detail_section:
+                    if item in self.textCursor().block().text():
+                        selected_text = item
+            regex = re.compile(r'(\b__got\b|\b__la_symbol_ptr\b|\.dynsym|\.rela.plt|\.got\.plt)')
             match = regex.match(selected_text)
             is_selected = bool(selected_text)
 
@@ -135,10 +169,18 @@ class UtilViewerClass(QTextEdit):
         menu.exec(e.globalPos())
 
     def detail(self, title):
+        detail_of_what = None
         if title == "__got":
-            self.new_detail_widget = NewDetailWidget(title, self.got_detail)
+            detail_of_what = self.got_detail
         elif title == "__la_symbol_ptr":
-            self.new_detail_widget = NewDetailWidget(title, self.la_symbol_ptr_detail)
+            detail_of_what = self.la_symbol_ptr_detail
+        elif title == ".dynsym":
+            detail_of_what = self.dynsym_detail
+        elif title == '.rela.plt':
+            detail_of_what = self.rela_plt_detail
+        elif title == '.got.plt':
+            detail_of_what = self.got_plt_detail
+        self.new_detail_widget = NewDetailWidget(title, detail_of_what)
         self.new_detail_widget.show()
 
 
