@@ -23,6 +23,7 @@ class UtilViewerClass(QTextEdit):
         self.dynsym_detail = ''
         self.rela_plt_detail = ''
         self.got_plt_detail = ''
+        self.symtab_detail = ''
 
         self.platform = None
         self.statusBar = None
@@ -96,7 +97,10 @@ class UtilViewerClass(QTextEdit):
                     text += header_text
                 if message[key] == ".got.plt":
                     text += f"{message[key]} section({message['section_offset']})"
-
+                if message[key] == "Symbol Table[.symtab]":
+                    header_text = f"{message[key]} section" if 'Symbol Table[.symtab]' not in self.toPlainText() else ""
+                    self.symtab_detail += f"st_name: {message['st_name']} --> symbol: {message['symbol_name']}, st_value: {message['st_value']}, st_size: {message['st_size']}, st_info: {message['st_info']}, st_other: {message['st_other']}, st_shndx: {message['st_shndx']}\n"
+                    text += header_text
             if text != '':
                 self.append(text)
                 self.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
@@ -130,6 +134,7 @@ class UtilViewerClass(QTextEdit):
                         self.dynsym_detail = ''
                         self.rela_plt_detail = ''
                         self.got_plt_detail = ''
+                        self.symtab_detail = ''
                         globvar.fridaInstrument.parse_elf(self.parse_img_base.toPlainText())
                 else:
                     self.statusBar.showMessage(f"No module {self.parse_img_name.text() if caller == 'parse_img_name' else self.parseImgName.text()} found")
@@ -151,11 +156,11 @@ class UtilViewerClass(QTextEdit):
             # parse more on __got, __la_symbol_ptr tables
             selected_text = self.textCursor().selectedText()
             if self.platform == 'linux':
-                detail_section = ['.dynsym', '.rela.plt', '.got.plt']
+                detail_section = ['.dynsym', '.rela.plt', '.got.plt', '.symtab']
                 for item in detail_section:
                     if item in self.textCursor().block().text():
                         selected_text = item
-            regex = re.compile(r'(\b__got\b|\b__la_symbol_ptr\b|\.dynsym|\.rela.plt|\.got\.plt)')
+            regex = re.compile(r'(\b__got\b|\b__la_symbol_ptr\b|\.dynsym|\.rela.plt|\.got\.plt|\.symtab)')
             match = regex.match(selected_text)
             is_selected = bool(selected_text)
 
@@ -183,6 +188,8 @@ class UtilViewerClass(QTextEdit):
             detail_of_what = self.rela_plt_detail
         elif title == '.got.plt':
             detail_of_what = self.got_plt_detail
+        elif title == '.symtab':
+            detail_of_what = self.symtab_detail
         self.new_detail_widget = NewDetailWidget(title, detail_of_what)
         self.new_detail_widget.show()
 
@@ -214,6 +221,7 @@ class NewDetailWidget(QWidget):
         self.layout.addWidget(self.search_input)
         self.setLayout(self.layout)
         self.resize(500, 250)
+        self.search_input.setFocus()
 
         self.search_input.textChanged.connect(self.search)
 

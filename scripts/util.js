@@ -364,22 +364,22 @@ rpc.exports = {
         var is32bit = arch == "arm" ? 1 : 0 // 1:32 0:64
 
         var size_of_Elf32_Ehdr = 0x34;
-        var off_of_Elf32_Ehdr_phoff = 28; // 4
-        var off_of_Elf32_Ehdr_shoff = 32; // 4
-        var off_of_Elf32_Ehdr_phentsize = 42; // 2
-        var off_of_Elf32_Ehdr_phnum = 44; // 2
-        var off_of_Elf32_Ehdr_shentsize = 46; // 2
-        var off_of_Elf32_Ehdr_shnum = 48; // 2
-        var off_of_Elf32_Ehdr_shstrndx = 50; // 2
+        var off_of_Elf32_Ehdr_phoff = 28;
+        var off_of_Elf32_Ehdr_shoff = 32;
+        var off_of_Elf32_Ehdr_phentsize = 42;
+        var off_of_Elf32_Ehdr_phnum = 44;
+        var off_of_Elf32_Ehdr_shentsize = 46;
+        var off_of_Elf32_Ehdr_shnum = 48;
+        var off_of_Elf32_Ehdr_shstrndx = 50;
 
         var size_of_Elf64_Ehdr = 0x40;
-        var off_of_Elf64_Ehdr_phoff = 32; // 8
-        var off_of_Elf64_Ehdr_shoff = 40; // 8
-        var off_of_Elf64_Ehdr_phentsize = 54; // 2
-        var off_of_Elf64_Ehdr_phnum = 56; // 2
-        var off_of_Elf64_Ehdr_shentsize = 58; // 2
-        var off_of_Elf64_Ehdr_shnum = 60; // 2
-        var off_of_Elf64_Ehdr_shstrndx = 62; // 2
+        var off_of_Elf64_Ehdr_phoff = 32;
+        var off_of_Elf64_Ehdr_shoff = 40;
+        var off_of_Elf64_Ehdr_phentsize = 54;
+        var off_of_Elf64_Ehdr_phnum = 56;
+        var off_of_Elf64_Ehdr_shentsize = 58;
+        var off_of_Elf64_Ehdr_shnum = 60;
+        var off_of_Elf64_Ehdr_shstrndx = 62;
 
         var got_plt_secition_addr = null;
         var dynamic_section_addr = null;
@@ -390,8 +390,17 @@ rpc.exports = {
         var rela_plt_section_addr = null;
 
         // Parse Ehdr(Elf header)
+        var ehdrs_from_file = null;
         var phoff = is32bit ? size_of_Elf32_Ehdr : size_of_Elf64_Ehdr   // Program header table file offset
         var shoff = is32bit ? base.add(off_of_Elf32_Ehdr_shoff).readU32() : base.add(off_of_Elf64_Ehdr_shoff).readU64();   // Section header table file offset
+        if (shoff == 0 && fd != null && fd !== -1) {
+            console.log("[!] shoff is 0. Try to get it from the file")
+            ehdrs_from_file = Memory.alloc(64);
+            lseek(fd, 0, SEEK_SET);
+            read(fd, ehdrs_from_file, 64);
+            shoff = is32bit ? ehdrs_from_file.add(off_of_Elf32_Ehdr_shoff).readU32() : ehdrs_from_file.add(off_of_Elf64_Ehdr_shoff).readU64();
+            console.log(`[*] shoff from the file: ${shoff}`)
+        }
         var phentsize = is32bit ? base.add(off_of_Elf32_Ehdr_phentsize).readU16() : base.add(off_of_Elf64_Ehdr_phentsize).readU16();    // Size of entries in the program header table
         if (is32bit && phentsize != 32) {  // 0x20
             console.log("[!] Wrong e_phentsize. Should be 32. Let's assume it's 32");
@@ -401,10 +410,11 @@ rpc.exports = {
             phentsize = 56;
         }
         var phnum = is32bit ? base.add(off_of_Elf32_Ehdr_phnum).readU16() : base.add(off_of_Elf64_Ehdr_phnum).readU16();    // Number of entries in program header table
+        // If phnum is 0, try to get it from the file
         if (phnum == 0) {
-            if (fd != null && fd != -1){
+            if (fd != null && fd !== -1){
                 console.log("[!] phnum is 0. Try to get it from the file")
-                var ehdrs_from_file = Memory.alloc(64);
+                ehdrs_from_file = Memory.alloc(64);
                 lseek(fd, 0, SEEK_SET);
                 read(fd, ehdrs_from_file, 64);
                 phnum = is32bit ? ehdrs_from_file.add(off_of_Elf32_Ehdr_phnum).readU16() : ehdrs_from_file.add(off_of_Elf64_Ehdr_phnum).readU16();
@@ -419,14 +429,26 @@ rpc.exports = {
                 phnum = 10;
             }
         }
+
         var shentsize = is32bit ? base.add(off_of_Elf32_Ehdr_shentsize).readU16() : base.add(off_of_Elf64_Ehdr_shentsize).readU16();    // Size of the section header
         if (is32bit && shentsize != 40) {  // 0x28
-            console.log("[!] Wrong e_shentsize. Should be 40 but ignore...");
+            console.log("[!] Wrong e_shentsize. Let's assume it's 40");
+            shentsize = 40;
         } else if (!is32bit && shentsize != 64) {
-            console.log("[!] Wrong e_shentsize. Should be 64 but ignore...");
+            console.log("[!] Wrong e_shentsize. Let's assume it's 64");
+            shentsize = 64;
         }
         var shnum = is32bit ? base.add(off_of_Elf32_Ehdr_shnum).readU16() : base.add(off_of_Elf64_Ehdr_shnum).readU16();    // Number of entries in section header table
         var shstrndx = is32bit ? base.add(off_of_Elf32_Ehdr_shstrndx).readU16() : base.add(off_of_Elf64_Ehdr_shstrndx).readU16();  // Section header table index of the entry associated with the section name string table
+        if (shnum == 0 && fd != null && fd !== -1) {
+            console.log("[!] shnum is 0. Try to get it from the file");
+            ehdrs_from_file = Memory.alloc(64);
+            lseek(fd, 0, SEEK_SET);
+            read(fd, ehdrs_from_file, 64);
+            shnum = is32bit ? ehdrs_from_file.add(off_of_Elf32_Ehdr_shnum).readU16() : ehdrs_from_file.add(off_of_Elf64_Ehdr_shnum).readU16();
+            shstrndx = is32bit ? ehdrs_from_file.add(off_of_Elf32_Ehdr_shstrndx).readU16() : ehdrs_from_file.add(off_of_Elf64_Ehdr_shstrndx).readU16();
+            console.log(`[*] shnum from the file: ${shnum}, shstrndx from the file: ${shstrndx}`)
+        }
         // console.log(`phoff: ${phoff}, shoff: ${shoff}, phentsize: ${phentsize}, phnum: ${phnum}, shentsize: ${shentsize}, shnum: ${shnum}, shstrndx: ${shstrndx}`)
         send({'parseElf': {
                 'header':'Elf_Ehdr',
@@ -676,8 +698,71 @@ rpc.exports = {
             }
         })
 
-        // Close the file
         if (fd != null && fd !== -1) {
+            // Try to parse .symtab from the file
+            var shdrs_from_file = Memory.alloc(shentsize * shnum);
+            lseek(fd, parseInt(shoff), SEEK_SET);
+            read(fd, shdrs_from_file, shentsize * shnum);
+            var shstrtab_section_offset = is32bit ? shdrs_from_file.add(shstrndx * shentsize + 0x10).readU32() : shdrs_from_file.add(shstrndx * shentsize + 0x18).readU64()
+            var shstrtab_size = is32bit ? shdrs_from_file.add(shstrndx * shentsize + 0x14).readU32() : shdrs_from_file.add(shstrndx * shentsize + 0x20).readU64()
+
+            var shstrtab_from_file = Memory.alloc(shstrtab_size);
+            lseek(fd, parseInt(shstrtab_section_offset), SEEK_SET);
+            read(fd, shstrtab_from_file, parseInt(shstrtab_size));
+            var symtab_offset = null;
+            var symtab_size = null;
+            var strtab_offset = null;
+            var strtab_size = null;
+            for (var i = 0; i < shnum; i++) {
+                var shdr_from_file = shdrs_from_file.add(i * shentsize);
+                var sh_name = shdr_from_file.readU32();
+                var section_name = shstrtab_from_file.add(sh_name).readUtf8String();
+                if (section_name === '.symtab') {
+                    symtab_offset = is32bit ? shdr_from_file.add(0x10).readU32() : shdr_from_file.add(0x18).readU64()
+                    symtab_size = is32bit ? shdr_from_file.add(0x14).readU32() : shdr_from_file.add(0x20).readU64()
+                } else if (section_name == '.strtab') {
+                    strtab_offset = is32bit ? shdr_from_file.add(0x10).readU32() : shdr_from_file.add(0x18).readU64()
+                    strtab_size = is32bit ? shdr_from_file.add(0x14).readU32() : shdr_from_file.add(0x20).readU64()
+                }
+            }
+            // No .symtab, stop parsing
+            if (symtab_size == null) return;
+
+            var symtab_from_file = Memory.alloc(symtab_size);
+            lseek(fd, parseInt(symtab_offset), SEEK_SET);
+            read(fd, symtab_from_file, parseInt(symtab_size));
+
+            var strtab_from_file = Memory.alloc(strtab_size);
+            lseek(fd, parseInt(strtab_offset), SEEK_SET);
+            read(fd, strtab_from_file, parseInt(strtab_size));
+
+            var symtab_section_entsize = is32bit ? 0x10 : 0x18;
+            var symtab_section_indices = symtab_size / symtab_section_entsize
+            for (var i = 0; i < symtab_section_indices; i++) {
+                var symtab_section_entry_offset = symtab_from_file.add(i * symtab_section_entsize)
+                var st_name = symtab_section_entry_offset.readU32()
+                var st_value = is32bit ? symtab_section_entry_offset.add(0x4).readU32() : symtab_section_entry_offset.add(0x8).readU64();
+                var st_size = is32bit ? symtab_section_entry_offset.add(0x8).readU32() : symtab_section_entry_offset.add(0x10).readU64();
+                var st_info = is32bit ? symtab_section_entry_offset.add(0xc).readU8() : symtab_section_entry_offset.add(0x4).readU8();
+                var st_other = is32bit ? symtab_section_entry_offset.add(0xd).readU8() : symtab_section_entry_offset.add(0x5).readU8();
+                var st_shndx = is32bit ? symtab_section_entry_offset.add(0xe).readU16() : symtab_section_entry_offset.add(0x6).readU16();
+                // console.log(`${i}. st_name: ${st_name}, st_value: ${st_value}, st_size: ${st_size}, st_info: ${st_info}, st_other: ${st_other}, st_shndx: ${st_shndx}`)
+                var symbol_name = strtab_from_file.add(st_name).readUtf8String();
+
+                send({
+                    'parseElf':{
+                        'section_detail': 'Symbol Table[.symtab]',
+                        'st_name': st_name,
+                        'symbol_name': symbol_name,
+                        'st_value': ptr(st_value),
+                        'st_size': st_size,
+                        'st_info': st_info,
+                        'st_other': st_other,
+                        'st_shndx': st_shndx,
+                    }
+                })
+            }
+
             close(fd);
         }
     }
