@@ -326,36 +326,41 @@ var d_tags = {
 }
 /* stuffs for elf parsing end */
 
-function canOpen(modulePath) {
-    var openPtr = Module.findExportByName(null, "open");
-    var open = new NativeFunction(openPtr, "int", ["pointer", "int", "int"])
-
-    var closePtr = Module.findExportByName(null, "close");
-    var close = new NativeFunction(closePtr, "int", ["int"]);
-
-    var fd = open(modulePath, O_RDONLY, 0);
-    if (fd === -1) {
-        return false;
+function getExportFunction(name, ret, args) {
+    var funcPtr;
+    funcPtr = Module.findExportByName(null, name);
+    if (funcPtr === null) {
+        console.log("cannot find " + name);
+        return null;
     } else {
-        close(fd);
-        return true;
+        var func = new NativeFunction(funcPtr, ret, args);
+        if (typeof func === "undefined") {
+            console.log("parse error " + name);
+            return null;
+        }
+        return func;
     }
 }
+
+var open = getExportFunction("open", "int", ["pointer", "int", "int"])
+var close = getExportFunction("close", "int", ["int"]);
+var lseek = getExportFunction("lseek", "int", ["int", "int", "int"]);
+var read = getExportFunction("read", "int", ["int", "pointer", "int"]);
 
 rpc.exports = {
     elfparse: (base) => {
         base = ptr(base);
         var module = Process.findModuleByAddress(base);
-        var can_open_module = false;
+        var fd = null;
         if (module !== null) {
-            can_open_module = canOpen(Memory.allocUtf8String(module.path));
+            fd = open(Memory.allocUtf8String(module.path), O_RDONLY, 0);
         }
 
         // Read elf header
         var magic = "464c457f"
         var elf_magic = base.readU32()
         if (parseInt(elf_magic).toString(16) != magic) {
-            console.log("Wrong magic")
+            console.log("[!] Wrong magic...ignore")
         }
 
         var arch = Process.arch
@@ -392,22 +397,36 @@ rpc.exports = {
         var shoff = is32bit ? base.add(off_of_Elf32_Ehdr_shoff).readU32() : base.add(off_of_Elf64_Ehdr_shoff).readU64();   // Section header table file offset
         var phentsize = is32bit ? base.add(off_of_Elf32_Ehdr_phentsize).readU16() : base.add(off_of_Elf64_Ehdr_phentsize).readU16();    // Size of entries in the program header table
         if (is32bit && phentsize != 32) {  // 0x20
-            console.log("[*] Wrong e_phentsize. Should be 32. Let's assume it's 32");
+            console.log("[!] Wrong e_phentsize. Should be 32. Let's assume it's 32");
             phentsize = 32;
         } else if (!is32bit && phentsize != 56) {
-            console.log("Wrong e_phentsize. Should be 56. Let's assume it's 56");
+            console.log("[!] Wrong e_phentsize. Should be 56. Let's assume it's 56");
             phentsize = 56;
         }
         var phnum = is32bit ? base.add(off_of_Elf32_Ehdr_phnum).readU16() : base.add(off_of_Elf64_Ehdr_phnum).readU16();    // Number of entries in program header table
         if (phnum == 0) {
-            console.log("phnum is 0. Let's assume it's 10. because we just need to find .dynamic section")
-            phnum = 10;
+            if (fd != null && fd != -1){
+                console.log("[!] phnum is 0. Try to get it from the file")
+                var ehdrs_from_file = Memory.alloc(64);
+                lseek(fd, 0, SEEK_SET);
+                read(fd, ehdrs_from_file, 64);
+                phnum = is32bit ? ehdrs_from_file.add(off_of_Elf32_Ehdr_phnum).readU16() : ehdrs_from_file.add(off_of_Elf64_Ehdr_phnum).readU16();
+                if (phnum == 0) {
+                    console.log("[!] phnum is still 0. Let's assume it's 10. because we just need to find .dynamic section");
+                    phnum = 10;
+                } else {
+                    console.log(`[*] phnum from the file: ${phnum}`)
+                }
+            } else {
+                console.log("[!] phnum is 0. Let's assume it's 10. because we just need to find .dynamic section")
+                phnum = 10;
+            }
         }
         var shentsize = is32bit ? base.add(off_of_Elf32_Ehdr_shentsize).readU16() : base.add(off_of_Elf64_Ehdr_shentsize).readU16();    // Size of the section header
         if (is32bit && shentsize != 40) {  // 0x28
-            console.log("Wrong e_shentsize. Should be 40");
+            console.log("[!] Wrong e_shentsize. Should be 40 but ignore...");
         } else if (!is32bit && shentsize != 64) {
-            console.log("Wrong e_shentsize. Should be 64");
+            console.log("[!] Wrong e_shentsize. Should be 64 but ignore...");
         }
         var shnum = is32bit ? base.add(off_of_Elf32_Ehdr_shnum).readU16() : base.add(off_of_Elf64_Ehdr_shnum).readU16();    // Number of entries in section header table
         var shstrndx = is32bit ? base.add(off_of_Elf32_Ehdr_shstrndx).readU16() : base.add(off_of_Elf64_Ehdr_shstrndx).readU16();  // Section header table index of the entry associated with the section name string table
@@ -429,6 +448,15 @@ rpc.exports = {
         for (var i = 0; i < phnum; i++) {
             var phdr = phdrs.add(i * phentsize);
             var p_type = phdr.readU32();
+
+            // if p_type is 0 check if it's really 0 from the file
+            var phdrs_from_file = null;
+            if (p_type === 0 && fd != null && fd !== -1) {
+                phdrs_from_file = Memory.alloc(phnum * phentsize);
+                lseek(fd, phoff, SEEK_SET);
+                read(fd, phdrs_from_file, phnum * phentsize);
+                p_type = phdrs_from_file.add(i * phentsize).readU32();
+            }
             var p_type_sym = null;
 
             // check if p_type matches the defined p_type
@@ -450,6 +478,22 @@ rpc.exports = {
             var p_flags = is32bit ? phdr.add(0x18).readU32() : phdr.add(0x4).readU32();
             var p_align = is32bit ? phdr.add(0x1c).readU32() : phdr.add(0x30).readU64();
             // console.log(`p_type: ${p_type}, p_offset: ${p_offset}, p_vaddr: ${p_vaddr}, p_paddr: ${p_paddr}, p_filesz: ${p_filesz}, p_memsz: ${p_memsz}, p_flags: ${p_flags}, p_align: ${p_align}`);
+
+            // if p_flags is 0, check it from the file
+            if (p_flags === 0 && fd != null && fd !== -1) {
+                phdrs_from_file = Memory.alloc(phnum * phentsize);
+                lseek(fd, phoff, SEEK_SET);
+                read(fd, phdrs_from_file, phnum * phentsize);
+                var phdr_from_file = phdrs_from_file.add(i * phentsize);
+                p_offset = is32bit ? phdr_from_file.add(0x4).readU32() : phdr_from_file.add(0x8).readU64();
+                p_vaddr = is32bit ? phdr_from_file.add(0x8).readU32() : phdr_from_file.add(0x10).readU64();
+                p_paddr = is32bit ? phdr_from_file.add(0xc).readU32() : phdr_from_file.add(0x18).readU64();
+                p_filesz = is32bit ? phdr_from_file.add(0x10).readU32() : phdr_from_file.add(0x20).readU64();
+                p_memsz = is32bit ? phdr_from_file.add(0x14).readU32() : phdr_from_file.add(0x28).readU64();
+                p_flags = is32bit ? phdr_from_file.add(0x18).readU32() : phdr_from_file.add(0x4).readU32();
+                p_align = is32bit ? phdr_from_file.add(0x1c).readU32() : phdr_from_file.add(0x30).readU64();
+            }
+
             send({
                 'parseElf': {
                     'header': 'Elf_Phdr',
@@ -507,10 +551,17 @@ rpc.exports = {
                 rela_plt_section_addr = base.add(d_value);
                 // console.log(`rela_plt_section_addr: ${rela_plt_section_addr}`)
             }
+            var d_tag_name = null
+            for (var key in d_tags) {
+                if (d_tags[key] == d_tag) {
+                    d_tag_name = key;
+                }
+            }
             send({'parseElf': {
                     'section':section_name,
                     'section_offset':ptr(d_value),
                     'd_tag':d_tag,
+                    'd_tag_name':d_tag_name,
                     'd_value':ptr(d_value)
                 }
             })
@@ -628,5 +679,9 @@ rpc.exports = {
             }
         })
 
+        // Close the file
+        if (fd != null && fd !== -1) {
+            close(fd);
+        }
     }
 }

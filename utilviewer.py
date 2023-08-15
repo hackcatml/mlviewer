@@ -77,8 +77,10 @@ class UtilViewerClass(QTextEdit):
             if (key := 'section') in message:
                 if message[key] == 'Dynamic Tags[.dynamic]':
                     text += f"\n{message[key]} section({message['section_offset']})"
-                else:
+                elif message[key] == '.got.plt' or message[key] == '.dynstr' or message[key] == '.dynsym' or message[key] == '.rela.plt':
                     text += f"|--d_tag: {message['d_tag']}({message[key]}), d_value: {message['d_value']}"
+                else:
+                    text += f"|--d_tag: {message['d_tag']}({message['d_tag_name']}), d_value: {message['d_value']}"
             if (key := 'section_detail') in message:
                 if message[key] == "Symbol Table[.dynsym]":
                     header_text = f"\n{message[key]} section({message['section_offset']})" if 'Symbol Table' not in self.toPlainText() else ""
@@ -135,6 +137,7 @@ class UtilViewerClass(QTextEdit):
             except Exception as e:
                 # self.statusBar.showMessage(f"Error: {e}")
                 print(f"Error: {e}")
+                globvar.fridaInstrument.messagedictsig.disconnect(self.messagedictsig_func)
                 code.revert_frida_script()
                 return
             globvar.fridaInstrument.messagedictsig.disconnect(self.messagedictsig_func)
