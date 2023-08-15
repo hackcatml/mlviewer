@@ -801,7 +801,7 @@
          <widget class="QTextEdit" name="hexViewer">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>1</horstretch>
+            <horstretch>2</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
@@ -868,6 +868,19 @@ li.checked::marker { content: &quot;\2612&quot;; }
         </item>
         <item row="2" column="2">
          <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <item>
+           <widget class="QCheckBox" name="listPIDCheckBox">
+            <property name="maximumSize">
+             <size>
+              <width>110</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>ListPID</string>
+            </property>
+           </widget>
+          </item>
           <item>
            <widget class="QCheckBox" name="attachTypeCheckBox">
             <property name="maximumSize">
@@ -953,36 +966,6 @@ li.checked::marker { content: &quot;\2612&quot;; }
           </item>
          </layout>
         </item>
-        <item row="0" column="2">
-         <layout class="QHBoxLayout" name="horizontalLayout_7">
-          <item>
-           <widget class="QCheckBox" name="listPIDCheckBox">
-            <property name="maximumSize">
-             <size>
-              <width>110</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>ListPID</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_6">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
        </layout>
        <zorder>label</zorder>
        <zorder>tabWidget2</zorder>
@@ -999,7 +982,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
          <widget class="QTextEdit" name="utilViewer">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>1</horstretch>
+            <horstretch>2</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
