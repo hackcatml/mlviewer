@@ -57,6 +57,107 @@ var load_commands = {
 }
 /* stuffs for mach-o parsing end */
 
+/* stuffs for elf parsing start */
+var O_RDONLY = 0;
+var O_WRONLY = 1;
+var O_RDWR = 2;
+var O_APPEND = 1024;
+var O_LARGEFILE = 32768;
+var O_CREAT = 64;
+var SEEK_SET = 0;
+var SEEK_CUR = 1;
+var SEEK_END = 2;
+
+var p_types = {
+    "PT_NULL":		0,		/* Program header table entry unused */
+    "PT_LOAD":		1,		/* Loadable program segment */
+    "PT_DYNAMIC":	2,		/* Dynamic linking information */
+    "PT_INTERP":	3,		/* Program interpreter */
+    "PT_NOTE":		4,		/* Auxiliary information */
+    "PT_SHLIB":	    5,		/* Reserved */
+    "PT_PHDR":		6,		/* Entry for header table itself */
+    "PT_TLS":		7,		/* Thread-local storage segment */
+    "PT_NUM":		8,		/* Number of defined types */
+    "PT_LOOS":		0x60000000,	/* Start of OS-specific */
+    "PT_GNU_EH_FRAME":	0x6474e550,	/* GCC .eh_frame_hdr segment */
+    "PT_GNU_STACK":	0x6474e551,	/* Indicates stack executability */
+    "PT_GNU_RELRO":	0x6474e552,	/* Read-only after relocation */
+    "PT_GNU_PROPERTY":	0x6474e553,	/* GNU property */
+    "PT_LOSUNW":	0x6ffffffa,
+    "PT_SUNWBSS":	0x6ffffffa,	/* Sun Specific segment */
+    "PT_SUNWSTACK":	0x6ffffffb,	/* Stack segment */
+    "PT_HISUNW":	0x6fffffff,
+    "PT_HIOS":		0x6fffffff,	/* End of OS-specific */
+    "PT_LOPROC":	0x70000000,	/* Start of processor-specific */
+    "PT_HIPROC":	0x7fffffff,	/* End of processor-specific */
+}
+
+var d_tags = {
+    "DT_NULL":		0,		/* Marks end of dynamic section */
+    "DT_NEEDED":	1,		/* Name of needed library */
+    "DT_PLTRELSZ":	2,		/* Size in bytes of PLT relocs */
+    "DT_PLTGOT":	3,		/* Processor defined value */
+    "DT_HASH":		4,		/* Address of symbol hash table */
+    "DT_STRTAB":	5,		/* Address of string table */
+    "DT_SYMTAB":	6,		/* Address of symbol table */
+    "DT_RELA":		7,		/* Address of Rela relocs */
+    "DT_RELASZ":	8,		/* Total size of Rela relocs */
+    "DT_RELAENT":	9,		/* Size of one Rela reloc */
+    "DT_STRSZ":	    10,		/* Size of string table */
+    "DT_SYMENT":	11,		/* Size of one symbol table entry */
+    "DT_INIT":		12,		/* Address of init function */
+    "DT_FINI":		13,		/* Address of termination function */
+    "DT_SONAME":	14,		/* Name of shared object */
+    "DT_RPATH":	    15,		/* Library search path (deprecated) */
+    "DT_SYMBOLIC":	16,		/* Start symbol search here */
+    "DT_REL":		17,		/* Address of Rel relocs */
+    "DT_RELSZ":	    18,		/* Total size of Rel relocs */
+    "DT_RELENT":	19,		/* Size of one Rel reloc */
+    "DT_PLTREL":	20,		/* Type of reloc in PLT */
+    "DT_DEBUG":	    21,		/* For debugging; unspecified */
+    "DT_TEXTREL":	22,		/* Reloc might modify .text */
+    "DT_JMPREL":	23,		/* Address of PLT relocs */
+    "DT_BIND_NOW":	24,		/* Process relocations of object */
+    "DT_INIT_ARRAY":	25,		/* Array with addresses of init fct */
+    "DT_FINI_ARRAY":	26,		/* Array with addresses of fini fct */
+    "DT_INIT_ARRAYSZ":	27,		/* Size in bytes of DT_INIT_ARRAY */
+    "DT_FINI_ARRAYSZ":	28,		/* Size in bytes of DT_FINI_ARRAY */
+    "DT_RUNPATH":	29,		/* Library search path */
+    "DT_FLAGS":	    30,		/* Flags for the object being loaded */
+    "DT_ENCODING":	32,		/* Start of encoded range */
+    "DT_PREINIT_ARRAY": 32,		/* Array with addresses of preinit fct*/
+    "DT_PREINIT_ARRAYSZ": 33,		/* size in bytes of DT_PREINIT_ARRAY */
+    "DT_SYMTAB_SHNDX":	34,		/* Address of SYMTAB_SHNDX section */
+    "DT_NUM":		35,		/* Number used */
+    "DT_LOOS":		0x6000000d,	/* Start of OS-specific */
+    "DT_HIOS":		0x6ffff000,	/* End of OS-specific */
+    "DT_LOPROC":	0x70000000,	/* Start of processor-specific */
+    "DT_HIPROC":	0x7fffffff,	/* End of processor-specific */
+    "DT_PROCNUM":	0x37,	/* Most used by any processor */
+}
+
+function getExportFunction(name, ret, args) {
+    var funcPtr;
+    funcPtr = Module.findExportByName(null, name);
+    if (funcPtr === null) {
+        console.log("cannot find " + name);
+        return null;
+    } else {
+        var func = new NativeFunction(funcPtr, ret, args);
+        if (typeof func === "undefined") {
+            console.log("parse error " + name);
+            return null;
+        }
+        return func;
+    }
+}
+
+var open = getExportFunction("open", "int", ["pointer", "int", "int"])
+var close = getExportFunction("close", "int", ["int"]);
+var lseek = getExportFunction("lseek", "int", ["int", "int", "int"]);
+var read = getExportFunction("read", "int", ["int", "pointer", "int"]);
+/* stuffs for elf parsing end */
+
 rpc.exports = {
     machoparse: (base) => {
         base = ptr(base)
@@ -243,111 +344,7 @@ rpc.exports = {
                 })
             }
         }
-    }
-}
-
-/* stuffs for elf parsing start */
-var O_RDONLY = 0;
-var O_WRONLY = 1;
-var O_RDWR = 2;
-var O_APPEND = 1024;
-var O_LARGEFILE = 32768;
-var O_CREAT = 64;
-var SEEK_SET = 0;
-var SEEK_CUR = 1;
-var SEEK_END = 2;
-
-var p_types = {
-    "PT_NULL":		0,		/* Program header table entry unused */
-    "PT_LOAD":		1,		/* Loadable program segment */
-    "PT_DYNAMIC":	2,		/* Dynamic linking information */
-    "PT_INTERP":	3,		/* Program interpreter */
-    "PT_NOTE":		4,		/* Auxiliary information */
-    "PT_SHLIB":	    5,		/* Reserved */
-    "PT_PHDR":		6,		/* Entry for header table itself */
-    "PT_TLS":		7,		/* Thread-local storage segment */
-    "PT_NUM":		8,		/* Number of defined types */
-    "PT_LOOS":		0x60000000,	/* Start of OS-specific */
-    "PT_GNU_EH_FRAME":	0x6474e550,	/* GCC .eh_frame_hdr segment */
-    "PT_GNU_STACK":	0x6474e551,	/* Indicates stack executability */
-    "PT_GNU_RELRO":	0x6474e552,	/* Read-only after relocation */
-    "PT_GNU_PROPERTY":	0x6474e553,	/* GNU property */
-    "PT_LOSUNW":	0x6ffffffa,
-    "PT_SUNWBSS":	0x6ffffffa,	/* Sun Specific segment */
-    "PT_SUNWSTACK":	0x6ffffffb,	/* Stack segment */
-    "PT_HISUNW":	0x6fffffff,
-    "PT_HIOS":		0x6fffffff,	/* End of OS-specific */
-    "PT_LOPROC":	0x70000000,	/* Start of processor-specific */
-    "PT_HIPROC":	0x7fffffff,	/* End of processor-specific */
-}
-
-var d_tags = {
-    "DT_NULL":		0,		/* Marks end of dynamic section */
-    "DT_NEEDED":	1,		/* Name of needed library */
-    "DT_PLTRELSZ":	2,		/* Size in bytes of PLT relocs */
-    "DT_PLTGOT":	3,		/* Processor defined value */
-    "DT_HASH":		4,		/* Address of symbol hash table */
-    "DT_STRTAB":	5,		/* Address of string table */
-    "DT_SYMTAB":	6,		/* Address of symbol table */
-    "DT_RELA":		7,		/* Address of Rela relocs */
-    "DT_RELASZ":	8,		/* Total size of Rela relocs */
-    "DT_RELAENT":	9,		/* Size of one Rela reloc */
-    "DT_STRSZ":	    10,		/* Size of string table */
-    "DT_SYMENT":	11,		/* Size of one symbol table entry */
-    "DT_INIT":		12,		/* Address of init function */
-    "DT_FINI":		13,		/* Address of termination function */
-    "DT_SONAME":	14,		/* Name of shared object */
-    "DT_RPATH":	    15,		/* Library search path (deprecated) */
-    "DT_SYMBOLIC":	16,		/* Start symbol search here */
-    "DT_REL":		17,		/* Address of Rel relocs */
-    "DT_RELSZ":	    18,		/* Total size of Rel relocs */
-    "DT_RELENT":	19,		/* Size of one Rel reloc */
-    "DT_PLTREL":	20,		/* Type of reloc in PLT */
-    "DT_DEBUG":	    21,		/* For debugging; unspecified */
-    "DT_TEXTREL":	22,		/* Reloc might modify .text */
-    "DT_JMPREL":	23,		/* Address of PLT relocs */
-    "DT_BIND_NOW":	24,		/* Process relocations of object */
-    "DT_INIT_ARRAY":	25,		/* Array with addresses of init fct */
-    "DT_FINI_ARRAY":	26,		/* Array with addresses of fini fct */
-    "DT_INIT_ARRAYSZ":	27,		/* Size in bytes of DT_INIT_ARRAY */
-    "DT_FINI_ARRAYSZ":	28,		/* Size in bytes of DT_FINI_ARRAY */
-    "DT_RUNPATH":	29,		/* Library search path */
-    "DT_FLAGS":	    30,		/* Flags for the object being loaded */
-    "DT_ENCODING":	32,		/* Start of encoded range */
-    "DT_PREINIT_ARRAY": 32,		/* Array with addresses of preinit fct*/
-    "DT_PREINIT_ARRAYSZ": 33,		/* size in bytes of DT_PREINIT_ARRAY */
-    "DT_SYMTAB_SHNDX":	34,		/* Address of SYMTAB_SHNDX section */
-    "DT_NUM":		35,		/* Number used */
-    "DT_LOOS":		0x6000000d,	/* Start of OS-specific */
-    "DT_HIOS":		0x6ffff000,	/* End of OS-specific */
-    "DT_LOPROC":	0x70000000,	/* Start of processor-specific */
-    "DT_HIPROC":	0x7fffffff,	/* End of processor-specific */
-    "DT_PROCNUM":	0x37,	/* Most used by any processor */
-}
-/* stuffs for elf parsing end */
-
-function getExportFunction(name, ret, args) {
-    var funcPtr;
-    funcPtr = Module.findExportByName(null, name);
-    if (funcPtr === null) {
-        console.log("cannot find " + name);
-        return null;
-    } else {
-        var func = new NativeFunction(funcPtr, ret, args);
-        if (typeof func === "undefined") {
-            console.log("parse error " + name);
-            return null;
-        }
-        return func;
-    }
-}
-
-var open = getExportFunction("open", "int", ["pointer", "int", "int"])
-var close = getExportFunction("close", "int", ["int"]);
-var lseek = getExportFunction("lseek", "int", ["int", "int", "int"]);
-var read = getExportFunction("read", "int", ["int", "pointer", "int"]);
-
-rpc.exports = {
+    },
     elfparse: (base) => {
         base = ptr(base);
         var module = Process.findModuleByAddress(base);
