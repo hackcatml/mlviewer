@@ -2,7 +2,7 @@ import re
 
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSlot
-from PyQt6.QtGui import QAction, QTextCursor, QTextCharFormat, QFont
+from PyQt6.QtGui import QAction, QTextCursor
 from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget
 
 import code
@@ -20,10 +20,14 @@ class UtilViewerClass(QTextEdit):
         self.got_detail = ''
         self.la_symbol_ptr_detail = ''
 
+        self.dynsym_header_checked = False
         self.dynsym_detail = ''
+        self.dynsym_detail_list = []
         self.rela_plt_detail = ''
         self.got_plt_detail = ''
+        self.symtab_header_checked = False
         self.symtab_detail = ''
+        self.symtab_detail_list = []
 
         self.platform = None
         self.statusBar = None
@@ -84,8 +88,11 @@ class UtilViewerClass(QTextEdit):
                     text += f"|--d_tag: {message['d_tag']}({message['d_tag_name']}), d_value: {message['d_value']}"
             if (key := 'section_detail') in message:
                 if message[key] == "Symbol Table[.dynsym]":
-                    header_text = f"\n{message[key]} section({message['section_offset']})" if 'Symbol Table' not in self.toPlainText() else ""
-                    self.dynsym_detail += f"st_name: {message['st_name']} --> symbol: {message['symbol_name']}, st_value: {message['st_value']}, st_size: {message['st_size']}, st_info: {message['st_info']}, st_other: {message['st_other']}, st_shndx: {message['st_shndx']}\n"
+                    header_text = ""
+                    if not self.dynsym_header_checked:
+                        header_text = f"\n{message[key]} section({message['section_offset']})"
+                        self.dynsym_header_checked = True
+                    self.dynsym_detail_list.append(f"st_name: {message['st_name']} --> symbol: {message['symbol_name']}, st_value: {message['st_value']}, st_size: {message['st_size']}, st_info: {message['st_info']}, st_other: {message['st_other']}, st_shndx: {message['st_shndx']}")
                     text += header_text
                 if message[key] == "String Table[.dynstr]":
                     header_text = f"{message[key]} section({message['section_offset']})" if 'String Table' not in self.toPlainText() else ""
@@ -98,8 +105,11 @@ class UtilViewerClass(QTextEdit):
                 if message[key] == ".got.plt":
                     text += f"{message[key]} section({message['section_offset']})"
                 if message[key] == "Symbol Table[.symtab]":
-                    header_text = f"{message[key]} section" if 'Symbol Table[.symtab]' not in self.toPlainText() else ""
-                    self.symtab_detail += f"st_name: {message['st_name']} --> symbol: {message['symbol_name']}, st_value: {message['st_value']}, st_size: {message['st_size']}, st_info: {message['st_info']}, st_other: {message['st_other']}, st_shndx: {message['st_shndx']}\n"
+                    header_text = ""
+                    if not self.symtab_header_checked:
+                        header_text = f"{message[key]} section"
+                        self.symtab_header_checked = True
+                    self.symtab_detail_list.append(f"st_name: {message['st_name']} --> symbol: {message['symbol_name']}, st_value: {message['st_value']}, st_size: {message['st_size']}, st_info: {message['st_info']}, st_other: {message['st_other']}, st_shndx: {message['st_shndx']}")
                     text += header_text
             if text != '':
                 self.append(text)
@@ -131,10 +141,14 @@ class UtilViewerClass(QTextEdit):
                         self.la_symbol_ptr_detail = ''
                         globvar.fridaInstrument.parse_macho(self.parse_img_base.toPlainText())
                     elif self.platform == 'linux':
+                        self.dynsym_header_checked = False
                         self.dynsym_detail = ''
+                        self.dynsym_detail_list.clear()
                         self.rela_plt_detail = ''
                         self.got_plt_detail = ''
+                        self.symtab_header_checked = False
                         self.symtab_detail = ''
+                        self.symtab_detail_list.clear()
                         globvar.fridaInstrument.parse_elf(self.parse_img_base.toPlainText())
                 else:
                     self.statusBar.showMessage(f"No module {self.parse_img_name.text() if caller == 'parse_img_name' else self.parseImgName.text()} found")
@@ -183,12 +197,14 @@ class UtilViewerClass(QTextEdit):
         elif title == "__la_symbol_ptr":
             detail_of_what = self.la_symbol_ptr_detail
         elif title == ".dynsym":
+            self.dynsym_detail = "\n".join(self.dynsym_detail_list)
             detail_of_what = self.dynsym_detail
         elif title == '.rela.plt':
             detail_of_what = self.rela_plt_detail
         elif title == '.got.plt':
             detail_of_what = self.got_plt_detail
         elif title == '.symtab':
+            self.symtab_detail = "\n".join(self.symtab_detail_list)
             detail_of_what = self.symtab_detail
         self.new_detail_widget = NewDetailWidget(title, detail_of_what)
         self.new_detail_widget.show()

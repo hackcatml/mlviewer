@@ -639,7 +639,7 @@ rpc.exports = {
                     'section_offset':dynsym_section_addr.sub(base),
                     'st_name': st_name,
                     'symbol_name': symbol_name,
-                    'st_value': st_value,
+                    'st_value': ptr(st_value),
                     'st_size': st_size,
                     'st_info': st_info,
                     'st_other': st_other,
