@@ -234,14 +234,14 @@ rpc.exports = {
             }
         }, 100);
 
-        function scanMemory() {
+        function scanMemory(scanstart, scansize, mempattern) {
             if(completed){
                 console.log("[hackcatml] Memory Scan Done!")
                 scandestroyed = true
                 scancompleted = module.size
                 return 0;
             }
-            Memory.scan(ptr(module.base), module.size, mempattern, {
+            Memory.scan(scanstart, scansize, mempattern, {
                 onMatch: function (address, size) {
                     if(completed){
                         return
@@ -263,14 +263,22 @@ rpc.exports = {
                     returnmessage += address.toString() + ', module: ' + module.name + ', offset: ' + offset + '\n';
                     returnmessage += hexdump(address, {offset: 0, length: 32}) + '\n\n';
                 },
-                onError: function (reason) { console.log('[!] Error Scanning Memory: ' + reason); },
+                onError: function (reason) {
+                    console.log('[!] Error Scanning Memory: ' + reason);
+                    var newstart = ptr(reason.match(/(0x[0-9a-f]+)/)[1]).add(0x4);
+                    var newsize = scansize - parseInt(newstart.sub(scanstart));
+                    this.error = true;
+                    scanMemory(newstart, newsize, mempattern);
+                },
                 onComplete: function () {
-                    completed = true
-                    scanMemory()
+                    if (!this.error) {
+                        completed = true;
+                        scanMemory(scanstart, scansize, mempattern);
+                    }
                 }
             });
         }
-        scanMemory()
+        scanMemory(module.base, module.size, mempattern);
     },
     memscanandreplace: (code) => {
         scanandreplacemode = true
