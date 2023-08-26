@@ -12,4 +12,5 @@ requests==2.31.0
 shiboken6==6.4.1
 timer==0.2.2
 urllib3==2.0.3
+wheel==0.41.2
 yarl==1.8.2
