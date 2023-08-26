@@ -389,6 +389,14 @@ class Ui_MainWindow(object):
         self.watchMemorySpinBox.setSingleStep(0.1)
         self.watchMemorySpinBox.setObjectName("watchMemorySpinBox")
         self.horizontalLayout_4.addWidget(self.watchMemorySpinBox)
+        self.moveBackwardBtn = QtWidgets.QPushButton(self.tab)
+        self.moveBackwardBtn.setMaximumSize(QtCore.QSize(30, 16777215))
+        self.moveBackwardBtn.setObjectName("moveBackwardBtn")
+        self.horizontalLayout_4.addWidget(self.moveBackwardBtn)
+        self.moveForwardBtn = QtWidgets.QPushButton(self.tab)
+        self.moveForwardBtn.setMaximumSize(QtCore.QSize(30, 16777215))
+        self.moveForwardBtn.setObjectName("moveForwardBtn")
+        self.horizontalLayout_4.addWidget(self.moveForwardBtn)
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout_4.addItem(spacerItem1)
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
@@ -565,6 +573,8 @@ class Ui_MainWindow(object):
         self.hexEditBtn.setText(_translate("MainWindow", "HexEdit"))
         self.hexEditDoneBtn.setText(_translate("MainWindow", "Done"))
         self.watchMemoryCheckBox.setText(_translate("MainWindow", "Watch"))
+        self.moveBackwardBtn.setText(_translate("MainWindow", "◀"))
+        self.moveForwardBtn.setText(_translate("MainWindow", "▶"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Viewer"))
         self.utilViewer.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\n"

@@ -12,6 +12,7 @@ import globvar
 
 class HexViewerClass(QTextEdit):
     wheelupsig = QtCore.pyqtSignal(str)
+    movesig = QtCore.pyqtSignal(int)
 
     def __init__(self, args):
         super(HexViewerClass, self).__init__(args)
@@ -126,15 +127,23 @@ class HexViewerClass(QTextEdit):
         indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
         # memory pattern search 한 결과창에서 마우스 클릭한 경우
         if len(indices) == 0:
+            if e.buttons() == QtCore.Qt.MouseButton.XButton1 or e.buttons() == QtCore.Qt.MouseButton.XButton2: return
             for i in range(2): self.moveCursor(QTextCursor.MoveOperation.Up)
             self.moveCursor(QTextCursor.MoveOperation.NextWord)
             return
         # elif tc.block().text().find(', module:') != -1:
         elif re.search(r"\d+\. 0x[a-f0-9]+, module:", tc.block().text()):
+            if e.buttons() == QtCore.Qt.MouseButton.XButton1 or e.buttons() == QtCore.Qt.MouseButton.XButton2: return
             self.moveCursor(QTextCursor.MoveOperation.Down)
             self.moveCursor(QTextCursor.MoveOperation.StartOfBlock)
             self.moveCursor(QTextCursor.MoveOperation.NextWord)
             return
+
+        if e.buttons() == QtCore.Qt.MouseButton.XButton1:
+            self.movesig.emit(0)
+        elif e.buttons() == QtCore.Qt.MouseButton.XButton2:
+            self.movesig.emit(1)
+
         # mouse left click on non hex editable region at normal hexviewer
         if e.buttons() == QtCore.Qt.MouseButton.LeftButton and len(indices) > 0:
             # ADDRESS region

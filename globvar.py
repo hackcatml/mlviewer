@@ -15,3 +15,5 @@ currentFrameStartAddress = ''
 scanProgressRatio = 0
 
 dumpModuleName = ''
+
+visitedAddress = []

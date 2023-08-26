@@ -172,6 +172,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memReplaceBtn.setEnabled(False)
         self.memReplacePattern.setEnabled(False)
         self.hexViewer.wheelupsig.connect(self.wheelupsig_func)
+        self.hexViewer.movesig.connect(self.movesig_func)
         self.defaultcolor = QLabel().palette().color(QPalette.ColorRole.WindowText)
         self.listImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "listImgViewer"))
         self.parseImgListImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "parseImgListImgViewer"))
@@ -216,6 +217,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.searchMemSearchResult.textChanged.connect(self.search_mem_search_result)
         self.unityCheckBox.stateChanged.connect(self.il2cpp_checkbox)
         self.watchMemoryCheckBox.stateChanged.connect(self.watch_mem_checkbox)
+        self.moveBackwardBtn.clicked.connect(self.move_backward)
+        self.moveForwardBtn.clicked.connect(self.move_forward)
 
         self.utilViewer.parse_img_name = self.parse_img_name
         self.utilViewer.parse_img_base = self.parse_img_base
@@ -254,6 +257,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # print(addr)
         self.addrInput.setText(addr)
         self.addr_btn_func()
+
+    @pyqtSlot(int)
+    def movesig_func(self, movesig: int):
+        self.move_backward() if movesig == 0 else self.move_forward()
 
     @pyqtSlot(str)
     def modulenamesig_func(self, modulenamesig: str, caller):
@@ -570,6 +577,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                  self.hexViewer.textCursor().block().text()[:self.hexViewer.textCursor().block().text().find(' ')]))
             # print("[hackcatml] currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
             # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
+            self.visited_addr()
             return
 
         if inspect.currentframe().f_back.f_code.co_name != "offset_ok_btn_func":
@@ -590,6 +598,39 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             ("0x", self.hexViewer.textCursor().block().text()[:self.hexViewer.textCursor().block().text().find(' ')]))
         # print("[hackcatml] currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
         # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
+        self.visited_addr()
+
+    # remember visited address
+    def visited_addr(self):
+        curr_addr = self.status_current.toPlainText()
+        match = re.search(r'\(0x[a-fA-F0-9]+\)', curr_addr)
+        visited_addr = curr_addr[:match.start()] if match is not None else curr_addr
+        if visited_addr != '':
+            if len(globvar.visitedAddress) == 0:
+                globvar.visitedAddress.append(['last', visited_addr])
+            else:
+                last_visit_index = None
+                for item in globvar.visitedAddress:
+                    if item[0] == 'last':
+                        last_visit_index = globvar.visitedAddress.index(item)
+                if not any(sublist[1] == visited_addr for sublist in globvar.visitedAddress):
+                    globvar.visitedAddress.append(['last', visited_addr])
+                    if last_visit_index is not None:
+                        globvar.visitedAddress[last_visit_index][0] = 'notlast'
+                else:
+                    revisit_index = None
+                    # Find the index of the sublist to modify
+                    for idx, sublist in enumerate(globvar.visitedAddress):
+                        if sublist[1] == visited_addr and sublist[0] == 'notlast':
+                            revisit_index = idx
+                            break
+                    # Modify the sublist if we found a matching index
+                    if revisit_index is not None:
+                        globvar.visitedAddress[revisit_index][0] = 'last'
+                        if revisit_index != last_visit_index:
+                            globvar.visitedAddress[last_visit_index][0] = 'notlast'
+
+        # print(globvar.visitedAddress)
 
     def util_tab_bar_click_func(self, index):
         # util tab
@@ -993,6 +1034,24 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         else:
             if self.memrefreshworker is not None:
                 self.memrefreshworker.terminate()
+
+    def move_backward(self):
+        if len(globvar.visitedAddress) > 0:
+            for idx, sublist in enumerate(globvar.visitedAddress):
+                if sublist[0] == 'last' and idx > 0:
+                    addr_to_visit = globvar.visitedAddress[idx - 1][1]
+                    self.addrInput.setText(addr_to_visit)
+                    self.addr_btn_func()
+                    break
+
+    def move_forward(self):
+        if len(globvar.visitedAddress) > 0:
+            for idx, sublist in enumerate(globvar.visitedAddress):
+                if sublist[0] == 'last' and idx < len(globvar.visitedAddress) - 1:
+                    addr_to_visit = globvar.visitedAddress[idx + 1][1]
+                    self.addrInput.setText(addr_to_visit)
+                    self.addr_btn_func()
+                    break
 
     def dump_module(self):
         # il2cpp dump
