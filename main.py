@@ -1036,6 +1036,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.memrefreshworker.terminate()
 
     def move_backward(self):
+        tc = self.hexViewer.textCursor()
+        indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
+        if len(indices) == 0:
+            return
+        elif re.search(r"\d+\. 0x[a-f0-9]+, module:", tc.block().text()):
+            return
+
         if len(globvar.visitedAddress) > 0:
             for idx, sublist in enumerate(globvar.visitedAddress):
                 if sublist[0] == 'last' and idx > 0:
@@ -1045,6 +1052,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     break
 
     def move_forward(self):
+        tc = self.hexViewer.textCursor()
+        indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
+        if len(indices) == 0:
+            return
+        elif re.search(r"\d+\. 0x[a-f0-9]+, module:", tc.block().text()):
+            return
+
         if len(globvar.visitedAddress) > 0:
             for idx, sublist in enumerate(globvar.visitedAddress):
                 if sublist[0] == 'last' and idx < len(globvar.visitedAddress) - 1:
