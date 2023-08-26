@@ -297,6 +297,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     @pyqtSlot(str)
     def il2cppdumpsig_func(self, il2cppdumpsig: str):
         if il2cppdumpsig is not None:
+            QThread.msleep(100)
             self.statusBar().showMessage("il2cpp Dump Done!", 5000)
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
             self.listImgViewer.setTextColor(QColor("Red"))
