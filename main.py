@@ -409,6 +409,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 globvar.listModules.clear()
                 globvar.isFridaAttached = False
                 globvar.fridaInstrument = None
+                globvar.visitedAddress.clear()
                 self.remoteaddr = ''
                 self.il2cppFridaInstrument = None
                 if self.hexViewer.new_watch_widget is not None:
@@ -603,6 +604,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
     # remember visited address
     def visited_addr(self):
+        if len(inspect.stack()) > 3 and inspect.stack()[3].function == 'wheelupsig_func':
+            return
         curr_addr = self.status_current.toPlainText()
         match = re.search(r'\(0x[a-fA-F0-9]+\)', curr_addr)
         visited_addr = curr_addr[:match.start()] if match is not None else curr_addr
@@ -626,12 +629,19 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                             revisit_index = idx
                             break
                     # Modify the sublist if we found a matching index
-                    if revisit_index is not None:
+                    if revisit_index is not None and (inspect.stack()[3].function != 'move_forward' and inspect.stack()[3].function != 'move_backward'):
+                        revisit_addr_mark = globvar.visitedAddress[revisit_index][0]
+                        revisit_addr = globvar.visitedAddress[revisit_index][1]
+                        globvar.visitedAddress.remove([revisit_addr_mark, revisit_addr])
+                        globvar.visitedAddress.append(['last', revisit_addr])
+                        for idx, sublist in enumerate(globvar.visitedAddress):
+                            if sublist[1] != revisit_addr and sublist[0] == 'last':
+                                globvar.visitedAddress[idx][0] = 'notlast'
+                                break
+                    elif revisit_index is not None and (inspect.stack()[3].function == 'move_forward' or inspect.stack()[3].function == 'move_backward'):
                         globvar.visitedAddress[revisit_index][0] = 'last'
                         if revisit_index != last_visit_index:
                             globvar.visitedAddress[last_visit_index][0] = 'notlast'
-
-        # print(globvar.visitedAddress)
 
     def util_tab_bar_click_func(self, index):
         # util tab
