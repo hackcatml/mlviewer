@@ -18,7 +18,7 @@ class HexViewerClass(QTextEdit):
         super(HexViewerClass, self).__init__(args)
         self.hitcount = 0
         self.verticalScrollBar().sliderMoved.connect(self.setScrollBarPos)
-
+        self.statusBar = None
         self.new_watch_widget = NewWatchWidget()
 
     def setScrollBarPos(self, value):
@@ -165,6 +165,9 @@ class HexViewerClass(QTextEdit):
         if not self.isReadOnly():
             return
 
+        tc = self.cursorForPosition(e.pos())
+        tcx = tc.positionInBlock()
+
         menu = super(HexViewerClass, self).createStandardContextMenu()  # Get the default context menu
         select_all_action = next((action for action in menu.actions() if "Select All" in action.text()), None)
 
@@ -184,6 +187,23 @@ class HexViewerClass(QTextEdit):
             copy_hex_action = create_action("Copy Hex", is_selected and match is None, self.copy_hex)
             disassemble_action = create_action("Hex to Arm", is_selected and match is None, self.request_armconverter)
 
+            copy_pointer_action = None
+            if globvar.fridaInstrument is None:
+                self.statusBar.showMessage(f"Attach first", 3000)
+                return
+            arch = globvar.fridaInstrument.arch()
+            addr_match = hex_regex.match(tc.block().text())
+            addr_length = None
+            if addr_match is not None:
+                addr_length = len(addr_match[0])
+                hex_start = addr_length + 2
+                cursor_len_4bytes = 12  # '00 00 00 00 '
+                cursor_len_8bytes = 2 * 12
+                if arch == "arm64" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2]):
+                    copy_pointer_action = create_action("Copy Pointer", match is None, lambda: self.copy_pointer(tc, arch, hex_start))
+                elif arch == "arm" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_4bytes, hex_start + cursor_len_4bytes + 1, hex_start + cursor_len_4bytes + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2] or tcx in [hex_start + 3 * cursor_len_4bytes, hex_start + 3 * cursor_len_4bytes + 1, hex_start + 3 * cursor_len_4bytes + 2]):
+                    copy_pointer_action = create_action("Copy Pointer", match is None, self.copy_pointer(tc, arch, hex_start))
+
             if match:
                 watch_action = create_action("Set Watch Func", True, lambda: self.set_watch_on_addr("watch_func"))
                 watch_regs_action = create_action("Set Watch Regs", True, lambda: self.set_watch_on_addr("watch_regs"))
@@ -193,6 +213,8 @@ class HexViewerClass(QTextEdit):
 
             menu.insertAction(select_all_action, copy_hex_action)
             menu.insertAction(select_all_action, disassemble_action)
+            if copy_pointer_action is not None:
+                menu.insertAction(select_all_action, copy_pointer_action)
 
         menu.exec(e.globalPos())
 
@@ -271,6 +293,22 @@ class HexViewerClass(QTextEdit):
             self.new_hex_to_arm_widget.show()
         else:
             print("Fail to hex to arm convert")
+
+    def copy_pointer(self, tc: QTextCursor, arch: str, hex_start):
+        tcx = tc.positionInBlock()
+        cursor_len_4bytes = 12
+        cursor_len_8bytes = 12 * 2
+        hex_code = None
+        if tcx in [hex_start, hex_start + 1, hex_start + 2]:
+            hex_code = tc.block().text()[hex_start:hex_start + cursor_len_8bytes - 1] if arch == "arm64" else tc.block().text()[hex_start:hex_start + cursor_len_4bytes - 1]
+        elif tcx in [hex_start + cursor_len_4bytes, hex_start + cursor_len_4bytes + 1, hex_start + cursor_len_4bytes + 2]:
+            hex_code = tc.block().text()[hex_start + cursor_len_4bytes:hex_start + cursor_len_8bytes - 1]
+        elif tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2]:
+            hex_code = tc.block().text()[hex_start + cursor_len_8bytes:hex_start + 2 * cursor_len_8bytes - 1] if arch == "arm64" else tc.block().text()[hex_start + cursor_len_8bytes:hex_start + 3 * cursor_len_4bytes - 1]
+        elif tcx in [hex_start + 3 * cursor_len_4bytes, hex_start + 3 * cursor_len_4bytes + 1, hex_start + 3 * cursor_len_4bytes + 2]:
+            hex_code = tc.block().text()[hex_start + 3 * cursor_len_4bytes:hex_start + 4 * cursor_len_4bytes - 1]
+        pointer = hex(int(''.join(reversed(hex_code.split(' '))), 16))
+        QApplication.clipboard().setText(pointer)
 
     @pyqtSlot(str)
     def messagesig_func(self, message: str):

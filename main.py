@@ -173,6 +173,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memReplacePattern.setEnabled(False)
         self.hexViewer.wheelupsig.connect(self.wheelupsig_func)
         self.hexViewer.movesig.connect(self.movesig_func)
+        self.hexViewer.statusBar = self.statusBar()
         self.defaultcolor = QLabel().palette().color(QPalette.ColorRole.WindowText)
         self.listImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "listImgViewer"))
         self.parseImgListImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "parseImgListImgViewer"))
@@ -187,6 +188,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.spawntargetid = None   # target identifier to do frida spawn. need to provide on the AppList widget
         self.remoteaddr = ''
         self.memrefreshworker = None
+        self.refreshCurrentAddressShortcut = QShortcut(QKeySequence(Qt.Key.Key_F3), self)
+        self.refreshCurrentAddressShortcut.activated.connect(self.refresh_curr_addr)
 
         self.attachBtn.clicked.connect(self.attach_frida)
         self.detachBtn.clicked.connect(self.detach_frida)
@@ -217,6 +220,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.searchMemSearchResult.textChanged.connect(self.search_mem_search_result)
         self.unityCheckBox.stateChanged.connect(self.il2cpp_checkbox)
         self.watchMemoryCheckBox.stateChanged.connect(self.watch_mem_checkbox)
+        self.refreshBtn.clicked.connect(self.refresh_curr_addr)
         self.moveBackwardBtn.clicked.connect(self.move_backward)
         self.moveForwardBtn.clicked.connect(self.move_forward)
 
@@ -1045,6 +1049,16 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         else:
             if self.memrefreshworker is not None:
                 self.memrefreshworker.terminate()
+
+    def refresh_curr_addr(self):
+        curr_addr = self.status_current.toPlainText()
+        if curr_addr == '':
+            return
+        else:
+            match = re.search(r'\(0x[a-fA-F0-9]+\)', curr_addr)
+            curr_addr = curr_addr[:match.start()] if match is not None else curr_addr
+            self.addrInput.setText(curr_addr)
+            self.addr_btn_func()
 
     def move_backward(self):
         tc = self.hexViewer.textCursor()
