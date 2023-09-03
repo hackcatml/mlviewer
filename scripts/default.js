@@ -87,6 +87,10 @@ rpc.exports = {
         if(symbol_addr == null) {
             function findsymaddr(modules) {
                 for (let m of modules) {
+                    let result = Module.findExportByName(m['name'], name);
+                    if (result !== null) {
+                        return result;
+                    }
                     let symbols = Module.enumerateSymbols(m['name']);
                     for (let sym of symbols) {
                         if (sym['name'].indexOf(name) !== -1) {
