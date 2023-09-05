@@ -193,7 +193,6 @@ class HexViewerClass(QTextEdit):
                 return
             arch = globvar.fridaInstrument.arch()
             addr_match = hex_regex.match(tc.block().text())
-            addr_length = None
             if addr_match is not None:
                 addr_length = len(addr_match[0])
                 hex_start = addr_length + 2
@@ -202,7 +201,7 @@ class HexViewerClass(QTextEdit):
                 if arch == "arm64" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2]):
                     copy_pointer_action = create_action("Copy Pointer", match is None, lambda: self.copy_pointer(tc, arch, hex_start))
                 elif arch == "arm" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_4bytes, hex_start + cursor_len_4bytes + 1, hex_start + cursor_len_4bytes + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2] or tcx in [hex_start + 3 * cursor_len_4bytes, hex_start + 3 * cursor_len_4bytes + 1, hex_start + 3 * cursor_len_4bytes + 2]):
-                    copy_pointer_action = create_action("Copy Pointer", match is None, self.copy_pointer(tc, arch, hex_start))
+                    copy_pointer_action = create_action("Copy Pointer", match is None, lambda: self.copy_pointer(tc, arch, hex_start))
 
             if match:
                 watch_action = create_action("Set Watch Func", True, lambda: self.set_watch_on_addr("watch_func"))
