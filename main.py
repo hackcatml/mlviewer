@@ -1,5 +1,6 @@
 import collections
 import inspect
+import os
 import platform
 import re
 
@@ -305,7 +306,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.statusBar().showMessage("il2cpp Dump Done!", 5000)
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
             self.listImgViewer.setTextColor(QColor("Red"))
-            self.listImgViewer.insertPlainText("Dumped file at: " + il2cppdumpsig + "\n\n")
+            if self.isremoteattachchecked:
+                os.system(f"frida-pull -H {self.il2cppFridaInstrument.remoteaddr} \"{il2cppdumpsig}\" {os.getcwd()}/dump/")
+            else:
+                os.system(f"frida-pull -U \"{il2cppdumpsig}\" {os.getcwd()}/dump/")
+            self.listImgViewer.insertPlainText(f"Dumped file at: {os.getcwd()}/dump/{il2cppdumpsig.split('/')[-1]}\n\n")
             self.listImgViewer.setTextColor(self.defaultcolor)
             # after il2cpp dump some android apps crash
             self.il2cppdumpworker.terminate()
@@ -700,6 +705,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 for i in range(len(result) - 1):
                     text += result[i]['name'] + '\n'
                 text += result[len(result) - 1]['name']
+            self.listImgViewer.setTextColor(self.defaultcolor)
             self.listImgViewer.setPlainText(text)
 
     def text_changed(self):
@@ -1143,7 +1149,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
             self.listImgViewer.setTextColor(QColor("Red"))
             if self.platform == 'darwin':
-                self.listImgViewer.insertPlainText('Dumped file at: ' + result + "\n\n")
+                if self.isremoteattachchecked:
+                    os.system(f"frida-pull -H {globvar.fridaInstrument.remoteaddr} \"{result}\" {os.getcwd()}/dump/")
+                else:
+                    os.system(f"frida-pull -U \"{result}\" {os.getcwd()}/dump/")
+                self.listImgViewer.insertPlainText(f"Dumped file at: {os.getcwd()}/dump/{result.split('/')[-1]}\n\n")
             elif self.platform == 'linux':
                 self.listImgViewer.insertPlainText(
                     'Dumped file at: ' + result + "\n\nYou need to fix so file using SoFixer\n\n")
@@ -1217,6 +1227,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             try:
                 if self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Viewer" and self.tabWidget2.currentIndex() == 0:
                     self.interested_widgets.append(self.status_img_name)
+                elif self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Viewer" and self.tabWidget2.currentIndex() == 2:
+                    self.interested_widgets.append(self.memSearchPattern)
                 elif self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Util":
                     self.interested_widgets = [self.parse_img_name, self.parseImgName]
                 # Get the index of the currently focused widget in our list

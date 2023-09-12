@@ -8,8 +8,8 @@ import re
 
 import frida
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import Qt, pyqtSlot
-from PyQt6.QtWidgets import QMessageBox, QTextBrowser
+from PyQt6.QtCore import Qt, pyqtSlot, QEvent
+from PyQt6.QtWidgets import QMessageBox, QTextBrowser, QApplication
 
 
 class Ui_SpawnDialogUi(object):
@@ -96,6 +96,9 @@ class SpawnDialogClass(QtWidgets.QDialog):
         self.spawnui.appListBrowser.clickedtargetidsig.connect(self.clickedtargetidsig_func)
         self.spawndialog.show()
 
+        self.interested_widgets = []
+        QApplication.instance().installEventFilter(self)
+
     @pyqtSlot(str)
     def clickedtargetidsig_func(self, clickedtargetidsig: str):
         spawn_target_id_input = self.spawnui.spawnTargetIdInput
@@ -156,4 +159,18 @@ class SpawnDialogClass(QtWidgets.QDialog):
                     applisttext += appid + '\t' + appname + '\n'
             self.spawnui.appListBrowser.setText(applisttext)
 
+    def eventFilter(self, obj, event):
+        self.interested_widgets = [self.spawnui.spawnTargetIdInput]
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
+            try:
+                if self.spawnui.remoteAddrInput.isEnabled():
+                    self.interested_widgets.append(self.spawnui.remoteAddrInput)
+                index = self.interested_widgets.index(self.spawndialog.focusWidget())
 
+                self.interested_widgets[(index + 1) % len(self.interested_widgets)].setFocus()
+            except ValueError:
+                self.interested_widgets[0].setFocus()
+
+            return True
+
+        return super().eventFilter(obj, event)
