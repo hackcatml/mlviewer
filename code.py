@@ -217,8 +217,8 @@ class Instrument(QObject):
             base = module_info["base"]
             size = module_info["size"]
             module_buffer = self.script.exports.dumpmodule(name)
-            dumpdir = os.getcwd() + "/dump"
-            dump_so_name = f"{dumpdir}/{name}_{base}_{size}.dump.so"
+            dumpdir = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
+            dump_so_name = f"{dumpdir}{name}_{base}_{size}.dump.so"
             with open(dump_so_name, "wb") as f:
                 f.write(module_buffer)
                 f.close()

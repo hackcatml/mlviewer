@@ -9,15 +9,44 @@ Running frida-server on your device
 ```
 
 # Usage
-Run
+Two ways to run<br>
+1.&nbsp;Python Virtual Environment (recommended)<br>
 ```
+# Git clone
 git clone https://github.com/hackcatml/mlviewer
-
 cd mlviewer
 
+# Create python virtual environment
+python -m venv .\venv (for Windows)
+python -m venv ./venv (for macOS)
+
+# Activate venv
+venv\Scripts\activate.bat (for Windows)
+source venv/bin/activate (for macOS)
+
+# Install requirements
 pip install -r requirements.txt
 
+# Run
 python main.py
+```
+
+2.&nbsp;Current Python Environment
+```
+# Git clone
+git clone https://github.com/hackcatml/mlviewer
+cd mlviewer
+
+# Install requirements
+pip install -r requirements.txt
+
+# Run
+python main.py
+```
+
+# Update
+```
+git pull origin main
 ```
 
 # Example

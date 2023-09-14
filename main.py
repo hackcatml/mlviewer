@@ -306,11 +306,12 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.statusBar().showMessage("il2cpp Dump Done!", 5000)
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
             self.listImgViewer.setTextColor(QColor("Red"))
+            dir_to_save = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
             if self.isremoteattachchecked:
-                os.system(f"frida-pull -H {self.il2cppFridaInstrument.remoteaddr} \"{il2cppdumpsig}\" {os.getcwd()}/dump/")
+                os.system(f"frida-pull -H {self.il2cppFridaInstrument.remoteaddr} \"{il2cppdumpsig}\" {dir_to_save}")
             else:
-                os.system(f"frida-pull -U \"{il2cppdumpsig}\" {os.getcwd()}/dump/")
-            self.listImgViewer.insertPlainText(f"Dumped file at: {os.getcwd()}/dump/{il2cppdumpsig.split('/')[-1]}\n\n")
+                os.system(f"frida-pull -U \"{il2cppdumpsig}\" {dir_to_save}")
+            self.listImgViewer.insertPlainText(f"Dumped file at: {dir_to_save}{il2cppdumpsig.split('/')[-1]}\n\n")
             self.listImgViewer.setTextColor(self.defaultcolor)
             # after il2cpp dump some android apps crash
             self.il2cppdumpworker.terminate()
@@ -664,8 +665,9 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     result = globvar.fridaInstrument.list_modules()
                     globvar.listModules = result
                 except Exception as e:
-                    if str(e) == globvar.errorType1:
+                    if str(e) == globvar.errorType1 or "'NoneType' object has no attribute" in str(e):
                         globvar.fridaInstrument.sessions.clear()
+                        globvar.fridaInstrument = None
                     self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
                     return
             if len(result) > 0:
@@ -1148,12 +1150,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         else:
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
             self.listImgViewer.setTextColor(QColor("Red"))
+            dir_to_save = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
             if self.platform == 'darwin':
                 if self.isremoteattachchecked:
-                    os.system(f"frida-pull -H {globvar.fridaInstrument.remoteaddr} \"{result}\" {os.getcwd()}/dump/")
+                    os.system(f"frida-pull -H {globvar.fridaInstrument.remoteaddr} \"{result}\" {dir_to_save}")
                 else:
-                    os.system(f"frida-pull -U \"{result}\" {os.getcwd()}/dump/")
-                self.listImgViewer.insertPlainText(f"Dumped file at: {os.getcwd()}/dump/{result.split('/')[-1]}\n\n")
+                    os.system(f"frida-pull -U \"{result}\" {dir_to_save}")
+                self.listImgViewer.insertPlainText(f"Dumped file at: {dir_to_save}{result.split('/')[-1]}\n\n")
             elif self.platform == 'linux':
                 self.listImgViewer.insertPlainText(
                     'Dumped file at: ' + result + "\n\nYou need to fix so file using SoFixer\n\n")
