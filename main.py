@@ -230,9 +230,19 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.utilViewer.parse_img_path = self.parse_img_path
         self.utilViewer.parseImgName = self.parseImgName
         self.utilViewer.statusBar = self.statusBar()
+        self.parseImgTabWidget.tabBarClicked.connect(self.parseimg_tab_bar_click_func)
         self.parse_img_name.returnPressed.connect(lambda: self.utilViewer.parse("parse_img_name"))
         self.parseBtn.clicked.connect(lambda: self.utilViewer.parse("parseBtn"))
         self.parseImgName.returnPressed.connect(lambda: self.utilViewer.parse("parseImgName"))
+
+        self.utilViewer.app_info_btn = self.appInfoBtn
+        self.appInfoBtn.clicked.connect(self.utilViewer.app_info)
+
+        self.utilViewer.pull_package_btn = self.pullPackageBtn
+        self.pullPackageBtn.clicked.connect(self.utilViewer.pull_package)
+
+        self.utilViewer.full_memory_dump_btn = self.fullMemoryDumpBtn
+        self.fullMemoryDumpBtn.clicked.connect(self.utilViewer.full_memory_dump)
 
         # install event filter to use tab and move to some input fields
         self.interested_widgets = []
@@ -321,6 +331,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     def fridaattachsig_func(self, attach_sig: int):
         if attach_sig:
             globvar.isFridaAttached = True
+            if self.isremoteattachchecked:
+                globvar.remote = True
         else:
             globvar.isFridaAttached = False
             self.detach_frida()
@@ -424,6 +436,9 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.il2cppFridaInstrument = None
                 if self.hexViewer.new_watch_widget is not None:
                     self.hexViewer.new_watch_widget.close()
+                if self.utilViewer.pullIpaWorker is not None:
+                    self.utilViewer.pullIpaWorker.quit()
+                self.statusBar().showMessage("")
             except Exception as e:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
 
@@ -654,9 +669,12 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                             globvar.visitedAddress[last_visit_index][0] = 'notlast'
 
     def util_tab_bar_click_func(self, index):
-        # util tab
-        current_tab_name = self.tabWidget.tabText(index)
-        if current_tab_name == "Util":
+        pass
+
+    def parseimg_tab_bar_click_func(self, index):
+        # Parse IMG tab
+        current_tab_name = self.parseImgTabWidget.tabText(index)
+        if current_tab_name == "Parse IMG":
             text = ""
             result = []
             self.parseImgName.setText('')

@@ -1,11 +1,13 @@
 import inspect
 import os
 import platform
+import threading
 from math import floor
 
 import frida
 from PyQt6 import QtCore
 from PyQt6.QtCore import QObject
+from frida_tools.application import Reactor
 
 import globvar
 
@@ -33,7 +35,8 @@ def clean_message():
 class Instrument(QObject):
     attachsig = QtCore.pyqtSignal(int)
     messagesig = QtCore.pyqtSignal(str)
-    messagedictsig = QtCore.pyqtSignal(dict)
+    parsesig = QtCore.pyqtSignal(dict)
+    appinfosig = QtCore.pyqtSignal(dict)
 
     def __init__(self, script_text, isremote, remoteaddr, target, isspawn):
         super().__init__()
@@ -86,10 +89,13 @@ class Instrument(QObject):
                 self.messagesig.emit(message['payload']['watchRegs'])
                 return
             if 'parseMachO' in message['payload']:
-                self.messagedictsig.emit(message['payload']['parseMachO'])
+                self.parsesig.emit(message['payload']['parseMachO'])
                 return
             if 'parseElf' in message['payload']:
-                self.messagedictsig.emit(message['payload']['parseElf'])
+                self.parsesig.emit(message['payload']['parseElf'])
+                return
+            if (key := "appInfo") in message['payload']:
+                self.appinfosig.emit(message['payload'][key])
                 return
             MESSAGE = message['payload']
         if message['type'] == 'error':
@@ -129,6 +135,9 @@ class Instrument(QObject):
         self.script.on('destroyed', self.on_destroyed)
         self.script.load()
         self.is_attached(True)
+
+    def get_agent(self):
+        return self.script.exports_sync
 
     # just dummy func for checking script is destroyed or not
     def dummy_script(self):
@@ -260,3 +269,91 @@ class Instrument(QObject):
     def parse_elf(self, base):
         clean_message()
         self.script.exports.elfparse(base)
+
+    def app_info(self):
+        clean_message()
+        self.script.exports.app_info()
+
+    def pull_package(self, arg):
+        result = self.script.exports.get_package_name() if arg == "getPackageName" else self.script.exports.get_apk_paths()
+        return result
+
+    def is_rootless(self):
+        return self.script.exports.is_rootless()
+
+    def get_bundle_id(self):
+        return self.script.exports.get_bundle_id()
+
+    def get_bundle_path(self):
+        return self.script.exports.get_bundle_path()
+
+    def get_executable_name(self):
+        return self.script.exports.get_executable_name()
+
+
+def frida_shell_exec(command, thread_instance):  # It's not working on Dopamine JB
+    if globvar.fridaInstrument.is_rootless():
+        shell = "/var/jb/usr/bin/sh"
+        command = "/var/jb/usr/bin/" + command
+    else:
+        shell = "/bin/sh"
+    cmd = Shell([shell, '-c', command], None, globvar.fridaInstrument.device, thread_instance)
+    cmd.exec()
+    for chunk in cmd.output:
+        print(chunk.strip().decode())
+
+
+# frida shell command exec
+# https://stackoverflow.com/questions/72581924/run-cp-command-from-frida-script
+class Shell(object):
+    def __init__(self, argv, env, device, thread_instance):
+        self._stop_requested = threading.Event()
+        self._reactor = Reactor(run_until_return=lambda reactor: self._stop_requested.wait())
+
+        self._device = device
+        self._sessions = set()
+
+        self._device.on("output", lambda pid, fd, data: self._reactor.schedule(lambda: self._on_output(pid, fd, data)))
+
+        self.argv = argv
+        self.env = env
+        self.output = []  # stdout will pushed into array
+
+        self.thread_instance = thread_instance
+
+    def exec(self):
+        self._reactor.schedule(lambda: self._start())
+        self._reactor.run()
+
+    def _start(self):
+        print(f"✔ spawn(argv={self.argv})")
+        pid = self._device.spawn(self.argv, env=self.env, cwd='/var/mobile/Documents/', stdio='pipe', aslr='auto')
+        self._instrument(pid)
+
+    def _stop_if_idle(self):
+        if len(self._sessions) == 0:
+            self._stop_requested.set()
+
+    def _instrument(self, pid):
+        print(f"✔ attach(pid={pid})")
+        try:
+            session = self._device.attach(pid)
+            self._device.resume(pid)
+            self._sessions.add(session)
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            self.thread_instance.terminate()
+            return
+
+    def _on_output(self, pid, fd, data):
+        # fd=0 (input) fd=1(stdout) fd=2(stderr)
+        if fd != 2:
+            # print(f"⚡ output: pid={pid}, fd={fd}, data={data}")
+            self.output.append(data)
+        else:
+            session = None
+            for session in self._sessions:
+                session = session
+            if session is not None:
+                self._sessions.remove(session)
+                self._reactor.schedule(self._stop_if_idle, delay=0.3)

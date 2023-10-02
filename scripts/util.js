@@ -765,5 +765,78 @@ rpc.exports = {
 
             close(fd);
         }
-    }
+    },
+    appInfo: function() {
+        if (Process.platform === 'darwin') {
+            var main_bundle = ObjC.classes.NSBundle.mainBundle();
+            var info_plist = main_bundle.infoDictionary();
+            var pid = ObjC.classes.NSProcessInfo.processInfo().processIdentifier();
+            var display_name = info_plist.objectForKey_("CFBundleDisplayName");
+            var executable_name = info_plist.objectForKey_("CFBundleExecutable");
+            var bundleId = info_plist.objectForKey_("CFBundleIdentifier");
+            var minimum_os_version = info_plist.objectForKey_("MinimumOSVersion");
+            var uisupported_devices = info_plist.objectForKey_("UISupportedDevices");
+            var bundle_path = main_bundle.bundlePath();
+            var data_container_path = ObjC.classes.NSProcessInfo.processInfo().environment().objectForKey_("HOME");
+            send({
+                'appInfo':{
+                    'pid':pid === null ? pid : pid.toString(),
+                    'display_name':display_name === null ? display_name : display_name.toString(),
+                    'executable_name':executable_name === null ? executable_name : executable_name.toString(),
+                    'bundleId':bundleId === null ? bundleId : bundleId.toString(),
+                    'minimum_os_version':minimum_os_version === null ? minimum_os_version : minimum_os_version.toString(),
+                    'uisupported_devices':uisupported_devices === null ? uisupported_devices : uisupported_devices.toString(),
+                    'bundle_path':bundle_path === null ? bundle_path : bundle_path.toString(),
+                    'data_container_path':data_container_path === null ? data_container_path : data_container_path.toString(),
+                    "info_plist":info_plist.toString(),
+                }
+            })
+        }
+        else if (Process.platform === 'linux') {
+            var pm = Java.use('android.app.ActivityThread').currentApplication();
+            var pid = new NativeFunction(Module.findExportByName(null, "getpid"), 'int', [])();
+            var application_main = pm.getApplicationInfo().name.value;
+            var package_name = pm.getApplicationContext().getPackageName();
+            var package_info = pm.getApplicationContext().getPackageManager().getPackageInfo(package_name, 4096);
+            var permissions = package_info.requestedPermissions.value;
+            var base_code_path = package_info.applicationInfo.value.getBaseCodePath();
+            var split_code_path = package_info.applicationInfo.value.getSplitCodePaths();
+            var data_dir = package_info.applicationInfo.value.dataDir.value
+
+            send({
+                'appInfo':{
+                    'pid':pid,
+                    'application_main':application_main,
+                    'package_name':package_name,
+                    'permissions':permissions,
+                    'base_code_path':base_code_path,
+                    'split_code_path':split_code_path,
+                    'data_dir':data_dir
+                }
+            })
+        }
+    },
+    getPackageName: function() {
+        var pm = Java.use('android.app.ActivityThread').currentApplication();
+        var package_name = pm.getApplicationContext().getPackageName();
+        return package_name;
+    },
+    getApkPaths: function() {
+        var pm = Java.use('android.app.ActivityThread').currentApplication();
+        var package_name = pm.getApplicationContext().getPackageName();
+        var package_info = pm.getApplicationContext().getPackageManager().getPackageInfo(package_name, 4096);
+        var base_code_path = package_info.applicationInfo.value.getBaseCodePath();
+        var split_code_path = package_info.applicationInfo.value.getSplitCodePaths();
+        var apk_paths = split_code_path !== null ? [base_code_path, ...split_code_path] : [base_code_path]
+        return apk_paths;
+    },
+    getBundleId: function() {
+        return ObjC.classes.NSBundle.mainBundle().infoDictionary().objectForKey_("CFBundleIdentifier").toString();
+    },
+    getBundlePath: function() {
+        return ObjC.classes.NSBundle.mainBundle().bundlePath().toString();
+    },
+    getExecutableName: function() {
+        return ObjC.classes.NSBundle.mainBundle().infoDictionary().objectForKey_("CFBundleExecutable").toString();
+    },
 }

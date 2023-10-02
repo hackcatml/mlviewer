@@ -82,6 +82,11 @@ rpc.exports = {
     platform:() => {
         send(Process.platform)
     },
+    isRootless: function() {
+        var access = new NativeFunction(Module.findExportByName(null, "access"), "int", ["pointer", "int"]);
+        var path = Memory.allocUtf8String("/var/jb/usr/bin/su");
+        return access(path, 0) === 0;
+    },
     findsymaddrbyname:(name) => {
         let symbol_addr = Module.findExportByName(null, name)
         if(symbol_addr == null) {

@@ -1,12 +1,101 @@
+import inspect
+import os
 import re
+import shutil
+import warnings
+import zipfile
 
 from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtCore import pyqtSlot, QThread
 from PyQt6.QtGui import QAction, QTextCursor
-from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QPushButton
 
 import code
+import dumper
 import globvar
+
+
+def add_file_to_zip(target_zip: str, file_to_insert: str, target_dir: str):
+    # Open the existing zip file in append mode
+    with zipfile.ZipFile(target_zip, 'a') as zip_ref:
+        arcname = os.path.join(target_dir, os.path.basename(file_to_insert).split('.')[0])
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            zip_ref.write(file_to_insert, arcname=arcname)
+        print(f"[*] {file_to_insert} added into {target_zip}")
+
+
+class PullIPAWorker(QThread):
+    pullipasig = QtCore.pyqtSignal(list)
+
+    def __init__(self, fridaInstrument, statusBar):
+        super(PullIPAWorker, self).__init__()
+        self.fridaInstrument = fridaInstrument
+        self.statusBar = statusBar
+
+    def run(self) -> None:
+        try:
+            code.change_frida_script("scripts/util.js")
+            bundle_path = self.fridaInstrument.get_bundle_path()
+            bundle_id = self.fridaInstrument.get_bundle_id()
+            executable_name = self.fridaInstrument.get_executable_name()
+            code.revert_frida_script()
+
+            payload_path = bundle_path.rpartition("/")[0]
+            app_name = bundle_path.rpartition("/")[-1].partition(".")[0]
+
+            dir_to_save = os.getcwd() + f"/dump/{bundle_id}"
+            if os.path.exists(dir_to_save):
+                shutil.rmtree(dir_to_save, ignore_errors=True)
+            os.makedirs(dir_to_save)
+
+            # dump decrypted binary
+            code.change_frida_script("scripts/dump-ios-module.js")
+            remote_path_to_pull_executable = self.fridaInstrument.dump_ios_module(executable_name)
+            if remote_path_to_pull_executable is not False:
+                if globvar.remote is False:
+                    os.system(f"frida-pull -U \"{remote_path_to_pull_executable}\" {dir_to_save}")
+                else:
+                    os.system(
+                        f"frida-pull -H {globvar.fridaInstrument.remoteaddr} \"{remote_path_to_pull_executable}\" {dir_to_save}")
+            code.revert_frida_script()
+
+            shell_cmd = f"rm -rf Payload"
+            code.frida_shell_exec(shell_cmd, self)
+
+            shell_cmd = f"ln -s {payload_path} Payload"
+            code.frida_shell_exec(shell_cmd, self)
+
+            self.statusBar.showMessage("Creating IPA...")
+            shell_cmd = f"zip -r {app_name}.ipa Payload"
+            code.frida_shell_exec(shell_cmd, self)
+
+            self.statusBar.showMessage("Pulling IPA...")
+            remote_path_to_pull = f"/var/mobile/Documents/{app_name}.ipa"
+            if globvar.remote is False:
+                os.system(f"frida-pull -U {remote_path_to_pull} {dir_to_save}")
+            else:
+                os.system(
+                    f"frida-pull -H {globvar.fridaInstrument.remoteaddr} {remote_path_to_pull} {dir_to_save}")
+
+            # repackage ipa with the dumped binary
+            add_file_to_zip(f"{dir_to_save}/{app_name}.ipa", f"{dir_to_save}/{executable_name}.decrypted", f"Payload/{bundle_path.split('/')[-1]}")
+
+            # clean up
+            os.remove(f"{dir_to_save}/{executable_name}.decrypted")
+            shell_cmd = f"rm -rf Payload"
+            code.frida_shell_exec(shell_cmd, self)
+            shell_cmd = f"rm -rf {app_name}.ipa"
+            code.frida_shell_exec(shell_cmd, self)
+            shell_cmd = f"rm -rf {remote_path_to_pull_executable}"
+            code.frida_shell_exec(shell_cmd, self)
+
+            self.pullipasig.emit([app_name, dir_to_save])
+
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            self.pullipasig.emit([])
+            return
 
 
 class UtilViewerClass(QTextEdit):
@@ -32,8 +121,16 @@ class UtilViewerClass(QTextEdit):
         self.platform = None
         self.statusBar = None
 
+        self.app_info_btn = QPushButton(None)
+        self.pull_package_btn = QPushButton(None)
+        self.full_memory_dump_btn = QPushButton(None)
+        self.fullMemoryDumpInstrument = None
+
+        self.pullIpaWorker = None
+        self.fullMemoryDumpWorker = None
+
     @pyqtSlot(dict)
-    def messagedictsig_func(self, message: dict):
+    def parsesig_func(self, message: dict):
         # self.setPlainText(message['segname'])
         if self.platform == 'darwin':
             text = ''
@@ -132,7 +229,7 @@ class UtilViewerClass(QTextEdit):
                     self.parse_img_base.setText(result['base'])
                     self.parse_img_path.setText(result['path'])
                     code.change_frida_script("scripts/util.js")
-                    globvar.fridaInstrument.messagedictsig.connect(self.messagedictsig_func)
+                    globvar.fridaInstrument.parsesig.connect(self.parsesig_func)
 
                     if self.platform == 'darwin':
                         # If module is not in an ".app/" directory (ex. /System/Library/Frameworks/Security.framework/Security)
@@ -156,11 +253,154 @@ class UtilViewerClass(QTextEdit):
             except Exception as e:
                 # self.statusBar.showMessage(f"Error: {e}")
                 print(f"Error: {e}")
-                globvar.fridaInstrument.messagedictsig.disconnect(self.messagedictsig_func)
+                globvar.fridaInstrument.parsesig.disconnect(self.parsesig_func)
                 code.revert_frida_script()
                 return
-            globvar.fridaInstrument.messagedictsig.disconnect(self.messagedictsig_func)
+            globvar.fridaInstrument.parsesig.disconnect(self.parsesig_func)
             code.revert_frida_script()
+
+    @pyqtSlot(dict)
+    def appinfosig_func(self, message: dict):
+        text = ''
+        if self.platform == "darwin":
+            if (key := "pid") in message:
+                text += f"[*] PID: {message[key]}\n"
+            if (key := "display_name") in message:
+                text += f"\n[*] Display Name: {message[key]}\n"
+            if (key := "executable_name") in message:
+                text += f"\n[*] Executable Name: {message[key]}\n"
+            if (key := "bundleId") in message:
+                text += f"\n[*] Bundle Identifier: {message[key]}\n"
+            if (key := "minimum_os_version") in message:
+                text += f"\n[*] Minimum OS Version: {message[key]}\n"
+            if (key := "uisupported_devices") in message:
+                text += f"\n[*] UISupportedDevices:\n{message[key]}\n"
+            if (key := "bundle_path") in message:
+                text += f"\n[*] Bundle Path:\n{message[key]}\n"
+            if (key := "data_container_path") in message:
+                text += f"\n[*] Data Container Path:\n{message[key]}\n"
+            if (key := "info_plist") in message:
+                text += f"\n[*] info.plist:\n{message[key]}\n"
+        elif self.platform == "linux":
+            if (key := "pid") in message:
+                text += f"[*] PID:\n{message[key]}\n"
+            if (key := "application_main") in message:
+                text += f"\n[*] Application Main:\n{message[key]}\n"
+            if (key := "package_name") in message:
+                text += f"\n[*] Package Name:\n{message[key]}\n"
+            if (key := "permissions") in message:
+                permissions = '\n'.join(message[key])
+                text += f"\n[*] Permissions:\n{permissions}\n"
+            if (key := "base_code_path") in message:
+                text += f"\n[*] Base Code Path:\n{message[key]}\n"
+            if (key := "split_code_path") in message:
+                split_code_path = '\n'.join(message[key])
+                text += f"\n[*] Split Code Path:\n{split_code_path}\n"
+            if (key := "data_dir") in message:
+                text += f"\n[*] Data Directory:\n{message[key]}\n"
+
+        if text != '':
+            self.append(text)
+            self.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
+
+    def app_info(self):
+        self.setPlainText('')
+        if globvar.fridaInstrument is None or globvar.isFridaAttached is False:
+            self.statusBar.showMessage(f"Attach first", 3000)
+            return
+        elif globvar.fridaInstrument is not None:
+            try:
+                code.change_frida_script("scripts/util.js")
+                globvar.fridaInstrument.appinfosig.connect(self.appinfosig_func)
+                globvar.fridaInstrument.app_info()
+            except Exception as e:
+                print(f"Error: {e}")
+                globvar.fridaInstrument.appinfosig.disconnect(self.appinfosig_func)
+                code.revert_frida_script()
+                return
+            globvar.fridaInstrument.appinfosig.disconnect(self.appinfosig_func)
+            code.revert_frida_script()
+
+    @pyqtSlot(list)
+    def pullipasig_func(self, sig: list):
+        if len(sig) != 0:
+            QThread.msleep(100)
+            app_name = sig[0]
+            dir_to_save = sig[1]
+            self.statusBar.showMessage(f"Done! pulled ipa at {dir_to_save}/{app_name}", 5000)
+            self.pullIpaWorker.terminate()
+            return
+        else:
+            QThread.msleep(100)
+            self.statusBar.showMessage("")
+            self.pullIpaWorker.terminate()
+            return
+
+    def pull_package(self):
+        if globvar.fridaInstrument is None or globvar.isFridaAttached is False:
+            self.statusBar.showMessage(f"Attach first", 3000)
+            return
+
+        if self.platform == "darwin" and globvar.fridaInstrument is not None:
+            self.pullIpaWorker = PullIPAWorker(globvar.fridaInstrument, self.statusBar)
+            self.pullIpaWorker.pullipasig.connect(self.pullipasig_func)
+            self.pullIpaWorker.start()
+        elif self.platform == "linux" and globvar.fridaInstrument is not None:
+            try:
+                code.change_frida_script("scripts/util.js")
+                package_name = globvar.fridaInstrument.pull_package("getPackageName")
+                paths_to_pull = globvar.fridaInstrument.pull_package("getApkPaths")
+                dir_to_save = os.getcwd() + f"/dump/{package_name}"
+                os.makedirs(dir_to_save)
+                for path in paths_to_pull:
+                    if globvar.remote is False:
+                        os.system(f"adb pull {path} {dir_to_save}")
+                    else:
+                        os.system(f"frida-pull -H {globvar.fridaInstrument.remoteaddr} {path} {dir_to_save}")
+                self.statusBar.showMessage(f"Done! pulled at {dir_to_save}", 10000)
+            except Exception as e:
+                self.statusBar.showMessage(f"Error: {e}", 5000)
+                code.revert_frida_script()
+                return
+            code.revert_frida_script()
+
+    @pyqtSlot(int)
+    def fullmemorydumpsig_func(self, sig: int):
+        if sig == 1:
+            QThread.msleep(100)
+            self.statusBar.showMessage(f"Done! check dump/full_memory_dump directory", 5000)
+            self.fullMemoryDumpWorker.terminate()
+            self.fullMemoryDumpInstrument.sessions.clear()
+            self.fullMemoryDumpInstrument = None
+
+    def full_memory_dump(self):
+        if globvar.isFridaAttached is False:
+            self.statusBar.showMessage("Attach first", 5000)
+            return
+        elif globvar.isFridaAttached is True:
+            try:
+                globvar.fridaInstrument.dummy_script()
+            except Exception as e:
+                if str(e) == globvar.errorType1:
+                    globvar.fridaInstrument.sessions.clear()
+                self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+                return
+
+        if self.fullMemoryDumpInstrument is None or len(self.fullMemoryDumpInstrument.sessions) == 0:
+            self.fullMemoryDumpInstrument = code.Instrument("scripts/fullmemorydump.js",
+                                                            globvar.remote,
+                                                            globvar.fridaInstrument.remoteaddr,
+                                                            globvar.fridaInstrument.attachtarget,
+                                                            False)
+            msg = self.fullMemoryDumpInstrument.instrument()
+            if msg is not None:
+                self.statusBar.showMessage(f"{inspect.currentframe().f_code.co_name}: {msg}", 3000)
+                return
+        # full memory dump thread worker start
+        self.fullMemoryDumpWorker = dumper.FullMemoryDumpWorker(self.fullMemoryDumpInstrument, self.statusBar)
+        self.fullMemoryDumpWorker.fullmemorydumpsig.connect(self.fullmemorydumpsig_func)
+        self.fullMemoryDumpWorker.start()
+        return
 
     def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
         menu = super(UtilViewerClass, self).createStandardContextMenu()  # Get the default context menu
