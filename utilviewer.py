@@ -368,10 +368,17 @@ class UtilViewerClass(QTextEdit):
     def fullmemorydumpsig_func(self, sig: int):
         if sig == 1:
             QThread.msleep(100)
-            self.statusBar.showMessage(f"Done! check dump/full_memory_dump directory", 5000)
             self.fullMemoryDumpWorker.terminate()
             self.fullMemoryDumpInstrument.sessions.clear()
             self.fullMemoryDumpInstrument = None
+            self.statusBar.showMessage(f"Done! check dump/full_memory_dump directory", 5000)
+
+    @pyqtSlot(list)
+    def progresssig_func(self, sig: list):
+        if sig is not None and sig[0] == "memdump":
+            self.statusBar.showMessage(f"Memory dumping...{sig[1]}%")
+        elif sig is not None and sig[0] == "strdump":
+            self.statusBar.showMessage(f"Running strings...{sig[1]}%")
 
     def full_memory_dump(self):
         if globvar.isFridaAttached is False:
@@ -399,7 +406,9 @@ class UtilViewerClass(QTextEdit):
         # full memory dump thread worker start
         self.fullMemoryDumpWorker = dumper.FullMemoryDumpWorker(self.fullMemoryDumpInstrument, self.statusBar)
         self.fullMemoryDumpWorker.fullmemorydumpsig.connect(self.fullmemorydumpsig_func)
+        self.fullMemoryDumpWorker.progresssig.connect(self.progresssig_func)
         self.fullMemoryDumpWorker.start()
+        self.statusBar.showMessage("Start memory dump...")
         return
 
     def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:

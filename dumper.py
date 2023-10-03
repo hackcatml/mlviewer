@@ -46,9 +46,10 @@ def splitter(agent, base, size, max_size, error, directory):
         dump_to_file(agent, hex(cur_base), diff, error, directory)
 
 
-def printProgress(times, total, prefix='', suffix='', decimals=2, bar=100):
+def printProgress(purpose, sig, times, total, prefix='', suffix='', decimals=2, bar=100):
     filled = int(round(bar * times / float(total)))
     percents = round(100.00 * (times / float(total)), decimals)
+    sig.emit([purpose, str(percents)])
     bar = '#' * filled + '-' * (bar - filled)
     sys.stdout.write('%s [%s] %s%s %s\r' %
                      (prefix, bar, percents, '%', suffix)),
@@ -71,6 +72,7 @@ def strings(filename, directory, min=4):
 
 class FullMemoryDumpWorker(QThread):
     fullmemorydumpsig = QtCore.pyqtSignal(int)
+    progresssig = QtCore.pyqtSignal(list)
 
     def __init__(self, fridaInstrument, statusBar):
         super(FullMemoryDumpWorker, self).__init__()
@@ -109,7 +111,7 @@ class FullMemoryDumpWorker(QThread):
             mem_access_viol = dump_to_file(
                 self.agent, range["base"], range["size"], mem_access_viol, DIRECTORY)
             i += 1
-            printProgress(i, l, prefix='Progress:', suffix='Complete', bar=50)
+            printProgress("memdump", self.progresssig, i, l, prefix='Progress:', suffix='Complete', bar=50)
 
         # Run Strings if selected
         if STRINGS:
@@ -120,7 +122,7 @@ class FullMemoryDumpWorker(QThread):
             for f1 in files:
                 strings(f1, DIRECTORY)
                 i += 1
-                printProgress(i, l, prefix='Progress:',
+                printProgress("strdump", self.progresssig, i, l, prefix='Progress:',
                                     suffix='Complete', bar=50)
         print("Finished!")
         self.fullmemorydumpsig.emit(1)
