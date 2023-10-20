@@ -294,7 +294,11 @@ class UtilViewerClass(QTextEdit):
             if (key := "base_code_path") in message:
                 text += f"\n[*] Base Code Path:\n{message[key]}\n"
             if (key := "split_code_path") in message:
-                split_code_path = '\n'.join(message[key])
+                try:
+                    iter(message[key])
+                    split_code_path = '\n'.join(message[key])
+                except TypeError:
+                    split_code_path = message[key]
                 text += f"\n[*] Split Code Path:\n{split_code_path}\n"
             if (key := "data_dir") in message:
                 text += f"\n[*] Data Directory:\n{message[key]}\n"
