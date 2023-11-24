@@ -191,13 +191,16 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memrefreshworker = None
         self.refreshCurrentAddressShortcut = QShortcut(QKeySequence(Qt.Key.Key_F3), self)
         self.refreshCurrentAddressShortcut.activated.connect(self.refresh_curr_addr)
+        self.isPalera1n = False
 
         self.attachBtn.clicked.connect(self.attach_frida)
         self.detachBtn.clicked.connect(self.detach_frida)
+        self.offsetInput.returnPressed.connect(lambda: self.offset_ok_btn_pressed_func("returnPressed"))
+        self.offsetOkbtn.pressed.connect(lambda: self.offset_ok_btn_pressed_func("pressed"))
         self.offsetOkbtn.clicked.connect(self.offset_ok_btn_func)
-        self.offsetInput.returnPressed.connect(self.offset_ok_btn_func)
-        self.status_img_name.returnPressed.connect(self.offset_ok_btn_func)
-        self.addrInput.returnPressed.connect(self.addr_btn_func)
+        self.status_img_name.returnPressed.connect(lambda: self.offset_ok_btn_pressed_func("returnPressed"))
+        self.addrInput.returnPressed.connect(lambda: self.addr_btn_pressed_func("returnPressed"))
+        self.addrBtn.pressed.connect(lambda: self.addr_btn_pressed_func("pressed"))
         self.addrBtn.clicked.connect(self.addr_btn_func)
         self.tabWidget.tabBarClicked.connect(self.util_tab_bar_click_func)
         self.tabWidget2.tabBarClicked.connect(self.status_tab_bar_click_func)
@@ -413,6 +416,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         set_mem_range('r--')
 
         self.platform = globvar.fridaInstrument.platform()
+        if self.platform == 'darwin':
+            self.isPalera1n = globvar.fridaInstrument.is_palera1n()
         self.utilViewer.platform = self.platform
         name = globvar.fridaInstrument.list_modules()[0]['name']
         self.attachedname = name
@@ -440,7 +445,22 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     self.utilViewer.pullIpaWorker.quit()
                 self.statusBar().showMessage("")
             except Exception as e:
-                self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+                self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 5000)
+
+    def is_addr_in_mem_range_for_palera1n(self, result):
+        # if the hexdump result is dict and has 'palera1n', it means mem addr not in the mem range
+        return not (isinstance(result, dict) and 'palera1n' in result)
+
+    def offset_ok_btn_pressed_func(self, caller):
+        self.is_cmd_pressed = QApplication.instance().keyboardModifiers() & (
+                Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
+        if self.is_cmd_pressed in (Qt.KeyboardModifier.ControlModifier, Qt.KeyboardModifier.MetaModifier):
+            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(True)
+        else:
+            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(False)
+
+        if caller == "returnPressed":
+            self.offset_ok_btn_func()
 
     def offset_ok_btn_func(self):
         if globvar.isFridaAttached is False:
@@ -494,7 +514,22 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 globvar.fridaInstrument.sessions.clear()
             return
 
+        if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+            self.statusBar().showMessage(f"{result['palera1n']}", 3000)
+            return
+
         self.show_mem_result_on_viewer(name, None, result)
+
+    def addr_btn_pressed_func(self, caller):
+        self.is_cmd_pressed = QApplication.instance().keyboardModifiers() & (
+                Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
+        if self.is_cmd_pressed in (Qt.KeyboardModifier.ControlModifier, Qt.KeyboardModifier.MetaModifier):
+            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(True)
+        else:
+            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(False)
+
+        if caller == "returnPressed":
+            self.addr_btn_func()
 
     def addr_btn_func(self):
         if globvar.isFridaAttached is False:
@@ -546,11 +581,21 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         result = globvar.fridaInstrument.read_mem_addr(addr, size)
                     else:
                         result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+
+                    if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+                        self.statusBar().showMessage(f"{result['palera1n']}", 5000)
+                        return
+
                     self.show_mem_result_on_viewer(name, addr, result)
                     return
                 else:
                     # there is no module. but let's try to read small mem regions anyway
                     result = globvar.fridaInstrument.read_mem_addr(addr, 4096)
+
+                    if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+                        self.statusBar().showMessage(f"{result['palera1n']}", 5000)
+                        return
+
                     self.show_mem_result_on_viewer(None, addr, result)
                     return
             except Exception as e:
@@ -571,6 +616,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             else:
                 size = size_to_read(addr)
                 result = globvar.fridaInstrument.read_mem_addr(addr, size)
+
+            if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+                self.statusBar().showMessage(f"{result['palera1n']}", 5000)
+                return
+
             self.show_mem_result_on_viewer(None, addr, result)
             return
 

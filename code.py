@@ -182,6 +182,9 @@ class Instrument(QObject):
         self.script.exports.hexdumpaddr(addr, size)
         return MESSAGE
 
+    def force_read_mem_addr(self, yes_or_no):
+        self.script.exports.forcereadmemaddr(yes_or_no)
+
     def write_mem_addr(self, arg):
         for target in arg:
             targetAddr = target[0]
@@ -281,6 +284,9 @@ class Instrument(QObject):
     def is_rootless(self):
         return self.script.exports.is_rootless()
 
+    def is_palera1n(self):
+        return self.script.exports.is_palera1n_jb()
+
     def get_bundle_id(self):
         return self.script.exports.get_bundle_id()
 
@@ -327,7 +333,10 @@ class Shell(object):
 
     def _start(self):
         print(f"✔ spawn(argv={self.argv})")
-        pid = self._device.spawn(self.argv, env=self.env, cwd='/var/mobile/Documents/', stdio='pipe', aslr='auto')
+        cwd = "/var/mobile/Documents/"
+        if globvar.fridaInstrument.is_rootless():
+            cwd = "/var/jb/var/mobile/"
+        pid = self._device.spawn(self.argv, env=self.env, cwd=cwd, stdio='pipe', aslr='auto')
         self._instrument(pid)
 
     def _stop_if_idle(self):

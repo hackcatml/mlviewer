@@ -67,11 +67,17 @@ class PullIPAWorker(QThread):
             code.frida_shell_exec(shell_cmd, self)
 
             self.statusBar.showMessage("Creating IPA...")
+            # just in case, zip command isn't installed on the device
+            shell_cmd = "apt-get install zip -y"
+            code.frida_shell_exec(shell_cmd, self)
+            # zip it
             shell_cmd = f"zip -r {app_name}.ipa Payload"
             code.frida_shell_exec(shell_cmd, self)
 
             self.statusBar.showMessage("Pulling IPA...")
             remote_path_to_pull = f"/var/mobile/Documents/{app_name}.ipa"
+            if globvar.fridaInstrument.is_rootless():
+                remote_path_to_pull = f"/var/jb/var/mobile/{app_name}.ipa"
             if globvar.remote is False:
                 os.system(f"frida-pull -U {remote_path_to_pull} {dir_to_save}")
             else:

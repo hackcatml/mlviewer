@@ -9,6 +9,16 @@ var modules = []
 let num_args_to_watch = 0
 let read_args_options = {}
 let read_retval_options = {}
+
+// check if it's palera1n jb
+let isPalera1n = false;
+let forceread = false;
+if (ObjC.available) {
+    var access = new NativeFunction(Module.findExportByName(null, "access"), 'int', ['pointer', 'int'])
+    var path = Memory.allocUtf8String("/cores/binpack/Applications/palera1nLoader.app");
+    isPalera1n = access(path, 0) === 0
+}
+
 function getmemprotection(name, addr){
     count++
     var result
@@ -87,6 +97,9 @@ rpc.exports = {
         var path = Memory.allocUtf8String("/var/jb/usr/bin/su");
         return access(path, 0) === 0
     },
+    isPalera1nJb: function() {
+        return isPalera1n;
+    },
     findsymaddrbyname:(name) => {
         let symbol_addr = Module.findExportByName(null, name)
         if(symbol_addr == null) {
@@ -126,10 +139,31 @@ rpc.exports = {
         // console.log(`[hackcatml]: name: ${name}, offset: ${offset}, size: ${size}`)
         var base = Process.findModuleByName(name).base
         var target = base.add(offset)
-        send(hexdump(target, {offset: 0, length: size}))
+        if (isPalera1n && !forceread) {
+            try {
+                Process.getRangeByAddress(ptr(target));
+                send(hexdump(target, {offset: 0, length: size}));
+            } catch (e) {
+                send({'palera1n':'Cannot access the address ' + ptr(target) + '. Try force read by "ctrl(cmd) + GO"'})
+            }
+        } else {
+            send(hexdump(target, {offset: 0, length: size}));
+        }
     },
     hexdumpaddr: (addr, size) => {
-        send(hexdump(ptr(addr), {offset:0, length:size}))
+        if (isPalera1n && !forceread) {
+            try {
+                Process.getRangeByAddress(ptr(addr));
+                send(hexdump(ptr(addr), {offset:0, length:size}))
+            } catch (e) {
+                send({'palera1n':'Cannot access the address ' + ptr(addr) + '. Try force read by "ctrl(cmd) + GO"'})
+            }
+        } else {
+            send(hexdump(ptr(addr), {offset:0, length:size}))
+        }
+    },
+    forcereadmemaddr: (yesorno) => {
+        forceread = yesorno
     },
     writememaddr: (addr, code, prot) => {
         // console.log("mem prot: " + prot)
