@@ -10,6 +10,7 @@ from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, Q
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
 import code
+import gadget
 import globvar
 import spawn
 import spawn_win
@@ -156,6 +157,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         super().__init__()
         self.setupUi(self)
         self.spawndialog = None
+        self.gadgetBtn.clicked.connect(self.prepare_gadget)
+        self.prepareGadgetDialog = None
         self.statusBar()
         self.statusLight = QLabel()
         self.set_status_light()
@@ -359,6 +362,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
     def spawn_mode(self, state):
         self.isspawnchecked = state == Qt.CheckState.Checked.value
+
+    def prepare_gadget(self):
+        try:
+            self.prepareGadgetDialog = gadget.GadgetDialogClass()
+        except Exception as e:
+            self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
+            return
 
     def attach_frida(self):
         if globvar.isFridaAttached is True:

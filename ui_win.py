@@ -417,6 +417,9 @@ class Ui_MainWindow(object):
         self.detachBtn.setObjectName("detachBtn")
         self.horizontalLayout_3.addWidget(self.detachBtn)
         self.gridLayout_2.addLayout(self.horizontalLayout_3, 4, 2, 1, 2)
+        self.gadgetBtn = QtWidgets.QToolButton(self.tab)
+        self.gadgetBtn.setObjectName("gadgetBtn")
+        self.gridLayout_2.addWidget(self.gadgetBtn, 0, 2, 1, 1)
         self.label.raise_()
         self.tabWidget2.raise_()
         self.label_2.raise_()
@@ -614,6 +617,7 @@ class Ui_MainWindow(object):
         self.spawnModeCheckBox.setText(_translate("MainWindow", "Spawn"))
         self.attachBtn.setText(_translate("MainWindow", "Attach"))
         self.detachBtn.setText(_translate("MainWindow", "Detach"))
+        self.gadgetBtn.setText(_translate("MainWindow", "Gadget"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Viewer"))
         self.utilViewer.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\n"

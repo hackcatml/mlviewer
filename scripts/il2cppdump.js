@@ -1,3950 +1,101 @@
-(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-require("frida-il2cpp-bridge");
-Il2Cpp.perform(() => {
-    // code here
-    console.log('Unity Version: ' + Il2Cpp.unityVersion);
-});
+📦
+514 /index.js
+136509 /node_modules/frida-il2cpp-bridge/dist/index.js
+↻ frida-il2cpp-bridge
+✄
+import "frida-il2cpp-bridge";
+var fname;
+var destination;
+rpc.exports = {
+    il2cppdump: (filename, path) => {
+        console.log(`Unity Version: ${Il2Cpp.unityVersion}`);
+        console.log("Dump Start");
+        fname = filename ?? `${Il2Cpp.application.identifier ?? "unknown"}_${Il2Cpp.application.version ?? "unknown"}.cs`;
+        destination = `${path ?? Il2Cpp.application.dataPath}/${fname}`;
+        // Dump succeed then it will return true
+        Il2Cpp.dump();
+        return destination;
+    }
+};
 
-},{"frida-il2cpp-bridge":30}],2:[function(require,module,exports){
+✄
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-;
-function cache(target, name, descriptor) {
-    var getter = descriptor.get;
-    if (!getter)
-        throw new TypeError("Getter property descriptor expected");
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+/** @internal */
+var Android;
+(function (Android) {
+    // prettier-ignore
+    getter(Android, "apiLevel", () => {
+        const value = getProperty("ro.build.version.sdk");
+        return value ? parseInt(value) : null;
+    }, lazy);
+    function getProperty(name) {
+        const handle = Module.findExportByName("libc.so", "__system_property_get");
+        if (handle) {
+            const __system_property_get = new NativeFunction(handle, "void", ["pointer", "pointer"]);
+            const value = Memory.alloc(92).writePointer(NULL);
+            __system_property_get(Memory.allocUtf8String(name), value);
+            return value.readCString() ?? undefined;
+        }
+    }
+})(Android || (Android = {}));
+/** @internal */
+function raise(message) {
+    const error = new Error(`\x1b[0m${message}`);
+    error.name = `\x1b[0m\x1b[38;5;9mil2cpp\x1b[0m`;
+    error.stack = error.stack
+        ?.replace(/^Error/, error.name)
+        ?.replace(/\n    at (.+) \((.+):(.+)\)/, "\x1b[3m\x1b[2m")
+        ?.concat("\x1B[0m");
+    throw error;
+}
+/** @internal */
+function warn(message) {
+    globalThis.console.log(`\x1b[38;5;11mil2cpp\x1b[0m: ${message}`);
+}
+/** @internal */
+function ok(message) {
+    globalThis.console.log(`\x1b[38;5;10mil2cpp\x1b[0m: ${message}`);
+}
+/** @internal */
+function inform(message) {
+    globalThis.console.log(`\x1b[38;5;12mil2cpp\x1b[0m: ${message}`);
+}
+/** @internal */
+function decorate(target, decorator, descriptors = Object.getOwnPropertyDescriptors(target)) {
+    for (const key in descriptors) {
+        descriptors[key] = decorator(target, key, descriptors[key]);
+    }
+    Object.defineProperties(target, descriptors);
+    return target;
+}
+/** @internal */
+function getter(target, key, get, decorator) {
+    globalThis.Object.defineProperty(target, key, decorator?.(target, key, { get, configurable: true }) ?? { get, configurable: true });
+}
+/** @internal */
+function lazy(_, propertyKey, descriptor) {
+    const getter = descriptor.get;
+    if (!getter) {
+        throw new Error("@lazy can only be applied to getter accessors");
+    }
     descriptor.get = function () {
-        var value = getter.call(this);
-        Object.defineProperty(this, name, {
+        const value = getter.call(this);
+        Object.defineProperty(this, propertyKey, {
+            value,
             configurable: descriptor.configurable,
             enumerable: descriptor.enumerable,
-            writable: false,
-            value: value
+            writable: false
         });
         return value;
     };
+    return descriptor;
 }
-exports.cache = cache;
-
-},{}],3:[function(require,module,exports){
-"use strict";
-exports.__esModule = true;
-exports.distance = exports.closest = void 0;
-var peq = new Uint32Array(0x10000);
-var myers_32 = function (a, b) {
-    var n = a.length;
-    var m = b.length;
-    var lst = 1 << (n - 1);
-    var pv = -1;
-    var mv = 0;
-    var sc = n;
-    var i = n;
-    while (i--) {
-        peq[a.charCodeAt(i)] |= 1 << i;
-    }
-    for (i = 0; i < m; i++) {
-        var eq = peq[b.charCodeAt(i)];
-        var xv = eq | mv;
-        eq |= ((eq & pv) + pv) ^ pv;
-        mv |= ~(eq | pv);
-        pv &= eq;
-        if (mv & lst) {
-            sc++;
-        }
-        if (pv & lst) {
-            sc--;
-        }
-        mv = (mv << 1) | 1;
-        pv = (pv << 1) | ~(xv | mv);
-        mv &= xv;
-    }
-    i = n;
-    while (i--) {
-        peq[a.charCodeAt(i)] = 0;
-    }
-    return sc;
-};
-var myers_x = function (b, a) {
-    var n = a.length;
-    var m = b.length;
-    var mhc = [];
-    var phc = [];
-    var hsize = Math.ceil(n / 32);
-    var vsize = Math.ceil(m / 32);
-    for (var i = 0; i < hsize; i++) {
-        phc[i] = -1;
-        mhc[i] = 0;
-    }
-    var j = 0;
-    for (; j < vsize - 1; j++) {
-        var mv_1 = 0;
-        var pv_1 = -1;
-        var start_1 = j * 32;
-        var vlen_1 = Math.min(32, m) + start_1;
-        for (var k = start_1; k < vlen_1; k++) {
-            peq[b.charCodeAt(k)] |= 1 << k;
-        }
-        for (var i = 0; i < n; i++) {
-            var eq = peq[a.charCodeAt(i)];
-            var pb = (phc[(i / 32) | 0] >>> i) & 1;
-            var mb = (mhc[(i / 32) | 0] >>> i) & 1;
-            var xv = eq | mv_1;
-            var xh = ((((eq | mb) & pv_1) + pv_1) ^ pv_1) | eq | mb;
-            var ph = mv_1 | ~(xh | pv_1);
-            var mh = pv_1 & xh;
-            if ((ph >>> 31) ^ pb) {
-                phc[(i / 32) | 0] ^= 1 << i;
-            }
-            if ((mh >>> 31) ^ mb) {
-                mhc[(i / 32) | 0] ^= 1 << i;
-            }
-            ph = (ph << 1) | pb;
-            mh = (mh << 1) | mb;
-            pv_1 = mh | ~(xv | ph);
-            mv_1 = ph & xv;
-        }
-        for (var k = start_1; k < vlen_1; k++) {
-            peq[b.charCodeAt(k)] = 0;
-        }
-    }
-    var mv = 0;
-    var pv = -1;
-    var start = j * 32;
-    var vlen = Math.min(32, m - start) + start;
-    for (var k = start; k < vlen; k++) {
-        peq[b.charCodeAt(k)] |= 1 << k;
-    }
-    var score = m;
-    for (var i = 0; i < n; i++) {
-        var eq = peq[a.charCodeAt(i)];
-        var pb = (phc[(i / 32) | 0] >>> i) & 1;
-        var mb = (mhc[(i / 32) | 0] >>> i) & 1;
-        var xv = eq | mv;
-        var xh = ((((eq | mb) & pv) + pv) ^ pv) | eq | mb;
-        var ph = mv | ~(xh | pv);
-        var mh = pv & xh;
-        score += (ph >>> (m - 1)) & 1;
-        score -= (mh >>> (m - 1)) & 1;
-        if ((ph >>> 31) ^ pb) {
-            phc[(i / 32) | 0] ^= 1 << i;
-        }
-        if ((mh >>> 31) ^ mb) {
-            mhc[(i / 32) | 0] ^= 1 << i;
-        }
-        ph = (ph << 1) | pb;
-        mh = (mh << 1) | mb;
-        pv = mh | ~(xv | ph);
-        mv = ph & xv;
-    }
-    for (var k = start; k < vlen; k++) {
-        peq[b.charCodeAt(k)] = 0;
-    }
-    return score;
-};
-var distance = function (a, b) {
-    if (a.length < b.length) {
-        var tmp = b;
-        b = a;
-        a = tmp;
-    }
-    if (b.length === 0) {
-        return a.length;
-    }
-    if (a.length <= 32) {
-        return myers_32(a, b);
-    }
-    return myers_x(a, b);
-};
-exports.distance = distance;
-var closest = function (str, arr) {
-    var min_distance = Infinity;
-    var min_index = 0;
-    for (var i = 0; i < arr.length; i++) {
-        var dist = distance(str, arr[i]);
-        if (dist < min_distance) {
-            min_distance = dist;
-            min_index = i;
-        }
-    }
-    return arr[min_index];
-};
-exports.closest = closest;
-
-},{}],4:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const versioning_1 = __importDefault(require("versioning"));
-const console_1 = require("../utils/console");
-class Il2CppApi {
-    constructor() { }
-    static get _alloc() {
-        return this.r("il2cpp_alloc", "pointer", ["size_t"]);
-    }
-    static get _arrayGetElements() {
-        return this.r("il2cpp_array_get_elements", "pointer", ["pointer"]);
-    }
-    static get _arrayGetLength() {
-        return this.r("il2cpp_array_length", "uint32", ["pointer"]);
-    }
-    static get _arrayNew() {
-        return this.r("il2cpp_array_new", "pointer", ["pointer", "uint32"]);
-    }
-    static get _assemblyGetImage() {
-        return this.r("il2cpp_assembly_get_image", "pointer", ["pointer"]);
-    }
-    static get _classForEach() {
-        return this.r("il2cpp_class_for_each", "void", ["pointer", "pointer"]);
-    }
-    static get _classFromName() {
-        return this.r("il2cpp_class_from_name", "pointer", ["pointer", "pointer", "pointer"]);
-    }
-    static get _classFromSystemType() {
-        return this.r("il2cpp_class_from_system_type", "pointer", ["pointer"]);
-    }
-    static get _classFromType() {
-        return this.r("il2cpp_class_from_type", "pointer", ["pointer"]);
-    }
-    static get _classGetActualInstanceSize() {
-        return this.r("il2cpp_class_get_actual_instance_size", "int32", ["pointer"]);
-    }
-    static get _classGetArrayClass() {
-        return this.r("il2cpp_array_class_get", "pointer", ["pointer", "uint32"]);
-    }
-    static get _classGetArrayElementSize() {
-        return this.r("il2cpp_class_array_element_size", "int", ["pointer"]);
-    }
-    static get _classGetAssemblyName() {
-        return this.r("il2cpp_class_get_assemblyname", "pointer", ["pointer"]);
-    }
-    static get _classGetBaseType() {
-        return this.r("il2cpp_class_enum_basetype", "pointer", ["pointer"]);
-    }
-    static get _classGetDeclaringType() {
-        return this.r("il2cpp_class_get_declaring_type", "pointer", ["pointer"]);
-    }
-    static get _classGetElementClass() {
-        return this.r("il2cpp_class_get_element_class", "pointer", ["pointer"]);
-    }
-    static get _classGetFieldFromName() {
-        return this.r("il2cpp_class_get_field_from_name", "pointer", ["pointer", "pointer"]);
-    }
-    static get _classGetFields() {
-        return this.r("il2cpp_class_get_fields", "pointer", ["pointer", "pointer"]);
-    }
-    static get _classGetFlags() {
-        return this.r("il2cpp_class_get_flags", "int", ["pointer"]);
-    }
-    static get _classGetImage() {
-        return this.r("il2cpp_class_get_image", "pointer", ["pointer"]);
-    }
-    static get _classGetInstanceSize() {
-        return this.r("il2cpp_class_instance_size", "int32", ["pointer"]);
-    }
-    static get _classGetInterfaces() {
-        return this.r("il2cpp_class_get_interfaces", "pointer", ["pointer", "pointer"]);
-    }
-    static get _classGetMethodFromName() {
-        return this.r("il2cpp_class_get_method_from_name", "pointer", ["pointer", "pointer", "int"]);
-    }
-    static get _classGetMethods() {
-        return this.r("il2cpp_class_get_methods", "pointer", ["pointer", "pointer"]);
-    }
-    static get _classGetName() {
-        return this.r("il2cpp_class_get_name", "pointer", ["pointer"]);
-    }
-    static get _classGetNamespace() {
-        return this.r("il2cpp_class_get_namespace", "pointer", ["pointer"]);
-    }
-    static get _classGetNestedClasses() {
-        return this.r("il2cpp_class_get_nested_types", "pointer", ["pointer", "pointer"]);
-    }
-    static get _classGetParent() {
-        return this.r("il2cpp_class_get_parent", "pointer", ["pointer"]);
-    }
-    static get _classGetRank() {
-        return this.r("il2cpp_class_get_rank", "int", ["pointer"]);
-    }
-    static get _classGetStaticFieldData() {
-        return this.r("il2cpp_class_get_static_field_data", "pointer", ["pointer"]);
-    }
-    static get _classGetValueSize() {
-        return this.r("il2cpp_class_value_size", "int32", ["pointer", "pointer"]);
-    }
-    static get _classGetType() {
-        return this.r("il2cpp_class_get_type", "pointer", ["pointer"]);
-    }
-    static get _classHasReferences() {
-        return this.r("il2cpp_class_has_references", "bool", ["pointer"]);
-    }
-    static get _classInit() {
-        return this.r("il2cpp_runtime_class_init", "void", ["pointer"]);
-    }
-    static get _classIsAbstract() {
-        return this.r("il2cpp_class_is_abstract", "bool", ["pointer"]);
-    }
-    static get _classIsAssignableFrom() {
-        return this.r("il2cpp_class_is_assignable_from", "bool", ["pointer", "pointer"]);
-    }
-    static get _classIsBlittable() {
-        return this.r("il2cpp_class_is_blittable", "bool", ["pointer"]);
-    }
-    static get _classIsEnum() {
-        return this.r("il2cpp_class_is_enum", "bool", ["pointer"]);
-    }
-    static get _classIsGeneric() {
-        return this.r("il2cpp_class_is_generic", "bool", ["pointer"]);
-    }
-    static get _classIsInflated() {
-        return this.r("il2cpp_class_is_inflated", "bool", ["pointer"]);
-    }
-    static get _classIsInterface() {
-        return this.r("il2cpp_class_is_interface", "bool", ["pointer"]);
-    }
-    static get _classIsSubclassOf() {
-        return this.r("il2cpp_class_is_subclass_of", "bool", ["pointer", "pointer", "bool"]);
-    }
-    static get _classIsValueType() {
-        return this.r("il2cpp_class_is_valuetype", "bool", ["pointer"]);
-    }
-    static get _domainAssemblyOpen() {
-        return this.r("il2cpp_domain_assembly_open", "pointer", ["pointer", "pointer"]);
-    }
-    static get _domainGet() {
-        return this.r("il2cpp_domain_get", "pointer", []);
-    }
-    static get _domainGetAssemblies() {
-        return this.r("il2cpp_domain_get_assemblies", "pointer", ["pointer", "pointer"]);
-    }
-    static get _fieldGetModifier() {
-        return this.r("il2cpp_field_get_modifier", "pointer", ["pointer"]);
-    }
-    static get _fieldGetClass() {
-        return this.r("il2cpp_field_get_parent", "pointer", ["pointer"]);
-    }
-    static get _fieldGetFlags() {
-        return this.r("il2cpp_field_get_flags", "int", ["pointer"]);
-    }
-    static get _fieldGetName() {
-        return this.r("il2cpp_field_get_name", "pointer", ["pointer"]);
-    }
-    static get _fieldGetOffset() {
-        return this.r("il2cpp_field_get_offset", "int32", ["pointer"]);
-    }
-    static get _fieldGetStaticValue() {
-        return this.r("il2cpp_field_static_get_value", "void", ["pointer", "pointer"]);
-    }
-    static get _fieldGetType() {
-        return this.r("il2cpp_field_get_type", "pointer", ["pointer"]);
-    }
-    static get _fieldIsLiteral() {
-        return this.r("il2cpp_field_is_literal", "bool", ["pointer"]);
-    }
-    static get _fieldIsStatic() {
-        return this.r("il2cpp_field_is_static", "bool", ["pointer"]);
-    }
-    static get _fieldIsThreadStatic() {
-        return this.r("il2cpp_field_is_thread_static", "bool", ["pointer"]);
-    }
-    static get _fieldSetStaticValue() {
-        return this.r("il2cpp_field_static_set_value", "void", ["pointer", "pointer"]);
-    }
-    static get _free() {
-        return this.r("il2cpp_free", "void", ["pointer"]);
-    }
-    static get _gcCollect() {
-        return this.r("il2cpp_gc_collect", "void", ["int"]);
-    }
-    static get _gcCollectALittle() {
-        return this.r("il2cpp_gc_collect_a_little", "void", []);
-    }
-    static get _gcDisable() {
-        return this.r("il2cpp_gc_disable", "void", []);
-    }
-    static get _gcEnable() {
-        return this.r("il2cpp_gc_enable", "void", []);
-    }
-    static get _gcGetHeapSize() {
-        return this.r("il2cpp_gc_get_heap_size", "int64", []);
-    }
-    static get _gcGetMaxTimeSlice() {
-        return this.r("il2cpp_gc_get_max_time_slice_ns", "int64", []);
-    }
-    static get _gcGetUsedSize() {
-        return this.r("il2cpp_gc_get_used_size", "int64", []);
-    }
-    static get _gcHandleGetTarget() {
-        return this.r("il2cpp_gchandle_get_target", "pointer", ["uint32"]);
-    }
-    static get _gcHandleFree() {
-        return this.r("il2cpp_gchandle_free", "void", ["uint32"]);
-    }
-    static get _gcHandleNew() {
-        return this.r("il2cpp_gchandle_new", "uint32", ["pointer", "bool"]);
-    }
-    static get _gcHandleNewWeakRef() {
-        return this.r("il2cpp_gchandle_new_weakref", "uint32", ["pointer", "bool"]);
-    }
-    static get _gcIsDisabled() {
-        return this.r("il2cpp_gc_is_disabled", "bool", []);
-    }
-    static get _gcIsIncremental() {
-        return this.r("il2cpp_gc_is_incremental", "bool", []);
-    }
-    static get _gcSetMaxTimeSlice() {
-        return this.r("il2cpp_gc_set_max_time_slice_ns", "void", ["int64"]);
-    }
-    static get _gcStartIncrementalCollection() {
-        return this.r("il2cpp_gc_start_incremental_collection", "void", []);
-    }
-    static get _gcStartWorld() {
-        return this.r("il2cpp_start_gc_world", "void", []);
-    }
-    static get _gcStopWorld() {
-        return this.r("il2cpp_stop_gc_world", "void", []);
-    }
-    static get _getCorlib() {
-        return this.r("il2cpp_get_corlib", "pointer", []);
-    }
-    static get _imageGetAssembly() {
-        return this.r("il2cpp_image_get_assembly", "pointer", ["pointer"]);
-    }
-    static get _imageGetClass() {
-        return this.r("il2cpp_image_get_class", "pointer", ["pointer", "uint"]);
-    }
-    static get _imageGetClassCount() {
-        return this.r("il2cpp_image_get_class_count", "uint32", ["pointer"]);
-    }
-    static get _imageGetName() {
-        return this.r("il2cpp_image_get_name", "pointer", ["pointer"]);
-    }
-    static get _init() {
-        return this.r("il2cpp_init", "void", []);
-    }
-    static get _livenessAllocateStruct() {
-        return this.r("il2cpp_unity_liveness_allocate_struct", "pointer", ["pointer", "int", "pointer", "pointer", "pointer"]);
-    }
-    static get _livenessCalculationBegin() {
-        return this.r("il2cpp_unity_liveness_calculation_begin", "pointer", ["pointer", "int", "pointer", "pointer", "pointer", "pointer"]);
-    }
-    static get _livenessCalculationEnd() {
-        return this.r("il2cpp_unity_liveness_calculation_end", "void", ["pointer"]);
-    }
-    static get _livenessCalculationFromStatics() {
-        return this.r("il2cpp_unity_liveness_calculation_from_statics", "void", ["pointer"]);
-    }
-    static get _livenessFinalize() {
-        return this.r("il2cpp_unity_liveness_finalize", "void", ["pointer"]);
-    }
-    static get _livenessFreeStruct() {
-        return this.r("il2cpp_unity_liveness_free_struct", "void", ["pointer"]);
-    }
-    static get _memorySnapshotCapture() {
-        return this.r("il2cpp_capture_memory_snapshot", "pointer", []);
-    }
-    static get _memorySnapshotFree() {
-        return this.r("il2cpp_free_captured_memory_snapshot", "void", ["pointer"]);
-    }
-    static get _memorySnapshotGetClasses() {
-        return this.r("il2cpp_memory_snapshot_get_classes", "pointer", ["pointer", "pointer"]);
-    }
-    static get _memorySnapshotGetGCHandles() {
-        return this.r("il2cpp_memory_snapshot_get_gc_handles", ["uint32", "pointer"], ["pointer"]);
-    }
-    static get _memorySnapshotGetRuntimeInformation() {
-        return this.r("il2cpp_memory_snapshot_get_information", ["uint32", "uint32", "uint32", "uint32", "uint32", "uint32"], ["pointer"]);
-    }
-    static get _methodGetModifier() {
-        return this.r("il2cpp_method_get_modifier", "pointer", ["pointer"]);
-    }
-    static get _methodGetClass() {
-        return this.r("il2cpp_method_get_class", "pointer", ["pointer"]);
-    }
-    static get _methodGetFlags() {
-        return this.r("il2cpp_method_get_flags", "uint32", ["pointer", "pointer"]);
-    }
-    static get _methodGetFromReflection() {
-        return this.r("il2cpp_method_get_from_reflection", "pointer", ["pointer"]);
-    }
-    static get _methodGetName() {
-        return this.r("il2cpp_method_get_name", "pointer", ["pointer"]);
-    }
-    static get _methodGetObject() {
-        return this.r("il2cpp_method_get_object", "pointer", ["pointer", "pointer"]);
-    }
-    static get _methodGetParameterCount() {
-        return this.r("il2cpp_method_get_param_count", "uint8", ["pointer"]);
-    }
-    static get _methodGetParameterName() {
-        return this.r("il2cpp_method_get_param_name", "pointer", ["pointer", "uint32"]);
-    }
-    static get _methodGetParameters() {
-        return this.r("il2cpp_method_get_parameters", "pointer", ["pointer", "pointer"]);
-    }
-    static get _methodGetParameterType() {
-        return this.r("il2cpp_method_get_param", "pointer", ["pointer", "uint32"]);
-    }
-    static get _methodGetPointer() {
-        return this.r("il2cpp_method_get_pointer", "pointer", ["pointer"]);
-    }
-    static get _methodGetReturnType() {
-        return this.r("il2cpp_method_get_return_type", "pointer", ["pointer"]);
-    }
-    static get _methodIsExternal() {
-        return this.r("il2cpp_method_is_external", "bool", ["pointer"]);
-    }
-    static get _methodIsGeneric() {
-        return this.r("il2cpp_method_is_generic", "bool", ["pointer"]);
-    }
-    static get _methodIsInflated() {
-        return this.r("il2cpp_method_is_inflated", "bool", ["pointer"]);
-    }
-    static get _methodIsInstance() {
-        return this.r("il2cpp_method_is_instance", "bool", ["pointer"]);
-    }
-    static get _methodIsSynchronized() {
-        return this.r("il2cpp_method_is_synchronized", "bool", ["pointer"]);
-    }
-    static get _monitorEnter() {
-        return this.r("il2cpp_monitor_enter", "void", ["pointer"]);
-    }
-    static get _monitorExit() {
-        return this.r("il2cpp_monitor_exit", "void", ["pointer"]);
-    }
-    static get _monitorPulse() {
-        return this.r("il2cpp_monitor_pulse", "void", ["pointer"]);
-    }
-    static get _monitorPulseAll() {
-        return this.r("il2cpp_monitor_pulse_all", "void", ["pointer"]);
-    }
-    static get _monitorTryEnter() {
-        return this.r("il2cpp_monitor_try_enter", "bool", ["pointer", "uint32"]);
-    }
-    static get _monitorTryWait() {
-        return this.r("il2cpp_monitor_try_wait", "bool", ["pointer", "uint32"]);
-    }
-    static get _monitorWait() {
-        return this.r("il2cpp_monitor_wait", "void", ["pointer"]);
-    }
-    static get _objectGetClass() {
-        return this.r("il2cpp_object_get_class", "pointer", ["pointer"]);
-    }
-    static get _objectGetVirtualMethod() {
-        return this.r("il2cpp_object_get_virtual_method", "pointer", ["pointer", "pointer"]);
-    }
-    static get _objectInit() {
-        return this.r("il2cpp_runtime_object_init_exception", "void", ["pointer", "pointer"]);
-    }
-    static get _objectNew() {
-        return this.r("il2cpp_object_new", "pointer", ["pointer"]);
-    }
-    static get _objectGetSize() {
-        return this.r("il2cpp_object_get_size", "uint32", ["pointer"]);
-    }
-    static get _objectUnbox() {
-        return this.r("il2cpp_object_unbox", "pointer", ["pointer"]);
-    }
-    static get _resolveInternalCall() {
-        return this.r("il2cpp_resolve_icall", "pointer", ["pointer"]);
-    }
-    static get _stringChars() {
-        return this.r("il2cpp_string_chars", "pointer", ["pointer"]);
-    }
-    static get _stringLength() {
-        return this.r("il2cpp_string_length", "int32", ["pointer"]);
-    }
-    static get _stringNew() {
-        return this.r("il2cpp_string_new", "pointer", ["pointer"]);
-    }
-    static get _stringSetLength() {
-        return this.r("il2cpp_string_set_length", "void", ["pointer", "int32"]);
-    }
-    static get _valueBox() {
-        return this.r("il2cpp_value_box", "pointer", ["pointer", "pointer"]);
-    }
-    static get _threadAttach() {
-        return this.r("il2cpp_thread_attach", "pointer", ["pointer"]);
-    }
-    static get _threadCurrent() {
-        return this.r("il2cpp_thread_current", "pointer", []);
-    }
-    static get _threadGetAllAttachedThreads() {
-        return this.r("il2cpp_thread_get_all_attached_threads", "pointer", ["pointer"]);
-    }
-    static get _threadIsVm() {
-        return this.r("il2cpp_is_vm_thread", "bool", ["pointer"]);
-    }
-    static get _threadDetach() {
-        return this.r("il2cpp_thread_detach", "void", ["pointer"]);
-    }
-    static get _typeGetName() {
-        return this.r("il2cpp_type_get_name", "pointer", ["pointer"]);
-    }
-    static get _typeGetObject() {
-        return this.r("il2cpp_type_get_object", "pointer", ["pointer"]);
-    }
-    static get _typeGetTypeEnum() {
-        return this.r("il2cpp_type_get_type", "int", ["pointer"]);
-    }
-    static get _typeIsByReference() {
-        return this.r("il2cpp_type_is_byref", "bool", ["pointer"]);
-    }
-    static get _typeIsPrimitive() {
-        return this.r("il2cpp_type_is_primitive", "bool", ["pointer"]);
-    }
-    /** @internal */
-    static get cModule() {
-        if (versioning_1.default.lt(Il2Cpp.unityVersion, "5.3.0") || versioning_1.default.gte(Il2Cpp.unityVersion, "2022.2.0")) {
-            (0, console_1.warn)(`current Unity version ${Il2Cpp.unityVersion} is not supported, expect breakage`);
-        }
-        const offsetsFinderCModule = new CModule(`\
-#include <stdint.h>
-
-#define OFFSET_OF(name, type) \
-    int16_t name (char * p,\
-                  type e)\
-    {\
-        for (int16_t i = 0; i < 512; i++) if (* ((type *) p + i) == e) return i;\
-        return -1;\
-    }
-
-OFFSET_OF (offset_of_int32, int32_t)
-OFFSET_OF (offset_of_pointer, void *)
-            `);
-        const offsetOfInt32 = new NativeFunction(offsetsFinderCModule.offset_of_int32, "int16", ["pointer", "int32"]);
-        const offsetOfPointer = new NativeFunction(offsetsFinderCModule.offset_of_pointer, "int16", ["pointer", "pointer"]);
-        const SystemString = Il2Cpp.Image.corlib.class("System.String");
-        const SystemDateTime = Il2Cpp.Image.corlib.class("System.DateTime");
-        const SystemReflectionModule = Il2Cpp.Image.corlib.class("System.Reflection.Module");
-        SystemDateTime.initialize();
-        SystemReflectionModule.initialize();
-        const DaysToMonth365 = (SystemDateTime.tryField("daysmonth") ??
-            SystemDateTime.tryField("DaysToMonth365") ??
-            SystemDateTime.field("s_daysToMonth365")).value;
-        const FilterTypeName = SystemReflectionModule.field("FilterTypeName").value;
-        const FilterTypeNameMethodPointer = FilterTypeName.field("method_ptr").value;
-        const FilterTypeNameMethod = FilterTypeName.field("method").value;
-        const source = `\
-#include <stdint.h>
-#include <string.h>
-
-
-typedef struct _Il2CppObject Il2CppObject;
-typedef enum _Il2CppTypeEnum Il2CppTypeEnum;
-typedef struct _Il2CppReflectionMethod Il2CppReflectionMethod;
-typedef struct _Il2CppManagedMemorySnapshot Il2CppManagedMemorySnapshot;
-typedef struct _Il2CppMetadataType Il2CppMetadataType;
-
-
-struct _Il2CppObject
-{
-    void * class;
-    void * monitor;
-};
-
-enum _Il2CppTypeEnum
-{
-    IL2CPP_TYPE_END = 0x00,
-    IL2CPP_TYPE_VOID = 0x01,
-    IL2CPP_TYPE_BOOLEAN = 0x02,
-    IL2CPP_TYPE_CHAR = 0x03,
-    IL2CPP_TYPE_I1 = 0x04,
-    IL2CPP_TYPE_U1 = 0x05,
-    IL2CPP_TYPE_I2 = 0x06,
-    IL2CPP_TYPE_U2 = 0x07,
-    IL2CPP_TYPE_I4 = 0x08,
-    IL2CPP_TYPE_U4 = 0x09,
-    IL2CPP_TYPE_I8 = 0x0a,
-    IL2CPP_TYPE_U8 = 0x0b,
-    IL2CPP_TYPE_R4 = 0x0c,
-    IL2CPP_TYPE_R8 = 0x0d,
-    IL2CPP_TYPE_STRING = 0x0e,
-    IL2CPP_TYPE_PTR = 0x0f,
-    IL2CPP_TYPE_BYREF = 0x10,
-    IL2CPP_TYPE_VALUETYPE = 0x11,
-    IL2CPP_TYPE_CLASS = 0x12,
-    IL2CPP_TYPE_VAR = 0x13,
-    IL2CPP_TYPE_ARRAY = 0x14,
-    IL2CPP_TYPE_GENERICINST = 0x15,
-    IL2CPP_TYPE_TYPEDBYREF = 0x16,
-    IL2CPP_TYPE_I = 0x18,
-    IL2CPP_TYPE_U = 0x19,
-    IL2CPP_TYPE_FNPTR = 0x1b,
-    IL2CPP_TYPE_OBJECT = 0x1c,
-    IL2CPP_TYPE_SZARRAY = 0x1d,
-    IL2CPP_TYPE_MVAR = 0x1e,
-    IL2CPP_TYPE_CMOD_REQD = 0x1f,
-    IL2CPP_TYPE_CMOD_OPT = 0x20,
-    IL2CPP_TYPE_INTERNAL = 0x21,
-    IL2CPP_TYPE_MODIFIER = 0x40,
-    IL2CPP_TYPE_SENTINEL = 0x41,
-    IL2CPP_TYPE_PINNED = 0x45,
-    IL2CPP_TYPE_ENUM = 0x55
-};
-
-struct _Il2CppReflectionMethod
-{
-    Il2CppObject object;
-    void * method;
-    void * name;
-    void * reftype;
-};
-
-struct _Il2CppManagedMemorySnapshot
-{
-    struct Il2CppManagedHeap
-    {
-        uint32_t section_count;
-        void * sections;
-    } heap;
-    struct Il2CppStacks
-    {
-        uint32_t stack_count;
-        void * stacks;
-    } stacks;
-    struct Il2CppMetadataSnapshot
-    {
-        uint32_t type_count;
-        Il2CppMetadataType * types;
-    } metadata_snapshot;
-    struct Il2CppGCHandles
-    {
-        uint32_t tracked_object_count;
-        Il2CppObject ** pointers_to_objects;
-    } gc_handles;
-    struct Il2CppRuntimeInformation
-    {
-        uint32_t pointer_size;
-        uint32_t object_header_size;
-        uint32_t array_header_size;
-        uint32_t array_bounds_offset_in_header;
-        uint32_t array_size_offset_in_header;
-        uint32_t allocation_granularity;
-    } runtime_information;
-    void * additional_user_information;
-};
-
-struct _Il2CppMetadataType
-{
-    uint32_t flags;
-    void * fields;
-    uint32_t field_count;
-    uint32_t statics_size;
-    uint8_t * statics;
-    uint32_t base_or_element_type_index;
-    char * name;
-    const char * assembly_name;
-    uint64_t type_info_address;
-    uint32_t size;
-};
-
-
-#define THREAD_STATIC_FIELD_OFFSET -1;
-
-#define FIELD_ATTRIBUTE_FIELD_ACCESS_MASK 0x0007
-#define FIELD_ATTRIBUTE_COMPILER_CONTROLLED 0x0000
-#define FIELD_ATTRIBUTE_PRIVATE 0x0001
-#define FIELD_ATTRIBUTE_FAM_AND_ASSEM 0x0002
-#define FIELD_ATTRIBUTE_ASSEMBLY 0x0003
-#define FIELD_ATTRIBUTE_FAMILY 0x0004
-#define FIELD_ATTRIBUTE_FAM_OR_ASSEM 0x0005
-#define FIELD_ATTRIBUTE_PUBLIC 0x0006
-
-#define FIELD_ATTRIBUTE_STATIC 0x0010
-#define FIELD_ATTRIBUTE_LITERAL 0x0040
-
-#define METHOD_ATTRIBUTE_MEMBER_ACCESS_MASK 0x0007
-#define METHOD_ATTRIBUTE_COMPILER_CONTROLLED 0x0000
-#define METHOD_ATTRIBUTE_PRIVATE 0x0001
-#define METHOD_ATTRIBUTE_FAM_AND_ASSEM 0x0002
-#define METHOD_ATTRIBUTE_ASSEMBLY 0x0003
-#define METHOD_ATTRIBUTE_FAMILY 0x0004
-#define METHOD_ATTRIBUTE_FAM_OR_ASSEM 0x0005
-#define METHOD_ATTRIBUTE_PUBLIC 0x0006
-
-#define METHOD_ATTRIBUTE_STATIC 0x0010
-#define METHOD_IMPL_ATTRIBUTE_INTERNAL_CALL 0x1000
-#define METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED 0x0020
-
-
-static const char * (*il2cpp_class_get_name) (void *) = (void *) ${this._classGetName};
-static int (*il2cpp_field_get_flags) (void *) = (void *) ${this._fieldGetFlags};
-static size_t (*il2cpp_field_get_offset) (void *) = (void *) ${this._fieldGetOffset};
-static uint32_t (*il2cpp_method_get_flags) (void *, uint32_t *) = (void *) ${this._methodGetFlags};
-static char * (*il2cpp_type_get_name) (void *) = (void *) ${this._typeGetName};
-static Il2CppTypeEnum (*il2cpp_type_get_type_enum) (void *) = (void *) ${this._typeGetTypeEnum};
-static void (*il2cpp_free) (void * pointer) = (void *) ${this._free};
-
-
-void
-il2cpp_string_set_length (int32_t * string,
-                          int32_t length)
-{
-    *(string + ${offsetOfInt32(Il2Cpp.String.from("vfsfitvnm"), 9)}) = length;
-}
-
-void *
-il2cpp_array_get_elements (int32_t * array)
-{ 
-    return array + ${offsetOfInt32(DaysToMonth365, 31) - 1};
-}
-
-uint8_t
-il2cpp_type_is_byref (void * type)
-{   
-    char * name;
-    char last_char;
-
-    name = il2cpp_type_get_name (type);
-    last_char = name[strlen (name) - 1];
-
-    il2cpp_free (name);
-    return last_char == '&';
-}
-
-uint8_t
-il2cpp_type_is_primitive (void * type)
-{
-    Il2CppTypeEnum type_enum;
-
-    type_enum = il2cpp_type_get_type_enum (type);
-
-    return ((type_enum >= IL2CPP_TYPE_BOOLEAN && 
-        type_enum <= IL2CPP_TYPE_R8) || 
-        type_enum == IL2CPP_TYPE_I || 
-        type_enum == IL2CPP_TYPE_U
-    );
-}
-
-int32_t
-il2cpp_class_get_actual_instance_size (int32_t * class)
-{
-    return *(class + ${offsetOfInt32(SystemString, SystemString.instanceSize - 2)});
-}
-
-uint8_t
-il2cpp_class_get_rank (void * class)
-{
-    uint8_t rank;
-    const char * name;
-    
-    rank = 0;
-    name = il2cpp_class_get_name (class);
-
-    for (uint16_t i = strlen (name) - 1; i > 0; i--)
-    {
-        char c = name[i];
-
-        if (c == ']') rank++;
-        else if (c == '[' || rank == 0) break;
-        else if (c == ',') rank++;
-        else break;
-    }
-
-    return rank;
-}
-
-const char *
-il2cpp_field_get_modifier (void * field)
-{   
-    int flags;
-
-    flags = il2cpp_field_get_flags (field);
-
-    switch (flags & FIELD_ATTRIBUTE_FIELD_ACCESS_MASK) {
-        case FIELD_ATTRIBUTE_PRIVATE:
-            return "private";
-        case FIELD_ATTRIBUTE_FAM_AND_ASSEM:
-            return "private protected";
-        case FIELD_ATTRIBUTE_ASSEMBLY:
-            return "internal";
-        case FIELD_ATTRIBUTE_FAMILY:
-            return "protected";
-        case FIELD_ATTRIBUTE_FAM_OR_ASSEM:
-            return "protected internal";
-        case FIELD_ATTRIBUTE_PUBLIC:
-            return "public";
-    }
-
-    return "";
-}
-
-uint8_t
-il2cpp_field_is_literal (void * field)
-{
-    return (il2cpp_field_get_flags (field) & FIELD_ATTRIBUTE_LITERAL) != 0;
-}
-
-uint8_t
-il2cpp_field_is_static (void * field)
-{
-    return (il2cpp_field_get_flags (field) & FIELD_ATTRIBUTE_STATIC) != 0;
-}
-
-uint8_t
-il2cpp_field_is_thread_static (void * field)
-{
-    return il2cpp_field_get_offset (field) == THREAD_STATIC_FIELD_OFFSET;
-}
-
-const char *
-il2cpp_method_get_modifier (void * method)
-{
-    uint32_t flags;
-
-    flags = il2cpp_method_get_flags (method, NULL);
-
-    switch (flags & METHOD_ATTRIBUTE_MEMBER_ACCESS_MASK) {
-        case METHOD_ATTRIBUTE_PRIVATE:
-            return "private";
-        case METHOD_ATTRIBUTE_FAM_AND_ASSEM:
-            return "private protected";
-        case METHOD_ATTRIBUTE_ASSEMBLY:
-            return "internal";
-        case METHOD_ATTRIBUTE_FAMILY:
-            return "protected";
-        case METHOD_ATTRIBUTE_FAM_OR_ASSEM:
-            return "protected internal";
-        case METHOD_ATTRIBUTE_PUBLIC:
-            return "public";
-    }
-
-    return "";
-}
-
-void *
-il2cpp_method_get_from_reflection (const Il2CppReflectionMethod * method)
-{
-    return method->method;
-}
-
-void *
-il2cpp_method_get_pointer (void ** method)
-{
-    return * (method + ${offsetOfPointer(FilterTypeNameMethod, FilterTypeNameMethodPointer)});
-}
-
-uint8_t
-il2cpp_method_is_external (void * method)
-{
-    uint32_t implementation_flags;
-
-    il2cpp_method_get_flags (method, &implementation_flags);
-
-    return (implementation_flags & METHOD_IMPL_ATTRIBUTE_INTERNAL_CALL) != 0;
-}
-
-uint8_t
-il2cpp_method_is_synchronized (void * method)
-{
-    uint32_t implementation_flags;
-
-    il2cpp_method_get_flags (method, &implementation_flags);
-
-    return (implementation_flags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) != 0;
-}
-
-uintptr_t
-il2cpp_memory_snapshot_get_classes (const Il2CppManagedMemorySnapshot * snapshot,
-                                    Il2CppMetadataType ** iter)
-{
-    const int zero;
-    const void * null;
-
-    if (iter != NULL && snapshot->metadata_snapshot.type_count > zero)
-    {
-        if (*iter == null)
-        {
-            *iter = snapshot->metadata_snapshot.types;
-            return (uintptr_t) (*iter)->type_info_address;
-        }
-        else
-        {
-            Il2CppMetadataType * metadata_type = *iter + 1;
-
-            if (metadata_type < snapshot->metadata_snapshot.types + snapshot->metadata_snapshot.type_count)
-            {
-                *iter = metadata_type;
-                return (uintptr_t) (*iter)->type_info_address;
-            }
-        }
-    }
-    return 0;
-}
-
-struct Il2CppGCHandles
-il2cpp_memory_snapshot_get_gc_handles (const Il2CppManagedMemorySnapshot * snapshot)
-{
-    return snapshot->gc_handles;
-}
-
-struct Il2CppRuntimeInformation
-il2cpp_memory_snapshot_get_information (const Il2CppManagedMemorySnapshot * snapshot)
-{
-    return snapshot->runtime_information;
-}
-        `;
-        offsetsFinderCModule.dispose();
-        return new CModule(source);
-    }
-    /** @internal */
-    static r(exportName, retType, argTypes) {
-        const exportPointer = Il2Cpp.module.findExportByName(exportName) ?? this.cModule[exportName];
-        if (exportPointer == null) {
-            (0, console_1.raise)(`cannot resolve export ${exportName}`);
-        }
-        return new NativeFunction(exportPointer, retType, argTypes);
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_alloc", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_arrayGetElements", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_arrayGetLength", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_arrayNew", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_assemblyGetImage", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classForEach", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classFromName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classFromSystemType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classFromType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetActualInstanceSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetArrayClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetArrayElementSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetAssemblyName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetBaseType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetDeclaringType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetElementClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetFieldFromName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetFields", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetFlags", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetImage", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetInstanceSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetInterfaces", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetMethodFromName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetMethods", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetNamespace", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetNestedClasses", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetParent", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetRank", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetStaticFieldData", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetValueSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classGetType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classHasReferences", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classInit", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsAbstract", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsAssignableFrom", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsBlittable", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsEnum", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsGeneric", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsInflated", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsInterface", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsSubclassOf", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_classIsValueType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_domainAssemblyOpen", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_domainGet", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_domainGetAssemblies", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldGetModifier", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldGetClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldGetFlags", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldGetName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldGetOffset", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldGetStaticValue", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldGetType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldIsLiteral", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldIsStatic", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldIsThreadStatic", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_fieldSetStaticValue", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_free", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcCollect", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcCollectALittle", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcDisable", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcEnable", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcGetHeapSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcGetMaxTimeSlice", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcGetUsedSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcHandleGetTarget", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcHandleFree", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcHandleNew", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcHandleNewWeakRef", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcIsDisabled", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcIsIncremental", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcSetMaxTimeSlice", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcStartIncrementalCollection", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcStartWorld", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_gcStopWorld", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_getCorlib", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_imageGetAssembly", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_imageGetClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_imageGetClassCount", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_imageGetName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_init", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_livenessAllocateStruct", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_livenessCalculationBegin", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_livenessCalculationEnd", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_livenessCalculationFromStatics", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_livenessFinalize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_livenessFreeStruct", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_memorySnapshotCapture", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_memorySnapshotFree", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_memorySnapshotGetClasses", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_memorySnapshotGetGCHandles", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_memorySnapshotGetRuntimeInformation", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetModifier", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetFlags", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetFromReflection", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetObject", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetParameterCount", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetParameterName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetParameters", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetParameterType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetPointer", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodGetReturnType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodIsExternal", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodIsGeneric", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodIsInflated", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodIsInstance", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_methodIsSynchronized", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_monitorEnter", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_monitorExit", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_monitorPulse", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_monitorPulseAll", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_monitorTryEnter", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_monitorTryWait", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_monitorWait", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_objectGetClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_objectGetVirtualMethod", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_objectInit", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_objectNew", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_objectGetSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_objectUnbox", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_resolveInternalCall", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_stringChars", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_stringLength", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_stringNew", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_stringSetLength", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_valueBox", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_threadAttach", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_threadCurrent", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_threadGetAllAttachedThreads", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_threadIsVm", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_threadDetach", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_typeGetName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_typeGetObject", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_typeGetTypeEnum", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_typeIsByReference", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "_typeIsPrimitive", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppApi, "cModule", null);
-Il2Cpp.Api = Il2CppApi;
-
-},{"../utils/console":31,"decorator-cache-getter":2,"versioning":37}],5:[function(require,module,exports){
-(function (setImmediate){(function (){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const versioning_1 = __importDefault(require("versioning"));
-const console_1 = require("../utils/console");
-const native_wait_1 = require("../utils/native-wait");
-/** */
-class Il2CppBase {
-    constructor() { }
-    /** @internal Gets the Il2Cpp module name. */
-    static get moduleName() {
-        switch (Process.platform) {
-            case "linux":
-                try {
-                    const _ = Java.androidVersion;
-                    return "libil2cpp.so";
-                }
-                catch (e) {
-                    return "GameAssembly.so";
-                }
-            case "windows":
-                return "GameAssembly.dll";
-            case "darwin":
-                try {
-                    return "UnityFramework";
-                }
-                catch (e) {
-                    return "GameAssembly.dylib";
-                }
-        }
-        (0, console_1.raise)(`${Process.platform} is not supported yet`);
-    }
-    /** */
-    static get applicationDataPath() {
-        const get_persistentDataPath = this.internalCall("UnityEngine.Application::get_persistentDataPath", "pointer", []);
-        return new Il2Cpp.String(get_persistentDataPath()).content;
-    }
-    /** */
-    static get applicationIdentifier() {
-        const get_identifier = this.internalCall("UnityEngine.Application::get_identifier", "pointer", []) ??
-            this.internalCall("UnityEngine.Application::get_bundleIdentifier", "pointer", []);
-        return get_identifier ? new Il2Cpp.String(get_identifier()).content : null;
-    }
-    /** Gets the version of the application */
-    static get applicationVersion() {
-        const get_version = this.internalCall("UnityEngine.Application::get_version", "pointer", []);
-        return get_version ? new Il2Cpp.String(get_version()).content : null;
-    }
-    /** Gets the attached threads. */
-    static get attachedThreads() {
-        if (Il2Cpp.currentThread == null) {
-            (0, console_1.raise)("only Il2Cpp threads can invoke Il2Cpp.attachedThreads");
-        }
-        const array = [];
-        const sizePointer = Memory.alloc(Process.pointerSize);
-        const startPointer = Il2Cpp.Api._threadGetAllAttachedThreads(sizePointer);
-        const size = sizePointer.readInt();
-        for (let i = 0; i < size; i++) {
-            array.push(new Il2Cpp.Thread(startPointer.add(i * Process.pointerSize).readPointer()));
-        }
-        return array;
-    }
-    /** Gets the current attached thread, if any. */
-    static get currentThread() {
-        const handle = Il2Cpp.Api._threadCurrent();
-        return handle.isNull() ? null : new Il2Cpp.Thread(handle);
-    }
-    /** Gets the Il2Cpp module as a Frida module. */
-    static get module() {
-        return Process.getModuleByName(this.moduleName);
-    }
-    /** Gets the Unity version of the current application. */
-    static get unityVersion() {
-        const get_unityVersion = this.internalCall("UnityEngine.Application::get_unityVersion", "pointer", []);
-        if (get_unityVersion == null) {
-            (0, console_1.raise)("couldn't determine the Unity version, please specify it manually");
-        }
-        return new Il2Cpp.String(get_unityVersion()).content;
-    }
-    /** @internal */
-    static get unityVersionIsBelow201830() {
-        return versioning_1.default.lt(this.unityVersion, "2018.3.0");
-    }
-    /** Allocates the given amount of bytes. */
-    static alloc(size = Process.pointerSize) {
-        return Il2Cpp.Api._alloc(size);
-    }
-    /** Dumps the application. */
-    static dump(fileName, path) {
-        fileName = fileName ?? `${Il2Cpp.applicationIdentifier ?? "unknown"}_${Il2Cpp.applicationVersion ?? "unknown"}.cs`;
-        const destination = `${path ?? Il2Cpp.applicationDataPath}/${fileName}`;
-        const file = new File(destination, "w");
-        for (const assembly of Il2Cpp.Domain.assemblies) {
-            (0, console_1.inform)(`dumping ${assembly.name}...`);
-            for (const klass of assembly.image.classes) {
-                file.write(`${klass}\n\n`);
-            }
-        }
-        file.flush();
-        file.close();
-        (0, console_1.ok)(`dump saved to ${destination}`);
-        return true
-    }
-    /** Frees memory. */
-    static free(pointer) {
-        return Il2Cpp.Api._free(pointer);
-    }
-    /** @internal Waits for Unity and Il2Cpp native libraries to be loaded and initialized. */
-    static async initialize() {
-        if (Process.platform == "darwin") {
-            let il2cppModuleName = Process.findModuleByAddress(Module.findExportByName(null, "il2cpp_init") ?? NULL)?.name;
-            if (il2cppModuleName == undefined) {
-                il2cppModuleName = await (0, native_wait_1.forModule)("UnityFramework", "GameAssembly.dylib");
-            }
-            Reflect.defineProperty(Il2Cpp, "moduleName", { value: il2cppModuleName });
-        }
-        else {
-            await (0, native_wait_1.forModule)(this.moduleName);
-        }
-        if (Il2Cpp.Api._getCorlib().isNull()) {
-            await new Promise(resolve => {
-                const interceptor = Interceptor.attach(Il2Cpp.Api._init, {
-                    onLeave() {
-                        interceptor.detach();
-                        setImmediate(resolve);
-                    }
-                });
-            });
-        }
-    }
-    /** */
-    static installExceptionListener(targetThread = "current") {
-        const threadId = Process.getCurrentThreadId();
-        return Interceptor.attach(Il2Cpp.module.getExportByName("__cxa_throw"), function (args) {
-            if (targetThread == "current" && this.threadId != threadId) {
-                return;
-            }
-            (0, console_1.inform)(new Il2Cpp.Object(args[0].readPointer()));
-        });
-    }
-    /** */
-    static internalCall(name, retType, argTypes) {
-        const handle = Il2Cpp.Api._resolveInternalCall(Memory.allocUtf8String(name));
-        return handle.isNull() ? null : new NativeFunction(handle, retType, argTypes);
-    }
-    /** Schedules a callback on the Il2Cpp initializer thread. */
-    static scheduleOnInitializerThread(block) {
-        return new Promise(resolve => {
-            const listener = Interceptor.attach(Il2Cpp.Api._threadCurrent, () => {
-                const currentThreadId = Il2Cpp.currentThread?.id;
-                if (currentThreadId != undefined && currentThreadId == Il2Cpp.attachedThreads[0].id) {
-                    listener.detach();
-                    const result = block();
-                    setImmediate(() => resolve(result));
-                }
-            });
-        });
-    }
-    /** Attaches the caller thread to Il2Cpp domain and executes the given block.  */
-    static async perform(block) {
-        await this.initialize();
-        let thread = this.currentThread;
-        const isForeignThread = thread == null;
-        if (thread == null) {
-            thread = Il2Cpp.Domain.attach();
-        }
-        try {
-            const result = block();
-            return result instanceof Promise ? await result : result;
-        }
-        catch (e) {
-            globalThis.console.log(e);
-            throw e;
-        }
-        finally {
-            if (isForeignThread) {
-                thread.detach();
-            }
-        }
-    }
-    /** Creates a new `Il2Cpp.Tracer` instance. */
-    static trace() {
-        return new Il2Cpp.Tracer();
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppBase, "applicationDataPath", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppBase, "applicationIdentifier", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppBase, "applicationVersion", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppBase, "module", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppBase, "unityVersion", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppBase, "unityVersionIsBelow201830", null);
-Reflect.set(globalThis, "Il2Cpp", Il2CppBase);
-
-}).call(this)}).call(this,require("timers").setImmediate)
-},{"../utils/console":31,"../utils/native-wait":33,"decorator-cache-getter":2,"timers":36,"versioning":37}],6:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-/** Filtering utilities. */
-class Il2CppFiltering {
-    constructor() { }
-    /** Creates a filter which includes `element`s whose type can be assigned to `klass` variables. */
-    static Is(klass) {
-        return (element) => {
-            if (element instanceof Il2Cpp.Class) {
-                return klass.isAssignableFrom(element);
-            }
-            else {
-                return klass.isAssignableFrom(element.class);
-            }
-        };
-    }
-    /** Creates a filter which includes `element`s whose type corresponds to `klass` type. */
-    static IsExactly(klass) {
-        return (element) => {
-            if (element instanceof Il2Cpp.Class) {
-                return element.equals(klass);
-            }
-            else {
-                return element.class.equals(klass);
-            }
-        };
-    }
-}
-Il2Cpp.Filtering = Il2CppFiltering;
-
-},{}],7:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-require("./base");
-require("./api");
-require("./filtering");
-require("./runtime");
-require("./tracer");
-require("./structs/array");
-require("./structs/assembly");
-require("./structs/class");
-require("./structs/domain");
-require("./structs/field");
-require("./structs/gc");
-require("./structs/gc-handle");
-require("./structs/image");
-require("./structs/memory-snapshot");
-require("./structs/method");
-require("./structs/object");
-require("./structs/parameter");
-require("./structs/pointer");
-require("./structs/reference");
-require("./structs/string");
-require("./structs/thread");
-require("./structs/type");
-require("./structs/type-enum");
-require("./structs/value-type");
-
-},{"./api":4,"./base":5,"./filtering":6,"./runtime":8,"./structs/array":9,"./structs/assembly":10,"./structs/class":11,"./structs/domain":12,"./structs/field":13,"./structs/gc":15,"./structs/gc-handle":14,"./structs/image":16,"./structs/memory-snapshot":17,"./structs/method":18,"./structs/object":19,"./structs/parameter":20,"./structs/pointer":21,"./structs/reference":22,"./structs/string":23,"./structs/thread":24,"./structs/type":26,"./structs/type-enum":25,"./structs/value-type":27,"./tracer":28}],8:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-/** */
-class Il2CppRuntime {
-    constructor() { }
-    /** Gets the allocation granularity. */
-    static get allocationGranularity() {
-        return this.information[5];
-    }
-    /** Gets the size of the Il2CppArray struct. */
-    static get arrayHeaderSize() {
-        return this.information[2];
-    }
-    /** @internal */
-    static get information() {
-        const snapshot = Il2Cpp.MemorySnapshot.capture();
-        try {
-            return Il2Cpp.Api._memorySnapshotGetRuntimeInformation(snapshot);
-        }
-        finally {
-            Il2Cpp.Api._memorySnapshotFree(snapshot);
-        }
-    }
-    /** Gets the pointer size. */
-    static get pointerSize() {
-        return this.information[0];
-    }
-    /** Gets the size of the Il2CppObject struct. */
-    static get objectHeaderSize() {
-        return this.information[1];
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppRuntime, "information", null);
-Il2Cpp.Runtime = Il2CppRuntime;
-
-},{"decorator-cache-getter":2}],9:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const console_1 = require("../../utils/console");
-const native_struct_1 = require("../../utils/native-struct");
-/** Represents a `Il2CppArraySize`. */
-class Il2CppArray extends native_struct_1.NativeStruct {
-    /** @internal */
-    static from(klass, lengthOrElements) {
-        const length = typeof lengthOrElements == "number" ? lengthOrElements : lengthOrElements.length;
-        const array = new Il2Cpp.Array(Il2Cpp.Api._arrayNew(klass, length));
-        if (Array.isArray(lengthOrElements)) {
-            array.elements.write(lengthOrElements);
-        }
-        return array;
-    }
-    /** @internal Gets a pointer to the first element of the current array. */
-    get elements() {
-        return new Il2Cpp.Pointer(Il2Cpp.Api._arrayGetElements(this), this.elementType);
-    }
-    /** Gets the size of the object encompassed by the current array. */
-    get elementSize() {
-        return this.elementType.class.arrayElementSize;
-    }
-    /** Gets the type of the object encompassed by the current array. */
-    get elementType() {
-        return this.object.class.type.class.baseType;
-    }
-    /** Gets the total number of elements in all the dimensions of the current array. */
-    get length() {
-        return Il2Cpp.Api._arrayGetLength(this);
-    }
-    /** Gets the encompassing object of the current array. */
-    get object() {
-        return new Il2Cpp.Object(this);
-    }
-    /** Gets the element at the specified index of the current array. */
-    get(index) {
-        if (index < 0 || index >= this.length) {
-            (0, console_1.raise)(`cannot get element at index ${index}: array length is ${this.length}`);
-        }
-        return this.elements.get(index);
-    }
-    /** Sets the element at the specified index of the current array. */
-    set(index, value) {
-        if (index < 0 || index >= this.length) {
-            (0, console_1.raise)(`cannot get element at index ${index}: array length is ${this.length}`);
-        }
-        this.elements.set(index, value);
-    }
-    /** */
-    toString() {
-        return this.isNull() ? "null" : `[${this.elements.read(this.length, 0)}]`;
-    }
-    /** Iterable. */
-    *[Symbol.iterator]() {
-        for (let i = 0; i < this.length; i++) {
-            yield this.elements.get(i);
-        }
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppArray.prototype, "elements", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppArray.prototype, "elementSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppArray.prototype, "elementType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppArray.prototype, "length", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppArray.prototype, "object", null);
-Il2Cpp.Array = Il2CppArray;
-
-},{"../../utils/console":31,"../../utils/native-struct":32,"decorator-cache-getter":2}],10:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const native_struct_1 = require("../../utils/native-struct");
-const utils_1 = require("../../utils/utils");
-/** Represents a `Il2CppAssembly`. */
-let Il2CppAssembly = class Il2CppAssembly extends native_struct_1.NonNullNativeStruct {
-    /** Gets the image of this assembly. */
-    get image() {
-        return new Il2Cpp.Image(Il2Cpp.Api._assemblyGetImage(this));
-    }
-    /** Gets the name of this assembly. */
-    get name() {
-        return this.image.name.replace(".dll", "");
-    }
-    /** Gets the encompassing object of the current assembly. */
-    get object() {
-        return Il2Cpp.Image.corlib.class("System.Reflection.Assembly").method("Load").invoke(Il2Cpp.String.from(this.name));
-    }
-};
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppAssembly.prototype, "image", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppAssembly.prototype, "name", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppAssembly.prototype, "object", null);
-Il2CppAssembly = __decorate([
-    utils_1.cacheInstances
-], Il2CppAssembly);
-Il2Cpp.Assembly = Il2CppAssembly;
-
-},{"../../utils/native-struct":32,"../../utils/utils":34,"decorator-cache-getter":2}],11:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const console_1 = require("../../utils/console");
-const native_struct_1 = require("../../utils/native-struct");
-const utils_1 = require("../../utils/utils");
-/** Represents a `Il2CppClass`. */
-let Il2CppClass = class Il2CppClass extends native_struct_1.NonNullNativeStruct {
-    /** Gets the actual size of the instance of the current class. */
-    get actualInstanceSize() {
-        return Il2Cpp.Api._classGetActualInstanceSize(this);
-    }
-    /** Gets the array class which encompass the current class. */
-    get arrayClass() {
-        return new Il2Cpp.Class(Il2Cpp.Api._classGetArrayClass(this, 1));
-    }
-    /** Gets the size of the object encompassed by the current array class. */
-    get arrayElementSize() {
-        return Il2Cpp.Api._classGetArrayElementSize(this);
-    }
-    /** Gets the name of the assembly in which the current class is defined. */
-    get assemblyName() {
-        return Il2Cpp.Api._classGetAssemblyName(this).readUtf8String();
-    }
-    /** Gets the class that declares the current nested class. */
-    get declaringClass() {
-        const handle = Il2Cpp.Api._classGetDeclaringType(this);
-        return handle.isNull() ? null : new Il2Cpp.Class(handle);
-    }
-    /** Gets the encompassed type of this array, reference, pointer or enum type. */
-    get baseType() {
-        const handle = Il2Cpp.Api._classGetBaseType(this);
-        return handle.isNull() ? null : new Il2Cpp.Type(handle);
-    }
-    /** Gets the class of the object encompassed or referred to by the current array, pointer or reference class. */
-    get elementClass() {
-        const handle = Il2Cpp.Api._classGetElementClass(this);
-        return handle.isNull() ? null : new Il2Cpp.Class(handle);
-    }
-    /** Gets the fields of the current class. */
-    get fields() {
-        return Array.from((0, utils_1.nativeIterator)(this, Il2Cpp.Api._classGetFields, Il2Cpp.Field));
-    }
-    /** Gets the flags of the current class. */
-    get flags() {
-        return Il2Cpp.Api._classGetFlags(this);
-    }
-    /** Gets the amount of generic parameters of this generic class. */
-    get genericParameterCount() {
-        if (!this.isGeneric) {
-            return 0;
-        }
-        return this.type.object.method("GetGenericArguments").invoke().length;
-    }
-    /** Determines whether the GC has tracking references to the current class instances. */
-    get hasReferences() {
-        return !!Il2Cpp.Api._classHasReferences(this);
-    }
-    /** Determines whether ther current class has a valid static constructor. */
-    get hasStaticConstructor() {
-        const staticConstructor = this.tryMethod(".cctor");
-        return staticConstructor != null && !staticConstructor.virtualAddress.isNull();
-    }
-    /** Gets the image in which the current class is defined. */
-    get image() {
-        return new Il2Cpp.Image(Il2Cpp.Api._classGetImage(this));
-    }
-    /** Gets the size of the instance of the current class. */
-    get instanceSize() {
-        return Il2Cpp.Api._classGetInstanceSize(this);
-    }
-    /** Determines whether the current class is abstract. */
-    get isAbstract() {
-        return !!Il2Cpp.Api._classIsAbstract(this);
-    }
-    /** Determines whether the current class is blittable. */
-    get isBlittable() {
-        return !!Il2Cpp.Api._classIsBlittable(this);
-    }
-    /** Determines whether the current class is an enumeration. */
-    get isEnum() {
-        return !!Il2Cpp.Api._classIsEnum(this);
-    }
-    /** Determines whether the current class is a generic one. */
-    get isGeneric() {
-        return !!Il2Cpp.Api._classIsGeneric(this);
-    }
-    /** Determines whether the current class is inflated. */
-    get isInflated() {
-        return !!Il2Cpp.Api._classIsInflated(this);
-    }
-    /** Determines whether the current class is an interface. */
-    get isInterface() {
-        return !!Il2Cpp.Api._classIsInterface(this);
-    }
-    /** Determines whether the current class is a value type. */
-    get isValueType() {
-        return !!Il2Cpp.Api._classIsValueType(this);
-    }
-    /** Gets the interfaces implemented or inherited by the current class. */
-    get interfaces() {
-        return Array.from((0, utils_1.nativeIterator)(this, Il2Cpp.Api._classGetInterfaces, Il2Cpp.Class));
-    }
-    /** Gets the methods implemented by the current class. */
-    get methods() {
-        return Array.from((0, utils_1.nativeIterator)(this, Il2Cpp.Api._classGetMethods, Il2Cpp.Method));
-    }
-    /** Gets the name of the current class. */
-    get name() {
-        return Il2Cpp.Api._classGetName(this).readUtf8String();
-    }
-    /** Gets the namespace of the current class. */
-    get namespace() {
-        return Il2Cpp.Api._classGetNamespace(this).readUtf8String();
-    }
-    /** Gets the classes nested inside the current class. */
-    get nestedClasses() {
-        return Array.from((0, utils_1.nativeIterator)(this, Il2Cpp.Api._classGetNestedClasses, Il2Cpp.Class));
-    }
-    /** Gets the class from which the current class directly inherits. */
-    get parent() {
-        const handle = Il2Cpp.Api._classGetParent(this);
-        return handle.isNull() ? null : new Il2Cpp.Class(handle);
-    }
-    /** Gets the rank (number of dimensions) of the current array class. */
-    get rank() {
-        return Il2Cpp.Api._classGetRank(this);
-    }
-    /** Gets a pointer to the static fields of the current class. */
-    get staticFieldsData() {
-        return Il2Cpp.Api._classGetStaticFieldData(this);
-    }
-    /** Gets the size of the instance - as a value type - of the current class. */
-    get valueSize() {
-        return Il2Cpp.Api._classGetValueSize(this, NULL);
-    }
-    /** Gets the type of the current class. */
-    get type() {
-        return new Il2Cpp.Type(Il2Cpp.Api._classGetType(this));
-    }
-    /** Allocates a new object of the current class. */
-    alloc() {
-        return new Il2Cpp.Object(Il2Cpp.Api._objectNew(this));
-    }
-    /** Gets the field identified by the given name. */
-    field(name) {
-        return this.tryField(name);
-    }
-    /** Builds a generic instance of the current generic class. */
-    inflate(...classes) {
-        if (!this.isGeneric) {
-            (0, console_1.raise)(`cannot inflate class ${this.type.name}: it has no generic parameters`);
-        }
-        if (this.genericParameterCount != classes.length) {
-            (0, console_1.raise)(`cannot inflate class ${this.type.name}: it needs ${this.genericParameterCount} generic parameter(s), not ${classes.length}`);
-        }
-        const types = classes.map(klass => klass.type.object);
-        const typeArray = Il2Cpp.Array.from(Il2Cpp.Image.corlib.class("System.Type"), types);
-        const inflatedType = this.type.object.method("MakeGenericType", 1).invoke(typeArray);
-        return new Il2Cpp.Class(Il2Cpp.Api._classFromSystemType(inflatedType));
-    }
-    /** Calls the static constructor of the current class. */
-    initialize() {
-        Il2Cpp.Api._classInit(this);
-    }
-    /** Determines whether an instance of `other` class can be assigned to a variable of the current type. */
-    isAssignableFrom(other) {
-        return !!Il2Cpp.Api._classIsAssignableFrom(this, other);
-    }
-    /** Determines whether the current class derives from `other` class. */
-    isSubclassOf(other, checkInterfaces) {
-        return !!Il2Cpp.Api._classIsSubclassOf(this, other, +checkInterfaces);
-    }
-    /** Gets the method identified by the given name and parameter count. */
-    method(name, parameterCount = -1) {
-        return this.tryMethod(name, parameterCount);
-    }
-    /** Gets the nested class with the given name. */
-    nested(name) {
-        return this.tryNested(name);
-    }
-    /** Allocates a new object of the current class and calls its default constructor. */
-    new() {
-        const object = this.alloc();
-        const exceptionArray = Memory.alloc(Process.pointerSize);
-        Il2Cpp.Api._objectInit(object, exceptionArray);
-        const exception = exceptionArray.readPointer();
-        if (!exception.isNull()) {
-            (0, console_1.raise)(new Il2Cpp.Object(exception).toString());
-        }
-        return object;
-    }
-    /** Gets the field with the given name. */
-    tryField(name) {
-        const handle = Il2Cpp.Api._classGetFieldFromName(this, Memory.allocUtf8String(name));
-        return handle.isNull() ? null : new Il2Cpp.Field(handle);
-    }
-    /** Gets the method with the given name and parameter count. */
-    tryMethod(name, parameterCount = -1) {
-        const handle = Il2Cpp.Api._classGetMethodFromName(this, Memory.allocUtf8String(name), parameterCount);
-        return handle.isNull() ? null : new Il2Cpp.Method(handle);
-    }
-    /** Gets the nested class with the given name. */
-    tryNested(name) {
-        return this.nestedClasses.find(e => e.name == name);
-    }
-    /** */
-    toString() {
-        const inherited = [this.parent].concat(this.interfaces);
-        return `\
-// ${this.assemblyName}
-${this.isEnum ? `enum` : this.isValueType ? `struct` : this.isInterface ? `interface` : `class`} \
-${this.type.name}\
-${inherited ? ` : ${inherited.map(e => e?.type.name).join(`, `)}` : ``}
-{
-    ${this.fields.join(`\n    `)}
-    ${this.methods.join(`\n    `)}
-}`;
-    }
-    /** Executes a callback for every defined class. */
-    static enumerate(block) {
-        const callback = new NativeCallback(function (klass, _) {
-            block(new Il2Cpp.Class(klass));
-        }, "void", ["pointer", "pointer"]);
-        return Il2Cpp.Api._classForEach(callback, NULL);
-    }
-};
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "actualInstanceSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "arrayClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "arrayElementSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "assemblyName", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "declaringClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "baseType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "elementClass", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "fields", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "flags", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "genericParameterCount", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "hasReferences", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "hasStaticConstructor", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "image", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "instanceSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "isAbstract", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "isBlittable", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "isEnum", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "isGeneric", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "isInflated", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "isInterface", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "isValueType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "interfaces", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "methods", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "name", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "namespace", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "nestedClasses", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "parent", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "rank", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "staticFieldsData", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "valueSize", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppClass.prototype, "type", null);
-__decorate([
-    (0, utils_1.levenshtein)("fields")
-], Il2CppClass.prototype, "field", null);
-__decorate([
-    (0, utils_1.levenshtein)("methods")
-], Il2CppClass.prototype, "method", null);
-__decorate([
-    (0, utils_1.levenshtein)("nestedClasses")
-], Il2CppClass.prototype, "nested", null);
-Il2CppClass = __decorate([
-    utils_1.cacheInstances
-], Il2CppClass);
-Il2Cpp.Class = Il2CppClass;
-
-},{"../../utils/console":31,"../../utils/native-struct":32,"../../utils/utils":34,"decorator-cache-getter":2}],12:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const utils_1 = require("../../utils/utils");
-/** Represents a `Il2CppDomain`. */
-class Il2CppDomain {
-    constructor() { }
-    /** Gets the assemblies that have been loaded into the execution context of the application domain. */
-    static get assemblies() {
-        const sizePointer = Memory.alloc(Process.pointerSize);
-        const startPointer = Il2Cpp.Api._domainGetAssemblies(this, sizePointer);
-        const count = sizePointer.readInt();
-        const array = new Array(count);
-        for (let i = 0; i < count; i++) {
-            array[i] = new Il2Cpp.Assembly(startPointer.add(i * Process.pointerSize).readPointer());
-        }
-        if (count == 0) {
-            for (const assemblyObject of this.object.method("GetAssemblies").overload().invoke()) {
-                const assemblyName = assemblyObject.method("GetSimpleName").invoke().content;
-                if (assemblyName != null) {
-                    array.push(this.assembly(assemblyName));
-                }
-            }
-        }
-        return array;
-    }
-    /** Gets the application domain handle. */
-    static get handle() {
-        return Il2Cpp.Api._domainGet();
-    }
-    /** Gets the encompassing object of the application domain. */
-    static get object() {
-        return Il2Cpp.Image.corlib.class("System.AppDomain").method("get_CurrentDomain").invoke();
-    }
-    /** Opens and loads the assembly with the given name. */
-    static assembly(name) {
-        return this.tryAssembly(name);
-    }
-    /** Attached a new thread to the application domain. */
-    static attach() {
-        return new Il2Cpp.Thread(Il2Cpp.Api._threadAttach(this));
-    }
-    /** Opens and loads the assembly with the given name. */
-    static tryAssembly(name) {
-        const handle = Il2Cpp.Api._domainAssemblyOpen(this, Memory.allocUtf8String(name));
-        return handle.isNull() ? null : new Il2Cpp.Assembly(handle);
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppDomain, "assemblies", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppDomain, "handle", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppDomain, "object", null);
-__decorate([
-    (0, utils_1.levenshtein)("assemblies")
-], Il2CppDomain, "assembly", null);
-Il2Cpp.Domain = Il2CppDomain;
-
-},{"../../utils/utils":34,"decorator-cache-getter":2}],13:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const console_1 = require("../../utils/console");
-const native_struct_1 = require("../../utils/native-struct");
-const utils_1 = require("../utils");
-/** Represents a `FieldInfo`. */
-class Il2CppField extends native_struct_1.NonNullNativeStruct {
-    /** Gets the class in which this field is defined. */
-    get class() {
-        return new Il2Cpp.Class(Il2Cpp.Api._fieldGetClass(this));
-    }
-    /** Gets the flags of the current field. */
-    get flags() {
-        return Il2Cpp.Api._fieldGetFlags(this);
-    }
-    /** Determines whether this field value is known at compile time. */
-    get isLiteral() {
-        return !!Il2Cpp.Api._fieldIsLiteral(this);
-    }
-    /** Determines whether this field is static. */
-    get isStatic() {
-        return !!Il2Cpp.Api._fieldIsStatic(this);
-    }
-    /** Determines whether this field is thread static. */
-    get isThreadStatic() {
-        return !!Il2Cpp.Api._fieldIsThreadStatic(this);
-    }
-    /** Gets the access modifier of this field. */
-    get modifier() {
-        return Il2Cpp.Api._fieldGetModifier(this).readUtf8String();
-    }
-    /** Gets the name of this field. */
-    get name() {
-        return Il2Cpp.Api._fieldGetName(this).readUtf8String();
-    }
-    /** Gets the offset of this field, calculated as the difference with its owner virtual address. */
-    get offset() {
-        return Il2Cpp.Api._fieldGetOffset(this);
-    }
-    /** Gets the type of this field. */
-    get type() {
-        return new Il2Cpp.Type(Il2Cpp.Api._fieldGetType(this));
-    }
-    /** Gets the value of this field. */
-    get value() {
-        const handle = Memory.alloc(Process.pointerSize);
-        Il2Cpp.Api._fieldGetStaticValue(this.handle, handle);
-        return (0, utils_1.read)(handle, this.type);
-    }
-    /** Sets the value of this field. Thread static or literal values cannot be altered yet. */
-    set value(value) {
-        if (this.isThreadStatic || this.isLiteral) {
-            (0, console_1.raise)(`cannot modify the value of field ${this.name}: is thread static or literal`);
-        }
-        const handle = Memory.alloc(Process.pointerSize);
-        (0, utils_1.write)(handle, value, this.type);
-        Il2Cpp.Api._fieldSetStaticValue(this.handle, handle);
-    }
-    /** */
-    toString() {
-        return `\
-${this.isThreadStatic ? `[ThreadStatic] ` : ``}\
-${this.isStatic ? `static ` : ``}\
-${this.type.name} \
-${this.name}\
-${this.isLiteral ? ` = ${this.type.class.isEnum ? (0, utils_1.read)(this.value.handle, this.type.class.baseType) : this.value}` : ``};\
-${this.isThreadStatic || this.isLiteral ? `` : ` // 0x${this.offset.toString(16)}`}`;
-    }
-    /** @internal */
-    withHolder(instance) {
-        let valueHandle = instance.handle.add(this.offset);
-        if (instance instanceof Il2Cpp.ValueType) {
-            valueHandle = valueHandle.sub(Il2Cpp.Runtime.objectHeaderSize);
-        }
-        return new Proxy(this, {
-            get(target, property) {
-                if (property == "value") {
-                    return (0, utils_1.read)(valueHandle, target.type);
-                }
-                return Reflect.get(target, property);
-            },
-            set(target, property, value) {
-                if (property == "value") {
-                    (0, utils_1.write)(valueHandle, value, target.type);
-                    return true;
-                }
-                return Reflect.set(target, property, value);
-            }
-        });
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "class", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "flags", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "isLiteral", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "isStatic", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "isThreadStatic", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "name", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "offset", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppField.prototype, "type", null);
-Reflect.set(Il2Cpp, "Field", Il2CppField);
-
-},{"../../utils/console":31,"../../utils/native-struct":32,"../utils":29,"decorator-cache-getter":2}],14:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-/** Represents a GCHandle. */
-class Il2CppGCHandle {
-    handle;
-    /** @internal */
-    constructor(handle) {
-        this.handle = handle;
-    }
-    /** Gets the object associated to this handle. */
-    get target() {
-        const handle = Il2Cpp.Api._gcHandleGetTarget(this.handle);
-        return handle.isNull() ? null : new Il2Cpp.Object(handle);
-    }
-    /** Frees this handle. */
-    free() {
-        return Il2Cpp.Api._gcHandleFree(this.handle);
-    }
-}
-Il2Cpp.GC.Handle = Il2CppGCHandle;
-
-},{}],15:[function(require,module,exports){
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const versioning_1 = __importDefault(require("versioning"));
-/** Garbage collector utility functions. */
-class Il2CppGC {
-    constructor() { }
-    /** Gets the heap size in bytes. */
-    static get heapSize() {
-        return Il2Cpp.Api._gcGetHeapSize();
-    }
-    /** Determines whether the garbage collector is disabled. */
-    static get isEnabled() {
-        return !Il2Cpp.Api._gcIsDisabled();
-    }
-    /** Determines whether the garbage collector is incremental. */
-    static get isIncremental() {
-        return !!Il2Cpp.Api._gcIsIncremental();
-    }
-    /** Gets the number of nanoseconds the garbage collector can spend in a collection step. */
-    static get maxTimeSlice() {
-        return Il2Cpp.Api._gcGetMaxTimeSlice();
-    }
-    /** Gets the used heap size in bytes. */
-    static get usedHeapSize() {
-        return Il2Cpp.Api._gcGetUsedSize();
-    }
-    /** Enables or disables the garbage collector. */
-    static set isEnabled(value) {
-        value ? Il2Cpp.Api._gcEnable() : Il2Cpp.Api._gcDisable();
-    }
-    /** Sets the number of nanoseconds the garbage collector can spend in a collection step. */
-    static set maxTimeSlice(nanoseconds) {
-        Il2Cpp.Api._gcSetMaxTimeSlice(nanoseconds);
-    }
-    /** Returns the heap allocated objects of the specified class. This variant reads GC descriptors. */
-    static choose(klass) {
-        const matches = [];
-        const callback = (objects, size, _) => {
-            for (let i = 0; i < size; i++) {
-                matches.push(new Il2Cpp.Object(objects.add(i * Process.pointerSize).readPointer()));
-            }
-        };
-        const chooseCallback = new NativeCallback(callback, "void", ["pointer", "int", "pointer"]);
-        if (versioning_1.default.gte(Il2Cpp.unityVersion, "2021.2.0")) {
-            const realloc = (handle, size) => {
-                if (!handle.isNull() && size.compare(0) == 0) {
-                    Il2Cpp.free(handle);
-                    return NULL;
-                }
-                else {
-                    return Il2Cpp.alloc(size);
-                }
-            };
-            const reallocCallback = new NativeCallback(realloc, "pointer", ["pointer", "size_t", "pointer"]);
-            const state = Il2Cpp.Api._livenessAllocateStruct(klass.handle, 0, chooseCallback, NULL, reallocCallback);
-            Il2Cpp.Api._livenessCalculationFromStatics(state);
-            Il2Cpp.Api._livenessFinalize(state);
-            Il2Cpp.Api._livenessFreeStruct(state);
-        }
-        else {
-            const onWorld = new NativeCallback(() => { }, "void", []);
-            const state = Il2Cpp.Api._livenessCalculationBegin(klass.handle, 0, chooseCallback, NULL, onWorld, onWorld);
-            Il2Cpp.Api._livenessCalculationFromStatics(state);
-            Il2Cpp.Api._livenessCalculationEnd(state);
-        }
-        return matches;
-    }
-    /** Forces a garbage collection of the specified generation. */
-    static collect(generation) {
-        Il2Cpp.Api._gcCollect(generation < 0 ? 0 : generation > 2 ? 2 : generation);
-    }
-    /** Forces a garbage collection. */
-    static collectALittle() {
-        Il2Cpp.Api._gcCollectALittle();
-    }
-    /** Resumes all the previously stopped threads. */
-    static startWorld() {
-        return Il2Cpp.Api._gcStartWorld();
-    }
-    /** Performs an incremental garbage collection. */
-    static startIncrementalCollection() {
-        return Il2Cpp.Api._gcStartIncrementalCollection();
-    }
-    /** Stops all threads which may access the garbage collected heap, other than the caller. */
-    static stopWorld() {
-        return Il2Cpp.Api._gcStopWorld();
-    }
-}
-Reflect.set(Il2Cpp, "GC", Il2CppGC);
-
-},{"versioning":37}],16:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const native_struct_1 = require("../../utils/native-struct");
-const utils_1 = require("../../utils/utils");
-/** Represents a `Il2CppImage`. */
-let Il2CppImage = class Il2CppImage extends native_struct_1.NonNullNativeStruct {
-    /** Gets the COR library. */
-    static get corlib() {
-        return new Il2Cpp.Image(Il2Cpp.Api._getCorlib());
-    }
-    /** Gets the assembly in which the current image is defined. */
-    get assembly() {
-        return new Il2Cpp.Assembly(Il2Cpp.Api._imageGetAssembly(this));
-    }
-    /** Gets the amount of classes defined in this image. */
-    get classCount() {
-        return Il2Cpp.Api._imageGetClassCount(this);
-    }
-    /** Gets the classes defined in this image. */
-    get classes() {
-        if (Il2Cpp.unityVersionIsBelow201830) {
-            const types = this.assembly.object.method("GetTypes").invoke(false);
-            // On Unity 5.3.8f1, getting System.Reflection.Emit.OpCodes type name
-            // without iterating all the classes first somehow blows things up at
-            // app startup, hence the `Array.from`.
-            return Array.from(types).map(e => new Il2Cpp.Class(Il2Cpp.Api._classFromSystemType(e)));
-        }
-        else {
-            return Array.from(Array(this.classCount), (_, i) => new Il2Cpp.Class(Il2Cpp.Api._imageGetClass(this, i)));
-        }
-    }
-    /** Gets the name of this image. */
-    get name() {
-        return Il2Cpp.Api._imageGetName(this).readUtf8String();
-    }
-    /** Gets the class with the specified name defined in this image. */
-    class(name) {
-        return this.tryClass(name);
-    }
-    /** Gets the class with the specified name defined in this image. */
-    tryClass(name) {
-        const dotIndex = name.lastIndexOf(".");
-        const classNamespace = Memory.allocUtf8String(dotIndex == -1 ? "" : name.slice(0, dotIndex));
-        const className = Memory.allocUtf8String(name.slice(dotIndex + 1));
-        const handle = Il2Cpp.Api._classFromName(this, classNamespace, className);
-        return handle.isNull() ? null : new Il2Cpp.Class(handle);
-    }
-};
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppImage.prototype, "assembly", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppImage.prototype, "classCount", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppImage.prototype, "classes", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppImage.prototype, "name", null);
-__decorate([
-    (0, utils_1.levenshtein)("classes", e => (e.namespace ? `${e.namespace}.${e.name}` : e.name))
-], Il2CppImage.prototype, "class", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppImage, "corlib", null);
-Il2CppImage = __decorate([
-    utils_1.cacheInstances
-], Il2CppImage);
-Il2Cpp.Image = Il2CppImage;
-
-},{"../../utils/native-struct":32,"../../utils/utils":34,"decorator-cache-getter":2}],17:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const native_struct_1 = require("../../utils/native-struct");
-const utils_1 = require("../../utils/utils");
-/** Represents a `Il2CppManagedMemorySnapshot`. */
-class Il2CppMemorySnapshot extends native_struct_1.NonNullNativeStruct {
-    /** Captures a memory snapshot. */
-    static capture() {
-        return new Il2Cpp.MemorySnapshot();
-    }
-    /** Creates a memory snapshot with the given handle. */
-    constructor(handle = Il2Cpp.Api._memorySnapshotCapture()) {
-        super(handle);
-    }
-    /** Gets any initialized class. */
-    get classes() {
-        return Array.from((0, utils_1.nativeIterator)(this, Il2Cpp.Api._memorySnapshotGetClasses, Il2Cpp.Class));
-    }
-    /** Gets the objects tracked by this memory snapshot. */
-    get objects() {
-        const array = [];
-        const [count, start] = Il2Cpp.Api._memorySnapshotGetGCHandles(this);
-        for (let i = 0; i < count; i++) {
-            array.push(new Il2Cpp.Object(start.add(i * Process.pointerSize).readPointer()));
-        }
-        return array;
-    }
-    /** Frees this memory snapshot. */
-    free() {
-        Il2Cpp.Api._memorySnapshotFree(this);
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMemorySnapshot.prototype, "classes", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMemorySnapshot.prototype, "objects", null);
-Il2Cpp.MemorySnapshot = Il2CppMemorySnapshot;
-
-},{"../../utils/native-struct":32,"../../utils/utils":34,"decorator-cache-getter":2}],18:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const console_1 = require("../../utils/console");
-const native_struct_1 = require("../../utils/native-struct");
-const utils_1 = require("../../utils/utils");
-const utils_2 = require("../utils");
-/** Represents a `MethodInfo`. */
-class Il2CppMethod extends native_struct_1.NonNullNativeStruct {
-    /** Gets the class in which this method is defined. */
-    get class() {
-        return new Il2Cpp.Class(Il2Cpp.Api._methodGetClass(this));
-    }
-    /** Gets the flags of the current method. */
-    get flags() {
-        return Il2Cpp.Api._methodGetFlags(this, NULL);
-    }
-    /** Gets the implementation flags of the current method. */
-    get implementationFlags() {
-        const implementationFlagsPointer = Memory.alloc(Process.pointerSize);
-        Il2Cpp.Api._methodGetFlags(this, implementationFlagsPointer);
-        return implementationFlagsPointer.readU32();
-    }
-    /** */
-    get fridaSignature() {
-        const types = [];
-        for (const parameter of this.parameters) {
-            types.push(parameter.type.fridaAlias);
-        }
-        if (!this.isStatic || Il2Cpp.unityVersionIsBelow201830) {
-            types.unshift("pointer");
-        }
-        if (this.isInflated) {
-            types.push("pointer");
-        }
-        return types;
-    }
-    /** Gets the amount of generic parameters of this generic method. */
-    get genericParameterCount() {
-        if (!this.isGeneric) {
-            return 0;
-        }
-        return this.object.method("GetGenericArguments").invoke().length;
-    }
-    /** Determines whether this method is external. */
-    get isExternal() {
-        return !!Il2Cpp.Api._methodIsExternal(this);
-    }
-    /** Determines whether this method is generic. */
-    get isGeneric() {
-        return !!Il2Cpp.Api._methodIsGeneric(this);
-    }
-    /** Determines whether this method is inflated (generic with a concrete type parameter). */
-    get isInflated() {
-        return !!Il2Cpp.Api._methodIsInflated(this);
-    }
-    /** Determines whether this method is static. */
-    get isStatic() {
-        return !Il2Cpp.Api._methodIsInstance(this);
-    }
-    /** Determines whether this method is synchronized. */
-    get isSynchronized() {
-        return !!Il2Cpp.Api._methodIsSynchronized(this);
-    }
-    /** Gets the access modifier of this method. */
-    get modifier() {
-        return Il2Cpp.Api._methodGetModifier(this).readUtf8String();
-    }
-    /** Gets the name of this method. */
-    get name() {
-        return Il2Cpp.Api._methodGetName(this).readUtf8String();
-    }
-    /** @internal */
-    get nativeFunction() {
-        return new NativeFunction(this.virtualAddress, this.returnType.fridaAlias, this.fridaSignature);
-    }
-    /** Gets the encompassing object of the current method. */
-    get object() {
-        return new Il2Cpp.Object(Il2Cpp.Api._methodGetObject(this, NULL));
-    }
-    /** Gets the amount of parameters of this method. */
-    get parameterCount() {
-        return Il2Cpp.Api._methodGetParameterCount(this);
-    }
-    /** Gets the parameters of this method. */
-    get parameters() {
-        return Array.from(Array(this.parameterCount), (_, i) => {
-            const parameterName = Il2Cpp.Api._methodGetParameterName(this, i).readUtf8String();
-            const parameterType = Il2Cpp.Api._methodGetParameterType(this, i);
-            return new Il2Cpp.Parameter(parameterName, i, new Il2Cpp.Type(parameterType));
-        });
-    }
-    /** Gets the relative virtual address (RVA) of this method. */
-    get relativeVirtualAddress() {
-        return this.virtualAddress.sub(Il2Cpp.module.base);
-    }
-    /** Gets the return type of this method. */
-    get returnType() {
-        return new Il2Cpp.Type(Il2Cpp.Api._methodGetReturnType(this));
-    }
-    /** Gets the virtual address (VA) to this method. */
-    get virtualAddress() {
-        return Il2Cpp.Api._methodGetPointer(this);
-    }
-    /** Replaces the body of this method. */
-    set implementation(block) {
-        const startIndex = +!this.isStatic | +Il2Cpp.unityVersionIsBelow201830;
-        const callback = (...args) => {
-            const parameters = this.parameters.map((e, i) => (0, utils_2.fromFridaValue)(args[i + startIndex], e.type));
-            return (0, utils_2.toFridaValue)(block.call(this.isStatic ? this.class : new Il2Cpp.Object(args[0]), ...parameters));
-        };
-        try {
-            Interceptor.replace(this.virtualAddress, new NativeCallback(callback, this.returnType.fridaAlias, this.fridaSignature));
-        }
-        catch (e) {
-            switch (e.message) {
-                case "access violation accessing 0x0":
-                    (0, console_1.raise)(`cannot implement method ${this.name}: it has a NULL virtual address`);
-                case `unable to intercept function at ${this.virtualAddress}; please file a bug`:
-                    (0, console_1.warn)(`cannot implement method ${this.name}: it may be a thunk`);
-                    break;
-                case "already replaced this function":
-                    (0, console_1.warn)(`cannot implement method ${this.name}: already replaced by a thunk`);
-                    break;
-                default:
-                    throw e;
-            }
-        }
-    }
-    /** Creates a generic instance of the current generic method. */
-    inflate(...classes) {
-        if (!this.isGeneric) {
-            (0, console_1.raise)(`cannot inflate method ${this.name}: it has no generic parameters`);
-        }
-        if (this.genericParameterCount != classes.length) {
-            (0, console_1.raise)(`cannot inflate method ${this.name}: it needs ${this.genericParameterCount} generic parameter(s), not ${classes.length}`);
-        }
-        const types = classes.map(klass => klass.type.object);
-        const typeArray = Il2Cpp.Array.from(Il2Cpp.Image.corlib.class("System.Type"), types);
-        const inflatedMethodObject = this.object.method("MakeGenericMethod", 1).invoke(typeArray);
-        return new Il2Cpp.Method(Il2Cpp.Api._methodGetFromReflection(inflatedMethodObject));
-    }
-    /** Invokes this method. */
-    invoke(...parameters) {
-        if (!this.isStatic) {
-            (0, console_1.raise)(`cannot invoke a non-static method ${this.name}: must be invoked throught a Il2Cpp.Object, not a Il2Cpp.Class`);
-        }
-        return this.invokeRaw(NULL, ...parameters);
-    }
-    /** @internal */
-    invokeRaw(instance, ...parameters) {
-        const allocatedParameters = parameters.map(utils_2.toFridaValue);
-        if (!this.isStatic || Il2Cpp.unityVersionIsBelow201830) {
-            allocatedParameters.unshift(instance);
-        }
-        if (this.isInflated) {
-            allocatedParameters.push(this.handle);
-        }
-        try {
-            const returnValue = this.nativeFunction(...allocatedParameters);
-            return (0, utils_2.fromFridaValue)(returnValue, this.returnType);
-        }
-        catch (e) {
-            if (e == null) {
-                (0, console_1.raise)("an unexpected native function exception occurred, this is due to parameter types mismatch");
-            }
-            switch (e.message) {
-                case "bad argument count":
-                    (0, console_1.raise)(`cannot invoke method ${this.name}: it needs ${this.parameterCount} parameter(s), not ${parameters.length}`);
-                case "expected a pointer":
-                case "expected number":
-                case "expected array with fields":
-                    (0, console_1.raise)(`cannot invoke method ${this.name}: parameter types mismatch`);
-            }
-            throw e;
-        }
-    }
-    /** Gets the overloaded method with the given parameter types. */
-    overload(...parameterTypes) {
-        const result = this.tryOverload(...parameterTypes);
-        if (result != undefined)
-            return result;
-        (0, console_1.raise)(`cannot find overloaded method ${this.name}(${parameterTypes})`);
-    }
-    /** Gets the parameter with the given name. */
-    parameter(name) {
-        return this.tryParameter(name);
-    }
-    /** Restore the original method implementation. */
-    revert() {
-        Interceptor.revert(this.virtualAddress);
-        Interceptor.flush();
-    }
-    /** Gets the overloaded method with the given parameter types. */
-    tryOverload(...parameterTypes) {
-        return this.class.methods.find(e => e.name == this.name &&
-            e.parameterCount == parameterTypes.length &&
-            e.parameters.every((e, i) => e.type.name == parameterTypes[i]));
-    }
-    /** Gets the parameter with the given name. */
-    tryParameter(name) {
-        return this.parameters.find(e => e.name == name);
-    }
-    /** */
-    toString() {
-        return `\
-${this.isStatic ? `static ` : ``}\
-${this.returnType.name} \
-${this.name}\
-(${this.parameters.join(`, `)});\
-${this.virtualAddress.isNull() ? `` : ` // 0x${this.relativeVirtualAddress.toString(16).padStart(8, `0`)}`}`;
-    }
-    /** @internal */
-    withHolder(instance) {
-        return new Proxy(this, {
-            get(target, property) {
-                switch (property) {
-                    case "invoke":
-                        return target.invokeRaw.bind(target, instance.handle);
-                    case "inflate":
-                    case "overload":
-                    case "tryOverload":
-                        return function (...args) {
-                            return target[property](...args)?.withHolder(instance);
-                        };
-                }
-                return Reflect.get(target, property);
-            }
-        });
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "class", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "flags", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "implementationFlags", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "fridaSignature", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "genericParameterCount", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "isExternal", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "isGeneric", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "isInflated", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "isStatic", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "isSynchronized", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "name", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "nativeFunction", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "object", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "parameterCount", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "parameters", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "relativeVirtualAddress", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "returnType", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppMethod.prototype, "virtualAddress", null);
-__decorate([
-    (0, utils_1.levenshtein)("parameters")
-], Il2CppMethod.prototype, "parameter", null);
-Reflect.set(Il2Cpp, "Method", Il2CppMethod);
-
-},{"../../utils/console":31,"../../utils/native-struct":32,"../../utils/utils":34,"../utils":29,"decorator-cache-getter":2}],19:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const native_struct_1 = require("../../utils/native-struct");
-/** Represents a `Il2CppObject`. */
-class Il2CppObject extends native_struct_1.NativeStruct {
-    /** Gets the class of this object. */
-    get class() {
-        return new Il2Cpp.Class(Il2Cpp.Api._objectGetClass(this));
-    }
-    /** Gets the size of the current object. */
-    get size() {
-        return Il2Cpp.Api._objectGetSize(this);
-    }
-    /** Acquires an exclusive lock on the current object. */
-    enter() {
-        return Il2Cpp.Api._monitorEnter(this);
-    }
-    /** Release an exclusive lock on the current object. */
-    exit() {
-        return Il2Cpp.Api._monitorExit(this);
-    }
-    /** Gets the field with the given name. */
-    field(name) {
-        return this.class.field(name).withHolder(this);
-    }
-    /** Gets the method with the given name. */
-    method(name, parameterCount = -1) {
-        return this.class.method(name, parameterCount).withHolder(this);
-    }
-    /** Notifies a thread in the waiting queue of a change in the locked object's state. */
-    pulse() {
-        return Il2Cpp.Api._monitorPulse(this);
-    }
-    /** Notifies all waiting threads of a change in the object's state. */
-    pulseAll() {
-        return Il2Cpp.Api._monitorPulseAll(this);
-    }
-    /** Creates a reference to this object. */
-    ref(pin) {
-        return new Il2Cpp.GC.Handle(Il2Cpp.Api._gcHandleNew(this, +pin));
-    }
-    /** Gets the correct virtual method from the given virtual method. */
-    virtualMethod(method) {
-        return new Il2Cpp.Method(Il2Cpp.Api._objectGetVirtualMethod(this, method)).withHolder(this);
-    }
-    /** Attempts to acquire an exclusive lock on the current object. */
-    tryEnter(timeout) {
-        return !!Il2Cpp.Api._monitorTryEnter(this, timeout);
-    }
-    /** Gets the field with the given name. */
-    tryField(name) {
-        return this.class.tryField(name)?.withHolder(this);
-    }
-    /** Gets the field with the given name. */
-    tryMethod(name, parameterCount = -1) {
-        return this.class.tryMethod(name, parameterCount)?.withHolder(this);
-    }
-    /** Releases the lock on an object and attempts to block the current thread until it reacquires the lock. */
-    tryWait(timeout) {
-        return !!Il2Cpp.Api._monitorTryWait(this, timeout);
-    }
-    /** */
-    toString() {
-        return this.isNull() ? "null" : this.method("ToString").invoke().content ?? "null";
-    }
-    /** Unboxes the value type out of this object. */
-    unbox() {
-        return new Il2Cpp.ValueType(Il2Cpp.Api._objectUnbox(this), this.class.type);
-    }
-    /** Releases the lock on an object and blocks the current thread until it reacquires the lock. */
-    wait() {
-        return Il2Cpp.Api._monitorWait(this);
-    }
-    /** Creates a weak reference to this object. */
-    weakRef(trackResurrection) {
-        return new Il2Cpp.GC.Handle(Il2Cpp.Api._gcHandleNewWeakRef(this, +trackResurrection));
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppObject.prototype, "class", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppObject.prototype, "size", null);
-Il2Cpp.Object = Il2CppObject;
-
-},{"../../utils/native-struct":32,"decorator-cache-getter":2}],20:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-/** Represents a `ParameterInfo`. */
-class Il2CppParameter {
-    /** Name of this parameter. */
-    name;
-    /** Position of this parameter. */
-    position;
-    /** Type of this parameter. */
-    type;
-    constructor(name, position, type) {
-        this.name = name;
-        this.position = position;
-        this.type = type;
-    }
-    /** */
-    toString() {
-        return `${this.type.name} ${this.name}`;
-    }
-}
-Il2Cpp.Parameter = Il2CppParameter;
-
-},{}],21:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("../utils");
-const native_struct_1 = require("../../utils/native-struct");
-/** */
-class Il2CppPointer extends native_struct_1.NativeStruct {
-    type;
-    constructor(handle, type) {
-        super(handle);
-        this.type = type;
-    }
-    /** Gets the element at the given index. */
-    get(index) {
-        return (0, utils_1.read)(this.handle.add(index * this.type.class.arrayElementSize), this.type);
-    }
-    /** Reads the given amount of elements starting at the given offset. */
-    read(length, offset = 0) {
-        const values = new Array(length);
-        for (let i = 0; i < length; i++) {
-            values[i] = this.get(i + offset);
-        }
-        return values;
-    }
-    /** Sets the given element at the given index */
-    set(index, value) {
-        (0, utils_1.write)(this.handle.add(index * this.type.class.arrayElementSize), value, this.type);
-    }
-    /** */
-    toString() {
-        return this.handle.toString();
-    }
-    /** Writes the given elements starting at the given index. */
-    write(values, offset = 0) {
-        for (let i = 0; i < values.length; i++) {
-            this.set(i + offset, values[i]);
-        }
-    }
-}
-Il2Cpp.Pointer = Il2CppPointer;
-
-},{"../../utils/native-struct":32,"../utils":29}],22:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("../utils");
-const native_struct_1 = require("../../utils/native-struct");
-const console_1 = require("../../utils/console");
-/** Represent a parameter passed by reference. */
-class Il2CppReference extends native_struct_1.NativeStruct {
-    type;
-    constructor(handle, type) {
-        super(handle);
-        this.type = type;
-    }
-    /** Gets the element referenced by the current reference. */
-    get value() {
-        return (0, utils_1.read)(this.handle, this.type);
-    }
-    /** Sets the element referenced by the current reference. */
-    set value(value) {
-        (0, utils_1.write)(this.handle, value, this.type);
-    }
-    /** */
-    toString() {
-        return this.isNull() ? "null" : `->${this.value}`;
-    }
-    /** Creates a reference to the specified value. */
-    static to(value, type) {
-        const handle = Memory.alloc(Process.pointerSize);
-        switch (typeof value) {
-            case "boolean":
-                return new Il2Cpp.Reference(handle.writeS8(+value), Il2Cpp.Image.corlib.class("System.Boolean").type);
-            case "number":
-                switch (type?.typeEnum) {
-                    case 5 /* U1 */:
-                        return new Il2Cpp.Reference(handle.writeU8(value), type);
-                    case 4 /* I1 */:
-                        return new Il2Cpp.Reference(handle.writeS8(value), type);
-                    case 3 /* Char */:
-                    case 7 /* U2 */:
-                        return new Il2Cpp.Reference(handle.writeU16(value), type);
-                    case 6 /* I2 */:
-                        return new Il2Cpp.Reference(handle.writeS16(value), type);
-                    case 9 /* U4 */:
-                        return new Il2Cpp.Reference(handle.writeU32(value), type);
-                    case 8 /* I4 */:
-                        return new Il2Cpp.Reference(handle.writeS32(value), type);
-                    case 11 /* U8 */:
-                        return new Il2Cpp.Reference(handle.writeU64(value), type);
-                    case 10 /* I8 */:
-                        return new Il2Cpp.Reference(handle.writeS64(value), type);
-                    case 12 /* R4 */:
-                        return new Il2Cpp.Reference(handle.writeFloat(value), type);
-                    case 13 /* R8 */:
-                        return new Il2Cpp.Reference(handle.writeDouble(value), type);
-                }
-            case "object":
-                if (value instanceof Il2Cpp.ValueType || value instanceof Il2Cpp.Pointer) {
-                    return new Il2Cpp.Reference(handle.writePointer(value), value.type);
-                }
-                else if (value instanceof Il2Cpp.Object) {
-                    return new Il2Cpp.Reference(handle.writePointer(value), value.class.type);
-                }
-                else if (value instanceof Il2Cpp.String || value instanceof Il2Cpp.Array) {
-                    return new Il2Cpp.Reference(handle.writePointer(value), value.object.class.type);
-                }
-                else if (value instanceof NativePointer) {
-                    switch (type?.typeEnum) {
-                        case 25 /* UnsignedNativeInteger */:
-                        case 24 /* NativeInteger */:
-                            return new Il2Cpp.Reference(handle.writePointer(value), type);
-                    }
-                }
-                else if (value instanceof Int64) {
-                    return new Il2Cpp.Reference(handle.writeS64(value), Il2Cpp.Image.corlib.class("System.Int64").type);
-                }
-                else if (value instanceof UInt64) {
-                    return new Il2Cpp.Reference(handle.writeU64(value), Il2Cpp.Image.corlib.class("System.UInt64").type);
-                }
-            default:
-                (0, console_1.raise)(`don't know how to create a reference to ${value} using type ${type?.name}`);
-        }
-    }
-}
-Il2Cpp.Reference = Il2CppReference;
-
-},{"../../utils/console":31,"../../utils/native-struct":32,"../utils":29}],23:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const native_struct_1 = require("../../utils/native-struct");
-/** Represents a `Il2CppString`. */
-class Il2CppString extends native_struct_1.NativeStruct {
-    /** Gets the content of this string. */
-    get content() {
-        return Il2Cpp.Api._stringChars(this).readUtf16String(this.length);
-    }
-    /** Sets the content of this string. */
-    set content(value) {
-        Il2Cpp.Api._stringChars(this).writeUtf16String(value ?? "");
-        Il2Cpp.Api._stringSetLength(this, value?.length ?? 0);
-    }
-    /** Gets the length of this string. */
-    get length() {
-        return Il2Cpp.Api._stringLength(this);
-    }
-    /** Gets the encompassing object of the current string. */
-    get object() {
-        return new Il2Cpp.Object(this);
-    }
-    /** */
-    toString() {
-        return this.isNull() ? "null" : `"${this.content}"`;
-    }
-    /** Creates a new string with the specified content. */
-    static from(content) {
-        return new Il2Cpp.String(Il2Cpp.Api._stringNew(Memory.allocUtf8String(content || "")));
-    }
-}
-Il2Cpp.String = Il2CppString;
-
-},{"../../utils/native-struct":32}],24:[function(require,module,exports){
-(function (setImmediate){(function (){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const console_1 = require("../../utils/console");
-const native_struct_1 = require("../../utils/native-struct");
-/** Represents a `Il2CppThread`. */
-class Il2CppThread extends native_struct_1.NativeStruct {
-    /** @internal */
-    static get idOffset() {
-        const handle = ptr(Il2Cpp.currentThread.internal.field("thread_id").value.toString());
-        const currentThreadId = Process.getCurrentThreadId();
-        for (let i = 0; i < 1024; i++) {
-            const candidate = handle.add(i).readS32();
-            if (candidate == currentThreadId) {
-                return i;
-            }
-        }
-        (0, console_1.raise)(`couldn't determine the offset for a native thread id value`);
-    }
-    /** Gets the native id of the current thread. */
-    get id() {
-        return ptr(this.internal.field("thread_id").value.toString()).add(Il2Cpp.Thread.idOffset).readS32();
-    }
-    /** @internal Gets the encompassing internal object (System.Threding.InternalThreead) of the current thread. */
-    get internal() {
-        const internalThread = this.object.tryField("internal_thread")?.value;
-        return internalThread ? internalThread : this.object;
-    }
-    /** Determines whether the current thread is the garbage collector finalizer one. */
-    get isFinalizer() {
-        return !Il2Cpp.Api._threadIsVm(this);
-    }
-    /** Gets the encompassing object of the current thread. */
-    get object() {
-        return new Il2Cpp.Object(this);
-    }
-    /** @internal */
-    get staticData() {
-        return this.internal.field("static_data").value;
-    }
-    /** @internal */
-    get synchronizationContext() {
-        const get_ExecutionContext = this.object.tryMethod("GetMutableExecutionContext") || this.object.method("get_ExecutionContext");
-        let synchronizationContext = get_ExecutionContext.invoke().tryMethod("get_SynchronizationContext")?.invoke();
-        if (synchronizationContext == null) {
-            const SystemThreadingSynchronizationContext = Il2Cpp.Image.corlib.class("System.Threading.SynchronizationContext");
-            for (let i = 0; i < 16; i++) {
-                try {
-                    const candidate = new Il2Cpp.Object(this.staticData
-                        .add(Process.pointerSize * i)
-                        .readPointer()
-                        .readPointer());
-                    if (candidate.class.isSubclassOf(SystemThreadingSynchronizationContext, false)) {
-                        synchronizationContext = candidate;
-                        break;
-                    }
-                }
-                catch (e) { }
-            }
-        }
-        if (synchronizationContext == null) {
-            (0, console_1.raise)("couldn't retrieve the SynchronizationContext for this thread.");
-        }
-        return synchronizationContext;
-    }
-    /** Detaches the thread from the application domain. */
-    detach() {
-        return Il2Cpp.Api._threadDetach(this);
-    }
-    /** Schedules a callback on the current thread. */
-    schedule(block, delayMs = 0) {
-        const threadId = this.id;
-        const GetDisplayName = Il2Cpp.Image.corlib.class("Mono.Runtime").method("GetDisplayName");
-        const SendOrPostCallback = Il2Cpp.Image.corlib.class("System.Threading.SendOrPostCallback").alloc();
-        SendOrPostCallback.method(".ctor").invoke(NULL, GetDisplayName.handle);
-        const Post = this.synchronizationContext.method("Post");
-        return new Promise(resolve => {
-            const listener = Interceptor.attach(GetDisplayName.virtualAddress, function () {
-                if (this.threadId == threadId) {
-                    listener.detach();
-                    const result = block();
-                    setImmediate(() => resolve(result));
-                }
-            });
-            setTimeout(() => Post.invoke(SendOrPostCallback, NULL), delayMs);
-        });
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppThread.prototype, "internal", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppThread.prototype, "object", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppThread.prototype, "staticData", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppThread.prototype, "synchronizationContext", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppThread, "idOffset", null);
-Il2Cpp.Thread = Il2CppThread;
-
-}).call(this)}).call(this,require("timers").setImmediate)
-},{"../../utils/console":31,"../../utils/native-struct":32,"decorator-cache-getter":2,"timers":36}],25:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-
-},{}],26:[function(require,module,exports){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const native_struct_1 = require("../../utils/native-struct");
-/** Represents a `Il2CppType`. */
-class Il2CppType extends native_struct_1.NonNullNativeStruct {
-    /** Gets the class of this type. */
-    get class() {
-        return new Il2Cpp.Class(Il2Cpp.Api._classFromType(this));
-    }
-    /** */
-    get fridaAlias() {
-        if (this.isByReference) {
-            return "pointer";
-        }
-        switch (this.typeEnum) {
-            case 1 /* Void */:
-                return "void";
-            case 2 /* Boolean */:
-                return "bool";
-            case 3 /* Char */:
-                return "uchar";
-            case 4 /* I1 */:
-                return "int8";
-            case 5 /* U1 */:
-                return "uint8";
-            case 6 /* I2 */:
-                return "int16";
-            case 7 /* U2 */:
-                return "uint16";
-            case 8 /* I4 */:
-                return "int32";
-            case 9 /* U4 */:
-                return "uint32";
-            case 10 /* I8 */:
-                return "int64";
-            case 11 /* U8 */:
-                return "uint64";
-            case 12 /* R4 */:
-                return "float";
-            case 13 /* R8 */:
-                return "double";
-            case 17 /* ValueType */:
-                return getValueTypeFields(this);
-            case 24 /* NativeInteger */:
-            case 25 /* UnsignedNativeInteger */:
-            case 15 /* Pointer */:
-            case 14 /* String */:
-            case 29 /* SingleDimensionalZeroLowerBoundArray */:
-            case 20 /* Array */:
-                return "pointer";
-            case 18 /* Class */:
-            case 28 /* Object */:
-            case 21 /* GenericInstance */:
-                return this.class.isValueType ? getValueTypeFields(this) : "pointer";
-            default:
-                return "pointer";
-        }
-    }
-    /** Determines whether this type is passed by reference. */
-    get isByReference() {
-        return !!Il2Cpp.Api._typeIsByReference(this);
-    }
-    /** Determines whether this type is primitive. */
-    get isPrimitive() {
-        return !!Il2Cpp.Api._typeIsPrimitive(this);
-    }
-    /** Gets the name of this type. */
-    get name() {
-        const handle = Il2Cpp.Api._typeGetName(this);
-        try {
-            return handle.readUtf8String();
-        }
-        finally {
-            Il2Cpp.free(handle);
-        }
-    }
-    /** Gets the encompassing object of the current type. */
-    get object() {
-        return new Il2Cpp.Object(Il2Cpp.Api._typeGetObject(this));
-    }
-    /** Gets the type enum of the current type. */
-    get typeEnum() {
-        return Il2Cpp.Api._typeGetTypeEnum(this);
-    }
-    /** */
-    toString() {
-        return this.name;
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppType.prototype, "class", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppType.prototype, "fridaAlias", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppType.prototype, "isByReference", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppType.prototype, "isPrimitive", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppType.prototype, "name", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppType.prototype, "object", null);
-__decorate([
-    decorator_cache_getter_1.cache
-], Il2CppType.prototype, "typeEnum", null);
-function getValueTypeFields(type) {
-    const instanceFields = type.class.fields.filter(f => !f.isStatic);
-    return instanceFields.length == 0 ? ["char"] : instanceFields.map(f => f.type.fridaAlias);
-}
-Reflect.set(Il2Cpp, "Type", Il2CppType);
-
-},{"../../utils/native-struct":32,"decorator-cache-getter":2}],27:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const native_struct_1 = require("../../utils/native-struct");
-/** Value type class utility. */
-class Il2CppValueType extends native_struct_1.NativeStruct {
-    type;
-    constructor(handle, type) {
-        super(handle);
-        this.type = type;
-    }
-    /** Boxes the current value type in a object. */
-    box() {
-        return new Il2Cpp.Object(Il2Cpp.Api._valueBox(this.type.class, this));
-    }
-    /** Gets the field with the given name. */
-    field(name) {
-        return this.type.class.field(name).withHolder(this);
-    }
-    /** */
-    toString() {
-        return this.isNull() ? "null" : this.box().toString();
-    }
-}
-Il2Cpp.ValueType = Il2CppValueType;
-
-},{"../../utils/native-struct":32}],28:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const console_1 = require("../utils/console");
-const utils_1 = require("./utils");
-/** Tracing utilities. */
-class Il2CppTracer {
-    /** @internal */
-    targets = [];
-    /** @internal */
-    #assemblies;
-    /** @internal */
-    #classes;
-    /** @internal */
-    #methods;
-    /** @internal */
-    #assemblyFilter;
-    /** @internal */
-    #classFilter;
-    /** @internal */
-    #methodFilter;
-    /** @internal */
-    #parameterFilter;
-    domain() {
-        return this;
-    }
-    assemblies(...assemblies) {
-        this.#assemblies = assemblies;
-        return this;
-    }
-    classes(...classes) {
-        this.#classes = classes;
-        return this;
-    }
-    methods(...methods) {
-        this.#methods = methods;
-        return this;
-    }
-    filterAssemblies(filter) {
-        this.#assemblyFilter = filter;
-        return this;
-    }
-    filterClasses(filter) {
-        this.#classFilter = filter;
-        return this;
-    }
-    filterMethods(filter) {
-        this.#methodFilter = filter;
-        return this;
-    }
-    filterParameters(filter) {
-        this.#parameterFilter = filter;
-        return this;
-    }
-    and() {
-        const filterMethod = (method) => {
-            if (this.#parameterFilter == undefined) {
-                this.targets.push(method);
-                return;
-            }
-            for (const parameter of method.parameters) {
-                if (this.#parameterFilter(parameter)) {
-                    this.targets.push(method);
-                    break;
-                }
-            }
-        };
-        const filterMethods = (values) => {
-            for (const method of values) {
-                filterMethod(method);
-            }
-        };
-        const filterClass = (klass) => {
-            if (this.#methodFilter == undefined) {
-                filterMethods(klass.methods);
-                return;
-            }
-            for (const method of klass.methods) {
-                if (this.#methodFilter(method)) {
-                    filterMethod(method);
-                }
-            }
-        };
-        const filterClasses = (values) => {
-            for (const klass of values) {
-                filterClass(klass);
-            }
-        };
-        const filterAssembly = (assembly) => {
-            if (this.#classFilter == undefined) {
-                filterClasses(assembly.image.classes);
-                return;
-            }
-            for (const klass of assembly.image.classes) {
-                if (this.#classFilter(klass)) {
-                    filterClass(klass);
-                }
-            }
-        };
-        const filterAssemblies = (assemblies) => {
-            for (const assembly of assemblies) {
-                filterAssembly(assembly);
-            }
-        };
-        const filterDomain = (domain) => {
-            if (this.#assemblyFilter == undefined) {
-                filterAssemblies(domain.assemblies);
-                return;
-            }
-            for (const assembly of domain.assemblies) {
-                if (this.#assemblyFilter(assembly)) {
-                    filterAssembly(assembly);
-                }
-            }
-        };
-        this.#methods
-            ? filterMethods(this.#methods)
-            : this.#classes
-                ? filterClasses(this.#classes)
-                : this.#assemblies
-                    ? filterAssemblies(this.#assemblies)
-                    : filterDomain(Il2Cpp.Domain);
-        this.#assemblies = undefined;
-        this.#classes = undefined;
-        this.#methods = undefined;
-        this.#assemblyFilter = undefined;
-        this.#classFilter = undefined;
-        this.#methodFilter = undefined;
-        this.#parameterFilter = undefined;
-        return this;
-    }
-    attach(mode = "full") {
-        let count = 0;
-        for (const target of this.targets) {
-            if (target.virtualAddress.isNull()) {
-                continue;
-            }
-            const offset = `\x1b[2m0x${target.relativeVirtualAddress.toString(16).padStart(8, `0`)}\x1b[0m`;
-            const fullName = `${target.class.type.name}.\x1b[1m${target.name}\x1b[0m`;
-            if (mode == "detailed") {
-                const startIndex = +!target.isStatic | +Il2Cpp.unityVersionIsBelow201830;
-                const callback = (...args) => {
-                    const thisParameter = target.isStatic ? undefined : new Il2Cpp.Parameter("this", -1, target.class.type);
-                    const parameters = thisParameter ? [thisParameter].concat(target.parameters) : target.parameters;
-                    (0, console_1.inform)(`\
-${offset} ${`│ `.repeat(count++)}┌─\x1b[35m${fullName}\x1b[0m(\
-${parameters.map(e => `\x1b[32m${e.name}\x1b[0m = \x1b[31m${(0, utils_1.fromFridaValue)(args[e.position + startIndex], e.type)}\x1b[0m`).join(`, `)});`);
-                    const returnValue = target.nativeFunction(...args);
-                    (0, console_1.inform)(`\
-${offset} ${`│ `.repeat(--count)}└─\x1b[33m${fullName}\x1b[0m\
-${returnValue == undefined ? `` : ` = \x1b[36m${(0, utils_1.fromFridaValue)(returnValue, target.returnType)}`}\x1b[0m;`);
-                    return returnValue;
-                };
-                try {
-                    target.revert();
-                    const nativeCallback = new NativeCallback(callback, target.returnType.fridaAlias, target.fridaSignature);
-                    Interceptor.replace(target.virtualAddress, nativeCallback);
-                }
-                catch (e) { }
-            }
-            else {
-                try {
-                    Interceptor.attach(target.virtualAddress, {
-                        onEnter: () => (0, console_1.inform)(`${offset} ${`│ `.repeat(count++)}┌─\x1b[35m${fullName}\x1b[0m`),
-                        onLeave: () => (0, console_1.inform)(`${offset} ${`│ `.repeat(--count)}└─\x1b[33m${fullName}\x1b[0m${count == 0 ? `\n` : ``}`)
-                    });
-                }
-                catch (e) { }
-            }
-        }
-    }
-}
-Il2Cpp.Tracer = Il2CppTracer;
-
-},{"../utils/console":31,"./utils":29}],29:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.toFridaValue = exports.fromFridaValue = exports.write = exports.read = void 0;
-const console_1 = require("../utils/console");
-const native_struct_1 = require("../utils/native-struct");
-/** @internal */
-function read(pointer, type) {
-    switch (type.typeEnum) {
-        case 2 /* Boolean */:
-            return !!pointer.readS8();
-        case 4 /* I1 */:
-            return pointer.readS8();
-        case 5 /* U1 */:
-            return pointer.readU8();
-        case 6 /* I2 */:
-            return pointer.readS16();
-        case 7 /* U2 */:
-            return pointer.readU16();
-        case 8 /* I4 */:
-            return pointer.readS32();
-        case 9 /* U4 */:
-            return pointer.readU32();
-        case 3 /* Char */:
-            return pointer.readU16();
-        case 10 /* I8 */:
-            return pointer.readS64();
-        case 11 /* U8 */:
-            return pointer.readU64();
-        case 12 /* R4 */:
-            return pointer.readFloat();
-        case 13 /* R8 */:
-            return pointer.readDouble();
-        case 24 /* NativeInteger */:
-        case 25 /* UnsignedNativeInteger */:
-            return pointer.readPointer();
-        case 15 /* Pointer */:
-            return new Il2Cpp.Pointer(pointer.readPointer(), type.class.baseType);
-        case 17 /* ValueType */:
-            return new Il2Cpp.ValueType(pointer, type);
-        case 28 /* Object */:
-        case 18 /* Class */:
-            return new Il2Cpp.Object(pointer.readPointer());
-        case 21 /* GenericInstance */:
-            return type.class.isValueType ? new Il2Cpp.ValueType(pointer, type) : new Il2Cpp.Object(pointer.readPointer());
-        case 14 /* String */:
-            return new Il2Cpp.String(pointer.readPointer());
-        case 29 /* SingleDimensionalZeroLowerBoundArray */:
-        case 20 /* Array */:
-            return new Il2Cpp.Array(pointer.readPointer());
-    }
-    (0, console_1.raise)(`read: "${type.name}" (${type.typeEnum}) has not been handled yet. Please file an issue!`);
-}
-exports.read = read;
-/** @internal */
-function write(pointer, value, type) {
-    switch (type.typeEnum) {
-        case 2 /* Boolean */:
-            return pointer.writeS8(+value);
-        case 4 /* I1 */:
-            return pointer.writeS8(value);
-        case 5 /* U1 */:
-            return pointer.writeU8(value);
-        case 6 /* I2 */:
-            return pointer.writeS16(value);
-        case 7 /* U2 */:
-            return pointer.writeU16(value);
-        case 8 /* I4 */:
-            return pointer.writeS32(value);
-        case 9 /* U4 */:
-            return pointer.writeU32(value);
-        case 3 /* Char */:
-            return pointer.writeU16(value);
-        case 10 /* I8 */:
-            return pointer.writeS64(value);
-        case 11 /* U8 */:
-            return pointer.writeU64(value);
-        case 12 /* R4 */:
-            return pointer.writeFloat(value);
-        case 13 /* R8 */:
-            return pointer.writeDouble(value);
-        case 24 /* NativeInteger */:
-        case 25 /* UnsignedNativeInteger */:
-        case 15 /* Pointer */:
-        case 17 /* ValueType */:
-        case 14 /* String */:
-        case 28 /* Object */:
-        case 18 /* Class */:
-        case 29 /* SingleDimensionalZeroLowerBoundArray */:
-        case 20 /* Array */:
-        case 21 /* GenericInstance */:
-            if (value instanceof Il2Cpp.ValueType) {
-                Memory.copy(pointer, value.handle, type.class.valueSize);
-                return pointer;
-            }
-            return pointer.writePointer(value);
-    }
-    (0, console_1.raise)(`write: "${type.name}" (${type.typeEnum}) has not been handled yet. Please file an issue!`);
-}
-exports.write = write;
-/** @internal */
-function fromFridaValue(value, type) {
-    if (Array.isArray(value)) {
-        return arrayToValueType(type, value);
-    }
-    else if (value instanceof NativePointer) {
-        if (type.isByReference) {
-            return new Il2Cpp.Reference(value, type);
-        }
-        switch (type.typeEnum) {
-            case 15 /* Pointer */:
-                return new Il2Cpp.Pointer(value, type.class.baseType);
-            case 14 /* String */:
-                return new Il2Cpp.String(value);
-            case 18 /* Class */:
-            case 21 /* GenericInstance */:
-            case 28 /* Object */:
-                return new Il2Cpp.Object(value);
-            case 29 /* SingleDimensionalZeroLowerBoundArray */:
-            case 20 /* Array */:
-                return new Il2Cpp.Array(value);
-            default:
-                return value;
-        }
-    }
-    else if (type.typeEnum == 2 /* Boolean */) {
-        return !!value;
-    }
-    else {
-        return value;
-    }
-}
-exports.fromFridaValue = fromFridaValue;
-/** @internal */
-function toFridaValue(value) {
-    if (typeof value == "boolean") {
-        return +value;
-    }
-    else if (value instanceof Il2Cpp.ValueType) {
-        return valueTypeToArray(value);
-    }
-    else {
-        return value;
-    }
-}
-exports.toFridaValue = toFridaValue;
-function valueTypeToArray(value) {
-    const instanceFields = value.type.class.fields.filter(f => !f.isStatic);
-    return instanceFields.length == 0
-        ? [value.handle.readU8()]
-        : instanceFields
-            .map(field => field.withHolder(value).value)
-            .map(value => value instanceof Il2Cpp.ValueType
-            ? valueTypeToArray(value)
-            : value instanceof native_struct_1.NativeStruct
-                ? value.handle
-                : typeof value == "boolean"
-                    ? +value
-                    : value);
-}
-function arrayToValueType(type, nativeValues) {
-    function iter(type, startOffset = 0) {
-        const arr = [];
-        for (const field of type.class.fields) {
-            if (!field.isStatic) {
-                const offset = startOffset + field.offset - Il2Cpp.Runtime.objectHeaderSize;
-                if (field.type.typeEnum == 17 /* ValueType */ ||
-                    (field.type.typeEnum == 21 /* GenericInstance */ && field.type.class.isValueType)) {
-                    arr.push(...iter(field.type, offset));
-                }
-                else {
-                    arr.push([field.type.typeEnum, offset]);
-                }
-            }
-        }
-        if (arr.length == 0) {
-            arr.push([5 /* U1 */, 0]);
-        }
-        return arr;
-    }
-    const valueType = Memory.alloc(type.class.valueSize);
-    nativeValues = nativeValues.flat(Infinity);
-    const typesAndOffsets = iter(type);
-    for (let i = 0; i < nativeValues.length; i++) {
-        const value = nativeValues[i];
-        const [typeEnum, offset] = typesAndOffsets[i];
-        const pointer = valueType.add(offset);
-        switch (typeEnum) {
-            case 2 /* Boolean */:
-                pointer.writeS8(value);
-                break;
-            case 4 /* I1 */:
-                pointer.writeS8(value);
-                break;
-            case 5 /* U1 */:
-                pointer.writeU8(value);
-                break;
-            case 6 /* I2 */:
-                pointer.writeS16(value);
-                break;
-            case 7 /* U2 */:
-                pointer.writeU16(value);
-                break;
-            case 8 /* I4 */:
-                pointer.writeS32(value);
-                break;
-            case 9 /* U4 */:
-                pointer.writeU32(value);
-                break;
-            case 3 /* Char */:
-                pointer.writeU16(value);
-                break;
-            case 10 /* I8 */:
-                pointer.writeS64(value);
-                break;
-            case 11 /* U8 */:
-                pointer.writeU64(value);
-                break;
-            case 12 /* R4 */:
-                pointer.writeFloat(value);
-                break;
-            case 13 /* R8 */:
-                pointer.writeDouble(value);
-                break;
-            case 24 /* NativeInteger */:
-            case 25 /* UnsignedNativeInteger */:
-            case 15 /* Pointer */:
-            case 29 /* SingleDimensionalZeroLowerBoundArray */:
-            case 20 /* Array */:
-            case 14 /* String */:
-            case 28 /* Object */:
-            case 18 /* Class */:
-            case 21 /* GenericInstance */:
-                pointer.writePointer(value);
-                break;
-            default:
-                (0, console_1.warn)(`arrayToValueType: defaulting ${typeEnum} to pointer`);
-                pointer.writePointer(value);
-                break;
-        }
-    }
-    return new Il2Cpp.ValueType(valueType, type);
-}
-
-},{"../utils/console":31,"../utils/native-struct":32}],30:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-require("./il2cpp");
-
-},{"./il2cpp":7}],31:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.inform = exports.ok = exports.warn = exports.raise = void 0;
-/** @internal */
-function raise(message) {
-    throw `\x1B[0m\x1B[38;5;9mil2cpp\x1B[0m: ${message}`;
-}
-exports.raise = raise;
-/** @internal */
-function warn(message) {
-    globalThis.console.log(`\x1B[38;5;11mil2cpp\x1B[0m: ${message}`);
-}
-exports.warn = warn;
-/** @internal */
-function ok(message) {
-    globalThis.console.log(`\x1B[38;5;10mil2cpp\x1B[0m: ${message}`);
-}
-exports.ok = ok;
-/** @internal */
-function inform(message) {
-    globalThis.console.log(`\x1B[38;5;12mil2cpp\x1B[0m: ${message}`);
-}
-exports.inform = inform;
-
-},{}],32:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NonNullNativeStruct = exports.NativeStruct = void 0;
 /** Scaffold class. */
 class NativeStruct {
     handle;
@@ -3962,550 +113,3160 @@ class NativeStruct {
     isNull() {
         return this.handle.isNull();
     }
-}
-exports.NativeStruct = NativeStruct;
-/** Scaffold class whom pointer cannot be null. */
-class NonNullNativeStruct extends NativeStruct {
-    constructor(handle) {
-        super(handle);
-        if (handle.isNull()) {
-            throw new Error(`Handle for "${this.constructor.name}" cannot be NULL.`);
-        }
+    asNullable() {
+        return this.isNull() ? null : this;
     }
 }
-exports.NonNullNativeStruct = NonNullNativeStruct;
-
-},{}],33:[function(require,module,exports){
-(function (setImmediate){(function (){
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.forModule = void 0;
-const decorator_cache_getter_1 = require("decorator-cache-getter");
-const versioning_1 = __importDefault(require("versioning"));
-class Target {
-    stringEncoding;
-    address;
-    constructor(responsible, name, stringEncoding) {
-        this.stringEncoding = stringEncoding;
-        this.address = Module.findExportByName(responsible, name) ?? NULL;
-    }
-    static get targets() {
-        function info() {
-            switch (Process.platform) {
-                case "linux":
-                    try {
-                        if (versioning_1.default.gte(Java.androidVersion, "12")) {
-                            return [null, ["__loader_dlopen", "utf8"]];
-                        }
-                        else {
-                            return ["libdl.so", ["dlopen", "utf8"], ["android_dlopen_ext", "utf8"]];
-                        }
-                    }
-                    catch (e) {
-                        return [null, ["dlopen", "utf8"]];
-                    }
-                case "darwin":
-                    return ["libdyld.dylib", ["dlopen", "utf8"]];
-                case "windows":
-                    const ll = "LoadLibrary";
-                    return ["kernel32.dll", [`${ll}W`, "utf16"], [`${ll}ExW`, "utf16"], [`${ll}A`, "ansi"], [`${ll}ExA`, "ansi"]];
-            }
-        }
-        const [responsible, ...targets] = info();
-        return targets.map(([name, encoding]) => new Target(responsible, name, encoding)).filter(target => !target.address.isNull());
-    }
-    readString(pointer) {
-        switch (this.stringEncoding) {
-            case "utf8":
-                return pointer.readUtf8String();
-            case "utf16":
-                return pointer.readUtf16String();
-            case "ansi":
-                return pointer.readAnsiString();
-        }
-    }
-}
-__decorate([
-    decorator_cache_getter_1.cache
-], Target, "targets", null);
 /** @internal */
 function forModule(...moduleNames) {
+    function find(moduleName, name, readString = _ => _.readUtf8String()) {
+        const handle = Module.findExportByName(moduleName, name) ?? NULL;
+        if (!handle.isNull()) {
+            return { handle, readString };
+        }
+    }
     return new Promise(resolve => {
         for (const moduleName of moduleNames) {
             const module = Process.findModuleByName(moduleName);
             if (module != null) {
-                resolve(moduleName);
+                resolve(module);
                 return;
             }
         }
-        const interceptors = Target.targets.map(target => Interceptor.attach(target.address, {
-            onEnter(args) {
-                this.modulePath = target.readString(args[0]) ?? "";
-            },
-            onLeave(returnValue) {
-                if (returnValue.isNull())
+        let targets = [];
+        switch (Process.platform) {
+            case "linux":
+                if (Android.apiLevel == null) {
+                    targets = [find(null, "dlopen")];
+                    break;
+                }
+                // A5: device reboot, can't hook symbols
+                // A6, A7: __dl_open
+                // A8, A8.1: __dl__Z8__dlopenPKciPKv
+                // A9, A10, A12, A13: __dl___loader_dlopen
+                targets = (Process.findModuleByName("linker64") ?? Process.getModuleByName("linker"))
+                    .enumerateSymbols()
+                    .filter(_ => ["__dl___loader_dlopen", "__dl__Z8__dlopenPKciPKv", "__dl_open"].includes(_.name))
+                    .map(_ => ({ handle: _.address, readString: _ => _.readCString() }));
+                break;
+            case "darwin":
+                targets = [find("libdyld.dylib", "dlopen")];
+                break;
+            case "windows":
+                targets = [
+                    find("kernel32.dll", "LoadLibraryW", _ => _.readUtf16String()),
+                    find("kernel32.dll", "LoadLibraryExW", _ => _.readUtf16String()),
+                    find("kernel32.dll", "LoadLibraryA", _ => _.readAnsiString()),
+                    find("kernel32.dll", "LoadLibraryExA", _ => _.readAnsiString())
+                ];
+                break;
+        }
+        targets = targets.filter(_ => _);
+        if (targets.length == 0) {
+            raise(`there are no targets to hook the loading of \x1b[3m${moduleNames}\x1b[0m, please file a bug`);
+        }
+        const timeout = setTimeout(() => {
+            for (const moduleName of moduleNames) {
+                const module = Process.findModuleByName(moduleName);
+                if (module != null) {
+                    warn(`\x1b[3m${module.name}\x1b[0m has been loaded, but such event hasn't been detected - please file a bug`);
+                    clearTimeout(timeout);
+                    interceptors.forEach(_ => _.detach());
+                    resolve(module);
                     return;
+                }
+            }
+            warn(`10 seconds have passed and \x1b[3m${moduleNames}\x1b[0m has not been loaded yet, is the app running?`);
+        }, 10000);
+        const interceptors = targets.map(_ => Interceptor.attach(_.handle, {
+            onEnter(args) {
+                this.modulePath = _.readString(args[0]) ?? "";
+            },
+            onLeave(_) {
                 for (const moduleName of moduleNames) {
-                    if (!this.modulePath.endsWith(moduleName))
-                        continue;
-                    setImmediate(() => interceptors.forEach(i => i.detach()));
-                    resolve(moduleName);
+                    if (this.modulePath.endsWith(moduleName)) {
+                        const module = Process.findModuleByName(this.modulePath);
+                        if (module != null) {
+                            setImmediate(() => {
+                                clearTimeout(timeout);
+                                interceptors.forEach(_ => _.detach());
+                            });
+                            resolve(module);
+                            break;
+                        }
+                    }
                 }
             }
         }));
     });
 }
-exports.forModule = forModule;
-
-}).call(this)}).call(this,require("timers").setImmediate)
-},{"decorator-cache-getter":2,"timers":36,"versioning":37}],34:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.levenshtein = exports.cacheInstances = exports.nativeIterator = void 0;
-const fastest_levenshtein_1 = require("fastest-levenshtein");
-const console_1 = require("./console");
-/** @internal */
-function* nativeIterator(holder, nativeFunction, Class) {
-    const iterator = Memory.alloc(Process.pointerSize);
-    let handle;
-    while (!(handle = nativeFunction(holder, iterator)).isNull()) {
-        yield new Class(handle);
+NativePointer.prototype.offsetOf = function (condition, depth) {
+    depth ??= 512;
+    for (let i = 0; depth > 0 ? i < depth : i < -depth; i++) {
+        if (condition(depth > 0 ? this.add(i) : this.sub(i))) {
+            return i;
+        }
     }
-}
-exports.nativeIterator = nativeIterator;
+    return null;
+};
 /** @internal */
-function cacheInstances(Class) {
-    const instanceCache = new Map();
+function readNativeIterator(block) {
+    const array = [];
+    const iterator = Memory.alloc(Process.pointerSize);
+    let handle = block(iterator);
+    while (!handle.isNull()) {
+        array.push(handle);
+        handle = block(iterator);
+    }
+    return array;
+}
+/** @internal */
+function readNativeList(block) {
+    const lengthPointer = Memory.alloc(Process.pointerSize);
+    const startPointer = block(lengthPointer);
+    if (startPointer.isNull()) {
+        return [];
+    }
+    const array = new Array(lengthPointer.readInt());
+    for (let i = 0; i < array.length; i++) {
+        array[i] = startPointer.add(i * Process.pointerSize).readPointer();
+    }
+    return array;
+}
+/** @internal */
+function recycle(Class) {
     return new Proxy(Class, {
+        cache: new Map(),
         construct(Target, argArray) {
             const handle = argArray[0].toUInt32();
-            if (!instanceCache.has(handle)) {
-                instanceCache.set(handle, new Target(argArray[0]));
+            if (!this.cache.has(handle)) {
+                this.cache.set(handle, new Target(argArray[0]));
             }
-            return instanceCache.get(handle);
+            return this.cache.get(handle);
         }
     });
 }
-exports.cacheInstances = cacheInstances;
 /** @internal */
-function levenshtein(candidatesKey, nameGetter = e => e.name) {
-    return function (_, propertyKey, descriptor) {
-        const original = descriptor.value;
-        descriptor.value = function (key, ...args) {
-            const result = original.call(this, key, ...args);
-            if (result != null)
-                return result;
-            const closestMatch = (0, fastest_levenshtein_1.closest)(key, this[candidatesKey].map(nameGetter));
-            (0, console_1.raise)(`couldn't find ${propertyKey} ${key} in ${this.name}${closestMatch ? `, did you mean ${closestMatch}?` : ``}`);
-        };
+var UnityVersion;
+(function (UnityVersion) {
+    const pattern = /(20\d{2}|\d)\.(\d)\.(\d{1,2})(?:[abcfp]|rc){0,2}\d?/;
+    function find(string) {
+        return string?.match(pattern)?.[0];
+    }
+    UnityVersion.find = find;
+    function gte(a, b) {
+        return compare(a, b) >= 0;
+    }
+    UnityVersion.gte = gte;
+    function lt(a, b) {
+        return compare(a, b) < 0;
+    }
+    UnityVersion.lt = lt;
+    function compare(a, b) {
+        const aMatches = a.match(pattern);
+        const bMatches = b.match(pattern);
+        for (let i = 1; i <= 3; i++) {
+            const a = Number(aMatches?.[i] ?? -1);
+            const b = Number(bMatches?.[i] ?? -1);
+            if (a > b)
+                return 1;
+            else if (a < b)
+                return -1;
+        }
+        return 0;
+    }
+})(UnityVersion || (UnityVersion = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    Il2Cpp.api = {
+        get alloc() {
+            return r("il2cpp_alloc", "pointer", ["size_t"]);
+        },
+        get arrayGetLength() {
+            return r("il2cpp_array_length", "uint32", ["pointer"]);
+        },
+        get arrayNew() {
+            return r("il2cpp_array_new", "pointer", ["pointer", "uint32"]);
+        },
+        get assemblyGetImage() {
+            return r("il2cpp_assembly_get_image", "pointer", ["pointer"]);
+        },
+        get classForEach() {
+            return r("il2cpp_class_for_each", "void", ["pointer", "pointer"]);
+        },
+        get classFromName() {
+            return r("il2cpp_class_from_name", "pointer", ["pointer", "pointer", "pointer"]);
+        },
+        get classFromObject() {
+            return r("il2cpp_class_from_system_type", "pointer", ["pointer"]);
+        },
+        get classGetArrayClass() {
+            return r("il2cpp_array_class_get", "pointer", ["pointer", "uint32"]);
+        },
+        get classGetArrayElementSize() {
+            return r("il2cpp_class_array_element_size", "int", ["pointer"]);
+        },
+        get classGetAssemblyName() {
+            return r("il2cpp_class_get_assemblyname", "pointer", ["pointer"]);
+        },
+        get classGetBaseType() {
+            return r("il2cpp_class_enum_basetype", "pointer", ["pointer"]);
+        },
+        get classGetDeclaringType() {
+            return r("il2cpp_class_get_declaring_type", "pointer", ["pointer"]);
+        },
+        get classGetElementClass() {
+            return r("il2cpp_class_get_element_class", "pointer", ["pointer"]);
+        },
+        get classGetFieldFromName() {
+            return r("il2cpp_class_get_field_from_name", "pointer", ["pointer", "pointer"]);
+        },
+        get classGetFields() {
+            return r("il2cpp_class_get_fields", "pointer", ["pointer", "pointer"]);
+        },
+        get classGetFlags() {
+            return r("il2cpp_class_get_flags", "int", ["pointer"]);
+        },
+        get classGetImage() {
+            return r("il2cpp_class_get_image", "pointer", ["pointer"]);
+        },
+        get classGetInstanceSize() {
+            return r("il2cpp_class_instance_size", "int32", ["pointer"]);
+        },
+        get classGetInterfaces() {
+            return r("il2cpp_class_get_interfaces", "pointer", ["pointer", "pointer"]);
+        },
+        get classGetMethodFromName() {
+            return r("il2cpp_class_get_method_from_name", "pointer", ["pointer", "pointer", "int"]);
+        },
+        get classGetMethods() {
+            return r("il2cpp_class_get_methods", "pointer", ["pointer", "pointer"]);
+        },
+        get classGetName() {
+            return r("il2cpp_class_get_name", "pointer", ["pointer"]);
+        },
+        get classGetNamespace() {
+            return r("il2cpp_class_get_namespace", "pointer", ["pointer"]);
+        },
+        get classGetNestedClasses() {
+            return r("il2cpp_class_get_nested_types", "pointer", ["pointer", "pointer"]);
+        },
+        get classGetParent() {
+            return r("il2cpp_class_get_parent", "pointer", ["pointer"]);
+        },
+        get classGetStaticFieldData() {
+            return r("il2cpp_class_get_static_field_data", "pointer", ["pointer"]);
+        },
+        get classGetValueTypeSize() {
+            return r("il2cpp_class_value_size", "int32", ["pointer", "pointer"]);
+        },
+        get classGetType() {
+            return r("il2cpp_class_get_type", "pointer", ["pointer"]);
+        },
+        get classHasReferences() {
+            return r("il2cpp_class_has_references", "bool", ["pointer"]);
+        },
+        get classInitialize() {
+            return r("il2cpp_runtime_class_init", "void", ["pointer"]);
+        },
+        get classIsAbstract() {
+            return r("il2cpp_class_is_abstract", "bool", ["pointer"]);
+        },
+        get classIsAssignableFrom() {
+            return r("il2cpp_class_is_assignable_from", "bool", ["pointer", "pointer"]);
+        },
+        get classIsBlittable() {
+            return r("il2cpp_class_is_blittable", "bool", ["pointer"]);
+        },
+        get classIsEnum() {
+            return r("il2cpp_class_is_enum", "bool", ["pointer"]);
+        },
+        get classIsGeneric() {
+            return r("il2cpp_class_is_generic", "bool", ["pointer"]);
+        },
+        get classIsInflated() {
+            return r("il2cpp_class_is_inflated", "bool", ["pointer"]);
+        },
+        get classIsInterface() {
+            return r("il2cpp_class_is_interface", "bool", ["pointer"]);
+        },
+        get classIsSubclassOf() {
+            return r("il2cpp_class_is_subclass_of", "bool", ["pointer", "pointer", "bool"]);
+        },
+        get classIsValueType() {
+            return r("il2cpp_class_is_valuetype", "bool", ["pointer"]);
+        },
+        get domainGetAssemblyFromName() {
+            return r("il2cpp_domain_assembly_open", "pointer", ["pointer", "pointer"]);
+        },
+        get domainGet() {
+            return r("il2cpp_domain_get", "pointer", []);
+        },
+        get domainGetAssemblies() {
+            return r("il2cpp_domain_get_assemblies", "pointer", ["pointer", "pointer"]);
+        },
+        get fieldGetClass() {
+            return r("il2cpp_field_get_parent", "pointer", ["pointer"]);
+        },
+        get fieldGetFlags() {
+            return r("il2cpp_field_get_flags", "int", ["pointer"]);
+        },
+        get fieldGetName() {
+            return r("il2cpp_field_get_name", "pointer", ["pointer"]);
+        },
+        get fieldGetOffset() {
+            return r("il2cpp_field_get_offset", "int32", ["pointer"]);
+        },
+        get fieldGetStaticValue() {
+            return r("il2cpp_field_static_get_value", "void", ["pointer", "pointer"]);
+        },
+        get fieldGetType() {
+            return r("il2cpp_field_get_type", "pointer", ["pointer"]);
+        },
+        get fieldSetStaticValue() {
+            return r("il2cpp_field_static_set_value", "void", ["pointer", "pointer"]);
+        },
+        get free() {
+            return r("il2cpp_free", "void", ["pointer"]);
+        },
+        get gcCollect() {
+            return r("il2cpp_gc_collect", "void", ["int"]);
+        },
+        get gcCollectALittle() {
+            return r("il2cpp_gc_collect_a_little", "void", []);
+        },
+        get gcDisable() {
+            return r("il2cpp_gc_disable", "void", []);
+        },
+        get gcEnable() {
+            return r("il2cpp_gc_enable", "void", []);
+        },
+        get gcGetHeapSize() {
+            return r("il2cpp_gc_get_heap_size", "int64", []);
+        },
+        get gcGetMaxTimeSlice() {
+            return r("il2cpp_gc_get_max_time_slice_ns", "int64", []);
+        },
+        get gcGetUsedSize() {
+            return r("il2cpp_gc_get_used_size", "int64", []);
+        },
+        get gcHandleGetTarget() {
+            return r("il2cpp_gchandle_get_target", "pointer", ["uint32"]);
+        },
+        get gcHandleFree() {
+            return r("il2cpp_gchandle_free", "void", ["uint32"]);
+        },
+        get gcHandleNew() {
+            return r("il2cpp_gchandle_new", "uint32", ["pointer", "bool"]);
+        },
+        get gcHandleNewWeakRef() {
+            return r("il2cpp_gchandle_new_weakref", "uint32", ["pointer", "bool"]);
+        },
+        get gcIsDisabled() {
+            return r("il2cpp_gc_is_disabled", "bool", []);
+        },
+        get gcIsIncremental() {
+            return r("il2cpp_gc_is_incremental", "bool", []);
+        },
+        get gcSetMaxTimeSlice() {
+            return r("il2cpp_gc_set_max_time_slice_ns", "void", ["int64"]);
+        },
+        get gcStartIncrementalCollection() {
+            return r("il2cpp_gc_start_incremental_collection", "void", []);
+        },
+        get gcStartWorld() {
+            return r("il2cpp_start_gc_world", "void", []);
+        },
+        get gcStopWorld() {
+            return r("il2cpp_stop_gc_world", "void", []);
+        },
+        get getCorlib() {
+            return r("il2cpp_get_corlib", "pointer", []);
+        },
+        get imageGetAssembly() {
+            return r("il2cpp_image_get_assembly", "pointer", ["pointer"]);
+        },
+        get imageGetClass() {
+            return r("il2cpp_image_get_class", "pointer", ["pointer", "uint"]);
+        },
+        get imageGetClassCount() {
+            return r("il2cpp_image_get_class_count", "uint32", ["pointer"]);
+        },
+        get imageGetName() {
+            return r("il2cpp_image_get_name", "pointer", ["pointer"]);
+        },
+        get initialize() {
+            return r("il2cpp_init", "void", ["pointer"]);
+        },
+        get livenessAllocateStruct() {
+            return r("il2cpp_unity_liveness_allocate_struct", "pointer", ["pointer", "int", "pointer", "pointer", "pointer"]);
+        },
+        get livenessCalculationBegin() {
+            return r("il2cpp_unity_liveness_calculation_begin", "pointer", ["pointer", "int", "pointer", "pointer", "pointer", "pointer"]);
+        },
+        get livenessCalculationEnd() {
+            return r("il2cpp_unity_liveness_calculation_end", "void", ["pointer"]);
+        },
+        get livenessCalculationFromStatics() {
+            return r("il2cpp_unity_liveness_calculation_from_statics", "void", ["pointer"]);
+        },
+        get livenessFinalize() {
+            return r("il2cpp_unity_liveness_finalize", "void", ["pointer"]);
+        },
+        get livenessFreeStruct() {
+            return r("il2cpp_unity_liveness_free_struct", "void", ["pointer"]);
+        },
+        get memorySnapshotCapture() {
+            return r("il2cpp_capture_memory_snapshot", "pointer", []);
+        },
+        get memorySnapshotFree() {
+            return r("il2cpp_free_captured_memory_snapshot", "void", ["pointer"]);
+        },
+        get memorySnapshotGetClasses() {
+            return r("il2cpp_memory_snapshot_get_classes", "pointer", ["pointer", "pointer"]);
+        },
+        get memorySnapshotGetObjects() {
+            return r("il2cpp_memory_snapshot_get_objects", "pointer", ["pointer", "pointer"]);
+        },
+        get methodGetClass() {
+            return r("il2cpp_method_get_class", "pointer", ["pointer"]);
+        },
+        get methodGetFlags() {
+            return r("il2cpp_method_get_flags", "uint32", ["pointer", "pointer"]);
+        },
+        get methodGetName() {
+            return r("il2cpp_method_get_name", "pointer", ["pointer"]);
+        },
+        get methodGetObject() {
+            return r("il2cpp_method_get_object", "pointer", ["pointer", "pointer"]);
+        },
+        get methodGetParameterCount() {
+            return r("il2cpp_method_get_param_count", "uint8", ["pointer"]);
+        },
+        get methodGetParameterName() {
+            return r("il2cpp_method_get_param_name", "pointer", ["pointer", "uint32"]);
+        },
+        get methodGetParameters() {
+            return r("il2cpp_method_get_parameters", "pointer", ["pointer", "pointer"]);
+        },
+        get methodGetParameterType() {
+            return r("il2cpp_method_get_param", "pointer", ["pointer", "uint32"]);
+        },
+        get methodGetReturnType() {
+            return r("il2cpp_method_get_return_type", "pointer", ["pointer"]);
+        },
+        get methodIsGeneric() {
+            return r("il2cpp_method_is_generic", "bool", ["pointer"]);
+        },
+        get methodIsInflated() {
+            return r("il2cpp_method_is_inflated", "bool", ["pointer"]);
+        },
+        get methodIsInstance() {
+            return r("il2cpp_method_is_instance", "bool", ["pointer"]);
+        },
+        get monitorEnter() {
+            return r("il2cpp_monitor_enter", "void", ["pointer"]);
+        },
+        get monitorExit() {
+            return r("il2cpp_monitor_exit", "void", ["pointer"]);
+        },
+        get monitorPulse() {
+            return r("il2cpp_monitor_pulse", "void", ["pointer"]);
+        },
+        get monitorPulseAll() {
+            return r("il2cpp_monitor_pulse_all", "void", ["pointer"]);
+        },
+        get monitorTryEnter() {
+            return r("il2cpp_monitor_try_enter", "bool", ["pointer", "uint32"]);
+        },
+        get monitorTryWait() {
+            return r("il2cpp_monitor_try_wait", "bool", ["pointer", "uint32"]);
+        },
+        get monitorWait() {
+            return r("il2cpp_monitor_wait", "void", ["pointer"]);
+        },
+        get objectGetClass() {
+            return r("il2cpp_object_get_class", "pointer", ["pointer"]);
+        },
+        get objectGetVirtualMethod() {
+            return r("il2cpp_object_get_virtual_method", "pointer", ["pointer", "pointer"]);
+        },
+        get objectInitialize() {
+            return r("il2cpp_runtime_object_init_exception", "void", ["pointer", "pointer"]);
+        },
+        get objectNew() {
+            return r("il2cpp_object_new", "pointer", ["pointer"]);
+        },
+        get objectGetSize() {
+            return r("il2cpp_object_get_size", "uint32", ["pointer"]);
+        },
+        get objectUnbox() {
+            return r("il2cpp_object_unbox", "pointer", ["pointer"]);
+        },
+        get resolveInternalCall() {
+            return r("il2cpp_resolve_icall", "pointer", ["pointer"]);
+        },
+        get stringGetChars() {
+            return r("il2cpp_string_chars", "pointer", ["pointer"]);
+        },
+        get stringGetLength() {
+            return r("il2cpp_string_length", "int32", ["pointer"]);
+        },
+        get stringNew() {
+            return r("il2cpp_string_new", "pointer", ["pointer"]);
+        },
+        get valueTypeBox() {
+            return r("il2cpp_value_box", "pointer", ["pointer", "pointer"]);
+        },
+        get threadAttach() {
+            return r("il2cpp_thread_attach", "pointer", ["pointer"]);
+        },
+        get threadDetach() {
+            return r("il2cpp_thread_detach", "void", ["pointer"]);
+        },
+        get threadGetAttachedThreads() {
+            return r("il2cpp_thread_get_all_attached_threads", "pointer", ["pointer"]);
+        },
+        get threadGetCurrent() {
+            return r("il2cpp_thread_current", "pointer", []);
+        },
+        get threadIsVm() {
+            return r("il2cpp_is_vm_thread", "bool", ["pointer"]);
+        },
+        get typeGetClass() {
+            return r("il2cpp_class_from_type", "pointer", ["pointer"]);
+        },
+        get typeGetName() {
+            return r("il2cpp_type_get_name", "pointer", ["pointer"]);
+        },
+        get typeGetObject() {
+            return r("il2cpp_type_get_object", "pointer", ["pointer"]);
+        },
+        get typeGetTypeEnum() {
+            return r("il2cpp_type_get_type", "int", ["pointer"]);
+        }
     };
-}
-exports.levenshtein = levenshtein;
-
-},{"./console":31,"fastest-levenshtein":3}],35:[function(require,module,exports){
-// shim for using process in browser
-var process = module.exports = {};
-
-// cached from whatever global is present so that test runners that stub it
-// don't break things.  But we need to wrap it in a try catch in case it is
-// wrapped in strict mode code which doesn't define any globals.  It's inside a
-// function because try/catches deoptimize in certain engines.
-
-var cachedSetTimeout;
-var cachedClearTimeout;
-
-function defaultSetTimout() {
-    throw new Error('setTimeout has not been defined');
-}
-function defaultClearTimeout () {
-    throw new Error('clearTimeout has not been defined');
-}
-(function () {
-    try {
-        if (typeof setTimeout === 'function') {
-            cachedSetTimeout = setTimeout;
-        } else {
-            cachedSetTimeout = defaultSetTimout;
+    decorate(Il2Cpp.api, lazy);
+    getter(Il2Cpp, "memorySnapshotApi", () => new CModule("#include <stdint.h>\n#include <string.h>\n\ntypedef struct Il2CppManagedMemorySnapshot Il2CppManagedMemorySnapshot;\ntypedef struct Il2CppMetadataType Il2CppMetadataType;\n\nstruct Il2CppManagedMemorySnapshot\n{\n  struct Il2CppManagedHeap\n  {\n    uint32_t section_count;\n    void * sections;\n  } heap;\n  struct Il2CppStacks\n  {\n    uint32_t stack_count;\n    void * stacks;\n  } stacks;\n  struct Il2CppMetadataSnapshot\n  {\n    uint32_t type_count;\n    Il2CppMetadataType * types;\n  } metadata_snapshot;\n  struct Il2CppGCHandles\n  {\n    uint32_t tracked_object_count;\n    void ** pointers_to_objects;\n  } gc_handles;\n  struct Il2CppRuntimeInformation\n  {\n    uint32_t pointer_size;\n    uint32_t object_header_size;\n    uint32_t array_header_size;\n    uint32_t array_bounds_offset_in_header;\n    uint32_t array_size_offset_in_header;\n    uint32_t allocation_granularity;\n  } runtime_information;\n  void * additional_user_information;\n};\n\nstruct Il2CppMetadataType\n{\n  uint32_t flags;\n  void * fields;\n  uint32_t field_count;\n  uint32_t statics_size;\n  uint8_t * statics;\n  uint32_t base_or_element_type_index;\n  char * name;\n  const char * assembly_name;\n  uint64_t type_info_address;\n  uint32_t size;\n};\n\nuintptr_t\nil2cpp_memory_snapshot_get_classes (\n    const Il2CppManagedMemorySnapshot * snapshot, Il2CppMetadataType ** iter)\n{\n  const int zero = 0;\n  const void * null = 0;\n\n  if (iter != NULL && snapshot->metadata_snapshot.type_count > zero)\n  {\n    if (*iter == null)\n    {\n      *iter = snapshot->metadata_snapshot.types;\n      return (uintptr_t) (*iter)->type_info_address;\n    }\n    else\n    {\n      Il2CppMetadataType * metadata_type = *iter + 1;\n\n      if (metadata_type < snapshot->metadata_snapshot.types +\n                              snapshot->metadata_snapshot.type_count)\n      {\n        *iter = metadata_type;\n        return (uintptr_t) (*iter)->type_info_address;\n      }\n    }\n  }\n  return 0;\n}\n\nvoid **\nil2cpp_memory_snapshot_get_objects (\n    const Il2CppManagedMemorySnapshot * snapshot, uint32_t * size)\n{\n  *size = snapshot->gc_handles.tracked_object_count;\n  return snapshot->gc_handles.pointers_to_objects;\n}\n"), lazy);
+    function r(exportName, retType, argTypes) {
+        const handle = globalThis.IL2CPP_EXPORTS?.[exportName]?.() ?? Il2Cpp.module.findExportByName(exportName) ?? Il2Cpp.memorySnapshotApi[exportName];
+        return new NativeFunction(handle ?? raise(`couldn't resolve export ${exportName}`), retType, argTypes);
+    }
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    Il2Cpp.application = {
+        /** */
+        get dataPath() {
+            return unityEngineCall("get_persistentDataPath");
+        },
+        /** */
+        get identifier() {
+            return unityEngineCall("get_identifier") ?? unityEngineCall("get_bundleIdentifier");
+        },
+        /** Gets the version of the application */
+        get version() {
+            return unityEngineCall("get_version");
         }
-    } catch (e) {
-        cachedSetTimeout = defaultSetTimout;
-    }
-    try {
-        if (typeof clearTimeout === 'function') {
-            cachedClearTimeout = clearTimeout;
-        } else {
-            cachedClearTimeout = defaultClearTimeout;
-        }
-    } catch (e) {
-        cachedClearTimeout = defaultClearTimeout;
-    }
-} ())
-function runTimeout(fun) {
-    if (cachedSetTimeout === setTimeout) {
-        //normal enviroments in sane situations
-        return setTimeout(fun, 0);
-    }
-    // if setTimeout wasn't available but was latter defined
-    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
-        cachedSetTimeout = setTimeout;
-        return setTimeout(fun, 0);
-    }
-    try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
-        return cachedSetTimeout(fun, 0);
-    } catch(e){
+    };
+    // prettier-ignore
+    getter(Il2Cpp, "unityVersion", () => {
         try {
-            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
-            return cachedSetTimeout.call(null, fun, 0);
-        } catch(e){
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
-            return cachedSetTimeout.call(this, fun, 0);
-        }
-    }
-
-
-}
-function runClearTimeout(marker) {
-    if (cachedClearTimeout === clearTimeout) {
-        //normal enviroments in sane situations
-        return clearTimeout(marker);
-    }
-    // if clearTimeout wasn't available but was latter defined
-    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
-        cachedClearTimeout = clearTimeout;
-        return clearTimeout(marker);
-    }
-    try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
-        return cachedClearTimeout(marker);
-    } catch (e){
-        try {
-            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
-            return cachedClearTimeout.call(null, marker);
-        } catch (e){
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
-            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
-            return cachedClearTimeout.call(this, marker);
-        }
-    }
-
-
-
-}
-var queue = [];
-var draining = false;
-var currentQueue;
-var queueIndex = -1;
-
-function cleanUpNextTick() {
-    if (!draining || !currentQueue) {
-        return;
-    }
-    draining = false;
-    if (currentQueue.length) {
-        queue = currentQueue.concat(queue);
-    } else {
-        queueIndex = -1;
-    }
-    if (queue.length) {
-        drainQueue();
-    }
-}
-
-function drainQueue() {
-    if (draining) {
-        return;
-    }
-    var timeout = runTimeout(cleanUpNextTick);
-    draining = true;
-
-    var len = queue.length;
-    while(len) {
-        currentQueue = queue;
-        queue = [];
-        while (++queueIndex < len) {
-            if (currentQueue) {
-                currentQueue[queueIndex].run();
+            const unityVersion = globalThis.IL2CPP_UNITY_VERSION ?? unityEngineCall("get_unityVersion");
+            if (unityVersion != null) {
+                return unityVersion;
             }
         }
-        queueIndex = -1;
-        len = queue.length;
+        catch (_) {
+        }
+        const searchPattern = "69 6c 32 63 70 70";
+        for (const range of Il2Cpp.module.enumerateRanges("r--").concat(Process.getRangeByAddress(Il2Cpp.module.base))) {
+            for (let { address } of Memory.scanSync(range.base, range.size, searchPattern)) {
+                while (address.readU8() != 0) {
+                    address = address.sub(1);
+                }
+                const match = UnityVersion.find(address.add(1).readCString());
+                if (match != undefined) {
+                    return match;
+                }
+            }
+        }
+        raise("couldn't determine the Unity version, please specify it manually");
+    }, lazy);
+    // prettier-ignore
+    getter(Il2Cpp, "unityVersionIsBelow201830", () => {
+        return UnityVersion.lt(Il2Cpp.unityVersion, "2018.3.0");
+    }, lazy);
+    // prettier-ignore
+    getter(Il2Cpp, "unityVersionIsBelow202120", () => {
+        return UnityVersion.lt(Il2Cpp.unityVersion, "2021.2.0");
+    }, lazy);
+    function unityEngineCall(method) {
+        const handle = Il2Cpp.api.resolveInternalCall(Memory.allocUtf8String("UnityEngine.Application::" + method));
+        const nativeFunction = new NativeFunction(handle, "pointer", []);
+        return nativeFunction.isNull() ? null : new Il2Cpp.String(nativeFunction()).asNullable()?.content ?? null;
     }
-    currentQueue = null;
-    draining = false;
-    runClearTimeout(timeout);
-}
-
-process.nextTick = function (fun) {
-    var args = new Array(arguments.length - 1);
-    if (arguments.length > 1) {
-        for (var i = 1; i < arguments.length; i++) {
-            args[i - 1] = arguments[i];
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    /** Dumps the application. */
+    function dump(fileName, path) {
+        fileName = fileName ?? `${Il2Cpp.application.identifier ?? "unknown"}_${Il2Cpp.application.version ?? "unknown"}.cs`;
+        const destination = `${path ?? Il2Cpp.application.dataPath}/${fileName}`;
+        const file = new File(destination, "w");
+        for (const assembly of Il2Cpp.domain.assemblies) {
+            inform(`dumping ${assembly.name}...`);
+            for (const klass of assembly.image.classes) {
+                file.write(`${klass}\n\n`);
+            }
+        }
+        file.flush();
+        file.close();
+        ok(`dump saved to ${destination}`);
+    }
+    Il2Cpp.dump = dump;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    /** */
+    function installExceptionListener(targetThread = "current") {
+        const currentThread = Il2Cpp.api.threadGetCurrent();
+        return Interceptor.attach(Il2Cpp.module.getExportByName("__cxa_throw"), function (args) {
+            if (targetThread == "current" && !Il2Cpp.api.threadGetCurrent().equals(currentThread)) {
+                return;
+            }
+            inform(new Il2Cpp.Object(args[0].readPointer()));
+        });
+    }
+    Il2Cpp.installExceptionListener = installExceptionListener;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    /** Creates a filter which includes `element`s whose type can be assigned to `klass` variables. */
+    function is(klass) {
+        return (element) => {
+            if (element instanceof Il2Cpp.Class) {
+                return klass.isAssignableFrom(element);
+            }
+            else {
+                return klass.isAssignableFrom(element.class);
+            }
+        };
+    }
+    Il2Cpp.is = is;
+    /** Creates a filter which includes `element`s whose type corresponds to `klass` type. */
+    function isExactly(klass) {
+        return (element) => {
+            if (element instanceof Il2Cpp.Class) {
+                return element.equals(klass);
+            }
+            else {
+                return element.class.equals(klass);
+            }
+        };
+    }
+    Il2Cpp.isExactly = isExactly;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    Il2Cpp.gc = {
+        /** Gets the heap size in bytes. */
+        get heapSize() {
+            return Il2Cpp.api.gcGetHeapSize();
+        },
+        /** Determines whether the garbage collector is disabled. */
+        get isEnabled() {
+            return !Il2Cpp.api.gcIsDisabled();
+        },
+        /** Determines whether the garbage collector is incremental. */
+        get isIncremental() {
+            return !!Il2Cpp.api.gcIsIncremental();
+        },
+        /** Gets the number of nanoseconds the garbage collector can spend in a collection step. */
+        get maxTimeSlice() {
+            return Il2Cpp.api.gcGetMaxTimeSlice();
+        },
+        /** Gets the used heap size in bytes. */
+        get usedHeapSize() {
+            return Il2Cpp.api.gcGetUsedSize();
+        },
+        /** Enables or disables the garbage collector. */
+        set isEnabled(value) {
+            value ? Il2Cpp.api.gcEnable() : Il2Cpp.api.gcDisable();
+        },
+        /** Sets the number of nanoseconds the garbage collector can spend in a collection step. */
+        set maxTimeSlice(nanoseconds) {
+            Il2Cpp.api.gcSetMaxTimeSlice(nanoseconds);
+        },
+        /** Returns the heap allocated objects of the specified class. This variant reads GC descriptors. */
+        choose(klass) {
+            const matches = [];
+            const callback = (objects, size) => {
+                for (let i = 0; i < size; i++) {
+                    matches.push(new Il2Cpp.Object(objects.add(i * Process.pointerSize).readPointer()));
+                }
+            };
+            const chooseCallback = new NativeCallback(callback, "void", ["pointer", "int", "pointer"]);
+            if (Il2Cpp.unityVersionIsBelow202120) {
+                const onWorld = new NativeCallback(() => { }, "void", []);
+                const state = Il2Cpp.api.livenessCalculationBegin(klass, 0, chooseCallback, NULL, onWorld, onWorld);
+                Il2Cpp.api.livenessCalculationFromStatics(state);
+                Il2Cpp.api.livenessCalculationEnd(state);
+            }
+            else {
+                const realloc = (handle, size) => {
+                    if (!handle.isNull() && size.compare(0) == 0) {
+                        Il2Cpp.free(handle);
+                        return NULL;
+                    }
+                    else {
+                        return Il2Cpp.alloc(size);
+                    }
+                };
+                const reallocCallback = new NativeCallback(realloc, "pointer", ["pointer", "size_t", "pointer"]);
+                this.stopWorld();
+                const state = Il2Cpp.api.livenessAllocateStruct(klass, 0, chooseCallback, NULL, reallocCallback);
+                Il2Cpp.api.livenessCalculationFromStatics(state);
+                Il2Cpp.api.livenessFinalize(state);
+                this.startWorld();
+                Il2Cpp.api.livenessFreeStruct(state);
+            }
+            return matches;
+        },
+        /** Forces a garbage collection of the specified generation. */
+        collect(generation) {
+            Il2Cpp.api.gcCollect(generation < 0 ? 0 : generation > 2 ? 2 : generation);
+        },
+        /** Forces a garbage collection. */
+        collectALittle() {
+            Il2Cpp.api.gcCollectALittle();
+        },
+        /** Resumes all the previously stopped threads. */
+        startWorld() {
+            return Il2Cpp.api.gcStartWorld();
+        },
+        /** Performs an incremental garbage collection. */
+        startIncrementalCollection() {
+            return Il2Cpp.api.gcStartIncrementalCollection();
+        },
+        /** Stops all threads which may access the garbage collected heap, other than the caller. */
+        stopWorld() {
+            return Il2Cpp.api.gcStopWorld();
+        }
+    };
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    /** Allocates the given amount of bytes. */
+    function alloc(size = Process.pointerSize) {
+        return Il2Cpp.api.alloc(size);
+    }
+    Il2Cpp.alloc = alloc;
+    /** Frees memory. */
+    function free(pointer) {
+        return Il2Cpp.api.free(pointer);
+    }
+    Il2Cpp.free = free;
+    /** @internal */
+    function read(pointer, type) {
+        switch (type.typeEnum) {
+            case Il2Cpp.Type.enum.boolean:
+                return !!pointer.readS8();
+            case Il2Cpp.Type.enum.byte:
+                return pointer.readS8();
+            case Il2Cpp.Type.enum.unsignedByte:
+                return pointer.readU8();
+            case Il2Cpp.Type.enum.short:
+                return pointer.readS16();
+            case Il2Cpp.Type.enum.unsignedShort:
+                return pointer.readU16();
+            case Il2Cpp.Type.enum.int:
+                return pointer.readS32();
+            case Il2Cpp.Type.enum.unsignedInt:
+                return pointer.readU32();
+            case Il2Cpp.Type.enum.char:
+                return pointer.readU16();
+            case Il2Cpp.Type.enum.long:
+                return pointer.readS64();
+            case Il2Cpp.Type.enum.unsignedLong:
+                return pointer.readU64();
+            case Il2Cpp.Type.enum.float:
+                return pointer.readFloat();
+            case Il2Cpp.Type.enum.double:
+                return pointer.readDouble();
+            case Il2Cpp.Type.enum.nativePointer:
+            case Il2Cpp.Type.enum.unsignedNativePointer:
+                return pointer.readPointer();
+            case Il2Cpp.Type.enum.pointer:
+                return new Il2Cpp.Pointer(pointer.readPointer(), type.class.baseType);
+            case Il2Cpp.Type.enum.valueType:
+                return new Il2Cpp.ValueType(pointer, type);
+            case Il2Cpp.Type.enum.object:
+            case Il2Cpp.Type.enum.class:
+                return new Il2Cpp.Object(pointer.readPointer());
+            case Il2Cpp.Type.enum.genericInstance:
+                return type.class.isValueType ? new Il2Cpp.ValueType(pointer, type) : new Il2Cpp.Object(pointer.readPointer());
+            case Il2Cpp.Type.enum.string:
+                return new Il2Cpp.String(pointer.readPointer());
+            case Il2Cpp.Type.enum.array:
+            case Il2Cpp.Type.enum.multidimensionalArray:
+                return new Il2Cpp.Array(pointer.readPointer());
+        }
+        raise(`couldn't read the value from ${pointer} using an unhandled or unknown type ${type.name} (${type.typeEnum}), please file an issue`);
+    }
+    Il2Cpp.read = read;
+    /** @internal */
+    function write(pointer, value, type) {
+        switch (type.typeEnum) {
+            case Il2Cpp.Type.enum.boolean:
+                return pointer.writeS8(+value);
+            case Il2Cpp.Type.enum.byte:
+                return pointer.writeS8(value);
+            case Il2Cpp.Type.enum.unsignedByte:
+                return pointer.writeU8(value);
+            case Il2Cpp.Type.enum.short:
+                return pointer.writeS16(value);
+            case Il2Cpp.Type.enum.unsignedShort:
+                return pointer.writeU16(value);
+            case Il2Cpp.Type.enum.int:
+                return pointer.writeS32(value);
+            case Il2Cpp.Type.enum.unsignedInt:
+                return pointer.writeU32(value);
+            case Il2Cpp.Type.enum.char:
+                return pointer.writeU16(value);
+            case Il2Cpp.Type.enum.long:
+                return pointer.writeS64(value);
+            case Il2Cpp.Type.enum.unsignedLong:
+                return pointer.writeU64(value);
+            case Il2Cpp.Type.enum.float:
+                return pointer.writeFloat(value);
+            case Il2Cpp.Type.enum.double:
+                return pointer.writeDouble(value);
+            case Il2Cpp.Type.enum.nativePointer:
+            case Il2Cpp.Type.enum.unsignedNativePointer:
+            case Il2Cpp.Type.enum.pointer:
+            case Il2Cpp.Type.enum.string:
+            case Il2Cpp.Type.enum.array:
+            case Il2Cpp.Type.enum.multidimensionalArray:
+                return pointer.writePointer(value);
+            case Il2Cpp.Type.enum.valueType:
+                return Memory.copy(pointer, value, type.class.valueTypeSize), pointer;
+            case Il2Cpp.Type.enum.object:
+            case Il2Cpp.Type.enum.class:
+            case Il2Cpp.Type.enum.genericInstance:
+                return value instanceof Il2Cpp.ValueType ? (Memory.copy(pointer, value, type.class.valueTypeSize), pointer) : pointer.writePointer(value);
+        }
+        raise(`couldn't write value ${value} to ${pointer} using an unhandled or unknown type ${type.name} (${type.typeEnum}), please file an issue`);
+    }
+    Il2Cpp.write = write;
+    /** @internal */
+    function fromFridaValue(value, type) {
+        if (globalThis.Array.isArray(value)) {
+            const handle = Memory.alloc(type.class.valueTypeSize);
+            const fields = type.class.fields.filter(_ => !_.isStatic);
+            for (let i = 0; i < fields.length; i++) {
+                const convertedValue = fromFridaValue(value[i], fields[i].type);
+                write(handle.add(fields[i].offset).sub(Il2Cpp.Object.headerSize), convertedValue, fields[i].type);
+            }
+            return new Il2Cpp.ValueType(handle, type);
+        }
+        else if (value instanceof NativePointer) {
+            if (type.isByReference) {
+                return new Il2Cpp.Reference(value, type);
+            }
+            switch (type.typeEnum) {
+                case Il2Cpp.Type.enum.pointer:
+                    return new Il2Cpp.Pointer(value, type.class.baseType);
+                case Il2Cpp.Type.enum.string:
+                    return new Il2Cpp.String(value);
+                case Il2Cpp.Type.enum.class:
+                case Il2Cpp.Type.enum.genericInstance:
+                case Il2Cpp.Type.enum.object:
+                    return new Il2Cpp.Object(value);
+                case Il2Cpp.Type.enum.array:
+                case Il2Cpp.Type.enum.multidimensionalArray:
+                    return new Il2Cpp.Array(value);
+                default:
+                    return value;
+            }
+        }
+        else if (type.typeEnum == Il2Cpp.Type.enum.boolean) {
+            return !!value;
+        }
+        else if (type.typeEnum == Il2Cpp.Type.enum.valueType && type.class.isEnum) {
+            return fromFridaValue([value], type);
+        }
+        else {
+            return value;
         }
     }
-    queue.push(new Item(fun, args));
-    if (queue.length === 1 && !draining) {
-        runTimeout(drainQueue);
-    }
-};
-
-// v8 likes predictible objects
-function Item(fun, array) {
-    this.fun = fun;
-    this.array = array;
-}
-Item.prototype.run = function () {
-    this.fun.apply(null, this.array);
-};
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-process.version = ''; // empty string to avoid regexp issues
-process.versions = {};
-
-function noop() {}
-
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-process.prependListener = noop;
-process.prependOnceListener = noop;
-
-process.listeners = function (name) { return [] }
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-};
-
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-process.umask = function() { return 0; };
-
-},{}],36:[function(require,module,exports){
-(function (setImmediate,clearImmediate){(function (){
-var nextTick = require('process/browser.js').nextTick;
-var apply = Function.prototype.apply;
-var slice = Array.prototype.slice;
-var immediateIds = {};
-var nextImmediateId = 0;
-
-// DOM APIs, for completeness
-
-exports.setTimeout = function() {
-  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
-};
-exports.setInterval = function() {
-  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
-};
-exports.clearTimeout =
-exports.clearInterval = function(timeout) { timeout.close(); };
-
-function Timeout(id, clearFn) {
-  this._id = id;
-  this._clearFn = clearFn;
-}
-Timeout.prototype.unref = Timeout.prototype.ref = function() {};
-Timeout.prototype.close = function() {
-  this._clearFn.call(window, this._id);
-};
-
-// Does not start the time, just sets up the members needed.
-exports.enroll = function(item, msecs) {
-  clearTimeout(item._idleTimeoutId);
-  item._idleTimeout = msecs;
-};
-
-exports.unenroll = function(item) {
-  clearTimeout(item._idleTimeoutId);
-  item._idleTimeout = -1;
-};
-
-exports._unrefActive = exports.active = function(item) {
-  clearTimeout(item._idleTimeoutId);
-
-  var msecs = item._idleTimeout;
-  if (msecs >= 0) {
-    item._idleTimeoutId = setTimeout(function onTimeout() {
-      if (item._onTimeout)
-        item._onTimeout();
-    }, msecs);
-  }
-};
-
-// That's not how node.js implements it but the exposed api is the same.
-exports.setImmediate = typeof setImmediate === "function" ? setImmediate : function(fn) {
-  var id = nextImmediateId++;
-  var args = arguments.length < 2 ? false : slice.call(arguments, 1);
-
-  immediateIds[id] = true;
-
-  nextTick(function onNextTick() {
-    if (immediateIds[id]) {
-      // fn.call() is faster so we optimize for the common use-case
-      // @see http://jsperf.com/call-apply-segu
-      if (args) {
-        fn.apply(null, args);
-      } else {
-        fn.call(null);
-      }
-      // Prevent ids from leaking
-      exports.clearImmediate(id);
-    }
-  });
-
-  return id;
-};
-
-exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
-  delete immediateIds[id];
-};
-}).call(this)}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":35,"timers":36}],37:[function(require,module,exports){
-/**
- * Semantic Version Number
- * @author 闲耘 <hotoo.cn@gmail.com>
- *
- * @usage
- *    var version = new Versioning("1.2.3")
- *    version > 1
- *    version.eq(1)
- */
-
-
-// Semantic Versioning Delimiter.
-var delimiter = ".";
-
-var Version = function(version){
-  this._version = String(version);
-};
-
-function compare(v1, v2, complete){
-  v1 = String(v1);
-  v2 = String(v2);
-  if(v1 === v2){return 0;}
-  var v1s = v1.split(delimiter);
-  var v2s = v2.split(delimiter);
-  var len = Math[complete ? "max" : "min"](v1s.length, v2s.length);
-  for(var i=0; i<len; i++){
-    v1s[i] = "undefined"===typeof v1s[i] ? 0 : parseInt(v1s[i], 10);
-    v2s[i] = "undefined"===typeof v2s[i] ? 0 : parseInt(v2s[i], 10);
-    if(v1s[i] > v2s[i]){return 1;}
-    if(v1s[i] < v2s[i]){return -1;}
-  }
-  return 0;
-}
-
-Version.compare = function(v1, v2){
-  return compare(v1, v2, true);
-};
-
-/**
- * @param {String} v1.
- * @param {String} v2.
- * @return {Boolean} true if v1 equals v2.
- *
- *    Version.eq("6.1", "6"); // true.
- *    Version.eq("6.1.2", "6.1"); // true.
- */
-Version.eq = function(v1, v2, strict){
-  return compare(v1, v2, strict) === 0;
-};
-
-/**
- * @param {String} v1.
- * @param {String} v2.
- * @return {Boolean} return true
- */
-Version.gt = function(v1, v2){
-  return compare(v1, v2, true) > 0;
-};
-
-Version.gte = function(v1, v2){
-  return compare(v1, v2, true) >= 0;
-};
-
-Version.lt = function(v1, v2){
-  return compare(v1, v2, true) < 0;
-};
-
-Version.lte = function(v1, v2){
-  return compare(v1, v2, true) <= 0;
-};
-
-Version.prototype = {
-  // new Version("6.1").eq(6); // true.
-  // new Version("6.1.2").eq("6.1"); // true.
-  eq: function(version){
-    return Version.eq(this._version, version);
-  },
-
-  gt: function(version){
-    return Version.gt(this._version, version);
-  },
-
-  gte: function(version){
-    return Version.gte(this._version, version);
-  },
-
-  lt: function(version){
-    return Version.lt(this._version, version);
-  },
-
-  lte: function(version){
-    return Version.lte(this._version, version);
-  },
-
-  valueOf: function(){
-    return parseFloat(
-      this._version.split(delimiter).slice(0, 2).join(delimiter),
-      10);
-  },
-
-  /**
-   * XXX: ""+ver 调用的转型方法是 valueOf，而不是 toString，这个有点悲剧。
-   * 只能使用 String(ver) 或 ver.toString() 方法。
-   * @param {Number} precision, 返回的版本号精度。默认返回完整版本号。
-   * @return {String}
-   */
-  toString: function(precision){
-    return "undefined" === typeof precision ? this._version :
-      this._version.split(delimiter).slice(0, precision).join(delimiter);
-  }
-};
-
-
-module.exports = Version;
-
-},{}]},{},[1]);
-
-var fname
-var destination
-rpc.exports = {
-    il2cppdump: (filename, path) => {
-        console.log("Dump Start")
-        fname = filename ?? `${Il2Cpp.applicationIdentifier ?? "unknown"}_${Il2Cpp.applicationVersion ?? "unknown"}.cs`;
-        destination = `${path ?? Il2Cpp.applicationDataPath}/${fname}`;
-        // Dump succeed then it will return true
-        const result = Il2Cpp.dump();
-        if(result){
-            return destination
+    Il2Cpp.fromFridaValue = fromFridaValue;
+    /** @internal */
+    function toFridaValue(value) {
+        if (typeof value == "boolean") {
+            return +value;
         }
-        return null
+        else if (value instanceof Il2Cpp.ValueType) {
+            if (value.type.class.isEnum) {
+                return value.field("value__").value;
+            }
+            else {
+                const _ = value.type.class.fields.filter(_ => !_.isStatic).map(_ => toFridaValue(_.withHolder(value).value));
+                return _.length == 0 ? [0] : _;
+            }
+        }
+        else {
+            return value;
+        }
     }
-}
+    Il2Cpp.toFridaValue = toFridaValue;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    getter(Il2Cpp, "module", () => {
+        const [moduleName, fallback] = getExpectedModuleNames();
+        return Process.findModuleByName(moduleName) ?? Process.getModuleByName(fallback);
+    });
+    /** @internal Waits for Unity and Il2Cpp native libraries to be loaded and initialized. */
+    async function initialize(blocking = false) {
+        Reflect.defineProperty(Il2Cpp, "module", {
+            // prettier-ignore
+            value: Process.platform == "darwin"
+                ? Process.findModuleByAddress(DebugSymbol.fromName("il2cpp_init").address)
+                    ?? await forModule(...getExpectedModuleNames())
+                : await forModule(...getExpectedModuleNames())
+        });
+        if (Il2Cpp.api.getCorlib().isNull()) {
+            return await new Promise(resolve => {
+                const interceptor = Interceptor.attach(Il2Cpp.api.initialize, {
+                    onLeave() {
+                        interceptor.detach();
+                        blocking ? resolve(true) : setImmediate(() => resolve(false));
+                    }
+                });
+            });
+        }
+        return false;
+    }
+    Il2Cpp.initialize = initialize;
+    function getExpectedModuleNames() {
+        if (globalThis.IL2CPP_MODULE_NAME) {
+            return [globalThis.IL2CPP_MODULE_NAME];
+        }
+        switch (Process.platform) {
+            case "linux":
+                return [Android.apiLevel ? "libil2cpp.so" : "GameAssembly.so"];
+            case "windows":
+                return ["GameAssembly.dll"];
+            case "darwin":
+                return ["UnityFramework", "GameAssembly.dylib"];
+        }
+        raise(`${Process.platform} is not supported yet`);
+    }
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    /** Attaches the caller thread to Il2Cpp domain and executes the given block.  */
+    async function perform(block, flag = "bind") {
+        try {
+            const isInMainThread = await Il2Cpp.initialize(flag == "main");
+            if (flag == "main" && !isInMainThread) {
+                return perform(() => Il2Cpp.mainThread.schedule(block), "free");
+            }
+            let thread = Il2Cpp.currentThread;
+            const isForeignThread = thread == null;
+            thread ??= Il2Cpp.domain.attach();
+            const result = block();
+            if (isForeignThread) {
+                if (flag == "free") {
+                    thread.detach();
+                }
+                else if (flag == "bind") {
+                    Script.bindWeak(globalThis, () => thread.detach());
+                }
+            }
+            return result instanceof Promise ? await result : result;
+        }
+        catch (error) {
+            Script.nextTick(_ => { throw _; }, error); // prettier-ignore
+            return Promise.reject(error);
+        }
+    }
+    Il2Cpp.perform = perform;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Tracer {
+        /** @internal */
+        #state = {
+            depth: 0,
+            buffer: [],
+            history: new Set(),
+            flush: () => {
+                if (this.#state.depth == 0) {
+                    const message = `\n${this.#state.buffer.join("\n")}\n`;
+                    if (this.#verbose) {
+                        inform(message);
+                    }
+                    else {
+                        const hash = cyrb53(message);
+                        if (!this.#state.history.has(hash)) {
+                            this.#state.history.add(hash);
+                            inform(message);
+                        }
+                    }
+                    this.#state.buffer.length = 0;
+                }
+            }
+        };
+        /** @internal */
+        #threadId = Il2Cpp.mainThread.id;
+        /** @internal */
+        #verbose = false;
+        /** @internal */
+        #applier;
+        /** @internal */
+        #targets = [];
+        /** @internal */
+        #domain;
+        /** @internal */
+        #assemblies;
+        /** @internal */
+        #classes;
+        /** @internal */
+        #methods;
+        /** @internal */
+        #assemblyFilter;
+        /** @internal */
+        #classFilter;
+        /** @internal */
+        #methodFilter;
+        /** @internal */
+        #parameterFilter;
+        constructor(applier) {
+            this.#applier = applier;
+        }
+        /** */
+        thread(thread) {
+            this.#threadId = thread.id;
+            return this;
+        }
+        /** Determines whether print duplicate logs. */
+        verbose(value) {
+            this.#verbose = value;
+            return this;
+        }
+        /** Sets the application domain as the place where to find the target methods. */
+        domain() {
+            this.#domain = Il2Cpp.domain;
+            return this;
+        }
+        /** Sets the passed `assemblies` as the place where to find the target methods. */
+        assemblies(...assemblies) {
+            this.#assemblies = assemblies;
+            return this;
+        }
+        /** Sets the passed `classes` as the place where to find the target methods. */
+        classes(...classes) {
+            this.#classes = classes;
+            return this;
+        }
+        /** Sets the passed `methods` as the target methods. */
+        methods(...methods) {
+            this.#methods = methods;
+            return this;
+        }
+        /** Filters the assemblies where to find the target methods. */
+        filterAssemblies(filter) {
+            this.#assemblyFilter = filter;
+            return this;
+        }
+        /** Filters the classes where to find the target methods. */
+        filterClasses(filter) {
+            this.#classFilter = filter;
+            return this;
+        }
+        /** Filters the target methods. */
+        filterMethods(filter) {
+            this.#methodFilter = filter;
+            return this;
+        }
+        /** Filters the target methods. */
+        filterParameters(filter) {
+            this.#parameterFilter = filter;
+            return this;
+        }
+        /** Commits the current changes by finding the target methods. */
+        and() {
+            const filterMethod = (method) => {
+                if (this.#parameterFilter == undefined) {
+                    this.#targets.push(method);
+                    return;
+                }
+                for (const parameter of method.parameters) {
+                    if (this.#parameterFilter(parameter)) {
+                        this.#targets.push(method);
+                        break;
+                    }
+                }
+            };
+            const filterMethods = (values) => {
+                for (const method of values) {
+                    filterMethod(method);
+                }
+            };
+            const filterClass = (klass) => {
+                if (this.#methodFilter == undefined) {
+                    filterMethods(klass.methods);
+                    return;
+                }
+                for (const method of klass.methods) {
+                    if (this.#methodFilter(method)) {
+                        filterMethod(method);
+                    }
+                }
+            };
+            const filterClasses = (values) => {
+                for (const klass of values) {
+                    filterClass(klass);
+                }
+            };
+            const filterAssembly = (assembly) => {
+                if (this.#classFilter == undefined) {
+                    filterClasses(assembly.image.classes);
+                    return;
+                }
+                for (const klass of assembly.image.classes) {
+                    if (this.#classFilter(klass)) {
+                        filterClass(klass);
+                    }
+                }
+            };
+            const filterAssemblies = (assemblies) => {
+                for (const assembly of assemblies) {
+                    filterAssembly(assembly);
+                }
+            };
+            const filterDomain = (domain) => {
+                if (this.#assemblyFilter == undefined) {
+                    filterAssemblies(domain.assemblies);
+                    return;
+                }
+                for (const assembly of domain.assemblies) {
+                    if (this.#assemblyFilter(assembly)) {
+                        filterAssembly(assembly);
+                    }
+                }
+            };
+            this.#methods
+                ? filterMethods(this.#methods)
+                : this.#classes
+                    ? filterClasses(this.#classes)
+                    : this.#assemblies
+                        ? filterAssemblies(this.#assemblies)
+                        : this.#domain
+                            ? filterDomain(this.#domain)
+                            : undefined;
+            this.#assemblies = undefined;
+            this.#classes = undefined;
+            this.#methods = undefined;
+            this.#assemblyFilter = undefined;
+            this.#classFilter = undefined;
+            this.#methodFilter = undefined;
+            this.#parameterFilter = undefined;
+            return this;
+        }
+        /** Starts tracing. */
+        attach() {
+            for (const target of this.#targets) {
+                if (!target.virtualAddress.isNull()) {
+                    try {
+                        this.#applier(target, this.#state, this.#threadId);
+                    }
+                    catch (e) {
+                        switch (e.message) {
+                            case /unable to intercept function at \w+; please file a bug/.exec(e.message)?.input:
+                            case "already replaced this function":
+                                break;
+                            default:
+                                throw e;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Il2Cpp.Tracer = Tracer;
+    /** */
+    function trace(parameters = false) {
+        const applier = () => (method, state, threadId) => {
+            const paddedVirtualAddress = method.relativeVirtualAddress.toString(16).padStart(8, "0");
+            Interceptor.attach(method.virtualAddress, {
+                onEnter() {
+                    if (this.threadId == threadId) {
+                        // prettier-ignore
+                        state.buffer.push(`\x1b[2m0x${paddedVirtualAddress}\x1b[0m ${`│ `.repeat(state.depth++)}┌─\x1b[35m${method.class.type.name}::\x1b[1m${method.name}\x1b[0m\x1b[0m`);
+                    }
+                },
+                onLeave() {
+                    if (this.threadId == threadId) {
+                        // prettier-ignore
+                        state.buffer.push(`\x1b[2m0x${paddedVirtualAddress}\x1b[0m ${`│ `.repeat(--state.depth)}└─\x1b[33m${method.class.type.name}::\x1b[1m${method.name}\x1b[0m\x1b[0m`);
+                        state.flush();
+                    }
+                }
+            });
+        };
+        const applierWithParameters = () => (method, state, threadId) => {
+            const paddedVirtualAddress = method.relativeVirtualAddress.toString(16).padStart(8, "0");
+            const startIndex = +!method.isStatic | +Il2Cpp.unityVersionIsBelow201830;
+            const callback = function (...args) {
+                if (this.threadId == threadId) {
+                    const thisParameter = method.isStatic ? undefined : new Il2Cpp.Parameter("this", -1, method.class.type);
+                    const parameters = thisParameter ? [thisParameter].concat(method.parameters) : method.parameters;
+                    // prettier-ignore
+                    state.buffer.push(`\x1b[2m0x${paddedVirtualAddress}\x1b[0m ${`│ `.repeat(state.depth++)}┌─\x1b[35m${method.class.type.name}::\x1b[1m${method.name}\x1b[0m\x1b[0m(${parameters.map(e => `\x1b[32m${e.name}\x1b[0m = \x1b[31m${Il2Cpp.fromFridaValue(args[e.position + startIndex], e.type)}\x1b[0m`).join(", ")})`);
+                }
+                const returnValue = method.nativeFunction(...args);
+                if (this.threadId == threadId) {
+                    // prettier-ignore
+                    state.buffer.push(`\x1b[2m0x${paddedVirtualAddress}\x1b[0m ${`│ `.repeat(--state.depth)}└─\x1b[33m${method.class.type.name}::\x1b[1m${method.name}\x1b[0m\x1b[0m${returnValue == undefined ? "" : ` = \x1b[36m${Il2Cpp.fromFridaValue(returnValue, method.returnType)}`}\x1b[0m`);
+                    state.flush();
+                }
+                return returnValue;
+            };
+            method.revert();
+            const nativeCallback = new NativeCallback(callback, method.returnType.fridaAlias, method.fridaSignature);
+            Interceptor.replace(method.virtualAddress, nativeCallback);
+        };
+        return new Il2Cpp.Tracer(parameters ? applierWithParameters() : applier());
+    }
+    Il2Cpp.trace = trace;
+    /** */
+    function backtrace(mode) {
+        const methods = Il2Cpp.domain.assemblies
+            .flatMap(_ => _.image.classes.flatMap(_ => _.methods.filter(_ => !_.virtualAddress.isNull())))
+            .sort((_, __) => _.virtualAddress.compare(__.virtualAddress));
+        const searchInsert = (target) => {
+            let left = 0;
+            let right = methods.length - 1;
+            while (left <= right) {
+                const pivot = Math.floor((left + right) / 2);
+                const comparison = methods[pivot].virtualAddress.compare(target);
+                if (comparison == 0) {
+                    return methods[pivot];
+                }
+                else if (comparison > 0) {
+                    right = pivot - 1;
+                }
+                else {
+                    left = pivot + 1;
+                }
+            }
+            return methods[right];
+        };
+        const applier = () => (method, state, threadId) => {
+            Interceptor.attach(method.virtualAddress, function () {
+                if (this.threadId == threadId) {
+                    const handles = globalThis.Thread.backtrace(this.context, mode);
+                    handles.unshift(method.virtualAddress);
+                    for (const handle of handles) {
+                        if (handle.compare(Il2Cpp.module.base) > 0 && handle.compare(Il2Cpp.module.base.add(Il2Cpp.module.size)) < 0) {
+                            const method = searchInsert(handle);
+                            if (method) {
+                                const offset = handle.sub(method.virtualAddress);
+                                if (offset.compare(0xfff) < 0) {
+                                    // prettier-ignore
+                                    state.buffer.push(`\x1b[2m0x${method.relativeVirtualAddress.toString(16).padStart(8, "0")}\x1b[0m\x1b[2m+0x${offset.toString(16).padStart(3, `0`)}\x1b[0m ${method.class.type.name}::\x1b[1m${method.name}\x1b[0m`);
+                                }
+                            }
+                        }
+                    }
+                    state.flush();
+                }
+            });
+        };
+        return new Il2Cpp.Tracer(applier());
+    }
+    Il2Cpp.backtrace = backtrace;
+    /** https://stackoverflow.com/a/52171480/16885569 */
+    function cyrb53(str) {
+        let h1 = 0xdeadbeef;
+        let h2 = 0x41c6ce57;
+        for (let i = 0, ch; i < str.length; i++) {
+            ch = str.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+        h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+        h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+    }
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Array extends NativeStruct {
+        /** Gets the Il2CppArray struct size, possibly equal to `Process.pointerSize * 4`. */
+        static get headerSize() {
+            return Il2Cpp.corlib.class("System.Array").instanceSize;
+        }
+        /** @internal Gets a pointer to the first element of the current array. */
+        get elements() {
+            // We previosly obtained an array whose content is known by calling
+            // 'System.String::Split(NULL)' on a known string. However, that
+            // method invocation somehow blows things up in Unity 2018.3.0f1.
+            const array = Il2Cpp.string("v").object.method("ToCharArray", 0).invoke();
+            // prettier-ignore
+            const offset = array.handle.offsetOf(_ => _.readS16() == 118) ??
+                raise("couldn't find the elements offset in the native array struct");
+            // prettier-ignore
+            getter(Il2Cpp.Array.prototype, "elements", function () {
+                return new Il2Cpp.Pointer(this.handle.add(offset), this.elementType);
+            }, lazy);
+            return this.elements;
+        }
+        /** Gets the size of the object encompassed by the current array. */
+        get elementSize() {
+            return this.elementType.class.arrayElementSize;
+        }
+        /** Gets the type of the object encompassed by the current array. */
+        get elementType() {
+            return this.object.class.type.class.baseType;
+        }
+        /** Gets the total number of elements in all the dimensions of the current array. */
+        get length() {
+            return Il2Cpp.api.arrayGetLength(this);
+        }
+        /** Gets the encompassing object of the current array. */
+        get object() {
+            return new Il2Cpp.Object(this);
+        }
+        /** Gets the element at the specified index of the current array. */
+        get(index) {
+            if (index < 0 || index >= this.length) {
+                raise(`cannot get element at index ${index} as the array length is ${this.length}`);
+            }
+            return this.elements.get(index);
+        }
+        /** Sets the element at the specified index of the current array. */
+        set(index, value) {
+            if (index < 0 || index >= this.length) {
+                raise(`cannot set element at index ${index} as the array length is ${this.length}`);
+            }
+            this.elements.set(index, value);
+        }
+        /** */
+        toString() {
+            return this.isNull() ? "null" : `[${this.elements.read(this.length, 0)}]`;
+        }
+        /** Iterable. */
+        *[Symbol.iterator]() {
+            for (let i = 0; i < this.length; i++) {
+                yield this.elements.get(i);
+            }
+        }
+    }
+    __decorate([
+        lazy
+    ], Array.prototype, "elementSize", null);
+    __decorate([
+        lazy
+    ], Array.prototype, "elementType", null);
+    __decorate([
+        lazy
+    ], Array.prototype, "length", null);
+    __decorate([
+        lazy
+    ], Array.prototype, "object", null);
+    __decorate([
+        lazy
+    ], Array, "headerSize", null);
+    Il2Cpp.Array = Array;
+    /** @internal */
+    function array(klass, lengthOrElements) {
+        const length = typeof lengthOrElements == "number" ? lengthOrElements : lengthOrElements.length;
+        const array = new Il2Cpp.Array(Il2Cpp.api.arrayNew(klass, length));
+        if (globalThis.Array.isArray(lengthOrElements)) {
+            array.elements.write(lengthOrElements);
+        }
+        return array;
+    }
+    Il2Cpp.array = array;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    let Assembly = class Assembly extends NativeStruct {
+        /** Gets the image of this assembly. */
+        get image() {
+            let get = function () {
+                return new Il2Cpp.Image(Il2Cpp.api.assemblyGetImage(this));
+            };
+            try {
+                Il2Cpp.api.assemblyGetImage;
+            }
+            catch (_) {
+                get = function () {
+                    // We need to get the System.Reflection.Module of the current assembly;
+                    // System.Reflection.Assembly::GetModulesInternal, for some reason,
+                    // throws a NullReferenceExceptionin Unity 5.3.8f1, so we must rely on
+                    // System.Type::get_Module instead.
+                    // Now we need to get any System.Type of this assembly.
+                    // We cannot use System.Reflection.Assembly::GetTypes because it may
+                    // return an empty array; hence we use System.Reflection.Assembly::GetType
+                    // to retrieve <Module>, a class/type that seems to be always present
+                    // (despite being excluded from System.Reflection.Assembly::GetTypes).
+                    return new Il2Cpp.Image(this.object
+                        .method("GetType", 1)
+                        .invoke(Il2Cpp.string("<Module>"))
+                        .method("get_Module")
+                        .invoke()
+                        .field("_impl").value);
+                };
+            }
+            getter(Il2Cpp.Assembly.prototype, "image", get, lazy);
+            return this.image;
+        }
+        /** Gets the name of this assembly. */
+        get name() {
+            return this.image.name.replace(".dll", "");
+        }
+        /** Gets the encompassing object of the current assembly. */
+        get object() {
+            for (const _ of Il2Cpp.domain.object.method("GetAssemblies", 1).invoke(false)) {
+                if (_.field("_mono_assembly").value.equals(this)) {
+                    return _;
+                }
+            }
+            raise("couldn't find the object of the native assembly struct");
+        }
+    };
+    __decorate([
+        lazy
+    ], Assembly.prototype, "name", null);
+    __decorate([
+        lazy
+    ], Assembly.prototype, "object", null);
+    Assembly = __decorate([
+        recycle
+    ], Assembly);
+    Il2Cpp.Assembly = Assembly;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    let Class = class Class extends NativeStruct {
+        /** Gets the actual size of the instance of the current class. */
+        get actualInstanceSize() {
+            const SystemString = Il2Cpp.corlib.class("System.String");
+            // prettier-ignore
+            const offset = SystemString.handle.offsetOf(_ => _.readInt() == SystemString.instanceSize - 2)
+                ?? raise("couldn't find the actual instance size offset in the native class struct");
+            // prettier-ignore
+            getter(Il2Cpp.Class.prototype, "actualInstanceSize", function () {
+                return this.handle.add(offset).readS32();
+            }, lazy);
+            return this.actualInstanceSize;
+        }
+        /** Gets the array class which encompass the current class. */
+        get arrayClass() {
+            return new Il2Cpp.Class(Il2Cpp.api.classGetArrayClass(this, 1));
+        }
+        /** Gets the size of the object encompassed by the current array class. */
+        get arrayElementSize() {
+            return Il2Cpp.api.classGetArrayElementSize(this);
+        }
+        /** Gets the name of the assembly in which the current class is defined. */
+        get assemblyName() {
+            return Il2Cpp.api.classGetAssemblyName(this).readUtf8String().replace(".dll", "");
+        }
+        /** Gets the class that declares the current nested class. */
+        get declaringClass() {
+            return new Il2Cpp.Class(Il2Cpp.api.classGetDeclaringType(this)).asNullable();
+        }
+        /** Gets the encompassed type of this array, reference, pointer or enum type. */
+        get baseType() {
+            return new Il2Cpp.Type(Il2Cpp.api.classGetBaseType(this)).asNullable();
+        }
+        /** Gets the class of the object encompassed or referred to by the current array, pointer or reference class. */
+        get elementClass() {
+            return new Il2Cpp.Class(Il2Cpp.api.classGetElementClass(this)).asNullable();
+        }
+        /** Gets the fields of the current class. */
+        get fields() {
+            return readNativeIterator(_ => Il2Cpp.api.classGetFields(this, _)).map(_ => new Il2Cpp.Field(_));
+        }
+        /** Gets the flags of the current class. */
+        get flags() {
+            return Il2Cpp.api.classGetFlags(this);
+        }
+        /** Gets the full name (namespace + name) of the current class. */
+        get fullName() {
+            return this.namespace ? `${this.namespace}.${this.name}` : this.name;
+        }
+        /** Gets the generics parameters of this generic class. */
+        get generics() {
+            if (!this.isGeneric && !this.isInflated) {
+                return [];
+            }
+            const types = this.type.object.method("GetGenericArguments").invoke();
+            return globalThis.Array.from(types).map(_ => new Il2Cpp.Class(Il2Cpp.api.classFromObject(_)));
+        }
+        /** Determines whether the GC has tracking references to the current class instances. */
+        get hasReferences() {
+            return !!Il2Cpp.api.classHasReferences(this);
+        }
+        /** Determines whether ther current class has a valid static constructor. */
+        get hasStaticConstructor() {
+            const staticConstructor = this.tryMethod(".cctor");
+            return staticConstructor != null && !staticConstructor.virtualAddress.isNull();
+        }
+        /** Gets the image in which the current class is defined. */
+        get image() {
+            return new Il2Cpp.Image(Il2Cpp.api.classGetImage(this));
+        }
+        /** Gets the size of the instance of the current class. */
+        get instanceSize() {
+            return Il2Cpp.api.classGetInstanceSize(this);
+        }
+        /** Determines whether the current class is abstract. */
+        get isAbstract() {
+            return !!Il2Cpp.api.classIsAbstract(this);
+        }
+        /** Determines whether the current class is blittable. */
+        get isBlittable() {
+            return !!Il2Cpp.api.classIsBlittable(this);
+        }
+        /** Determines whether the current class is an enumeration. */
+        get isEnum() {
+            return !!Il2Cpp.api.classIsEnum(this);
+        }
+        /** Determines whether the current class is a generic one. */
+        get isGeneric() {
+            return !!Il2Cpp.api.classIsGeneric(this);
+        }
+        /** Determines whether the current class is inflated. */
+        get isInflated() {
+            return !!Il2Cpp.api.classIsInflated(this);
+        }
+        /** Determines whether the current class is an interface. */
+        get isInterface() {
+            return !!Il2Cpp.api.classIsInterface(this);
+        }
+        /** Determines whether the current class is a struct. */
+        get isStruct() {
+            return this.isValueType && !this.isEnum;
+        }
+        /** Determines whether the current class is a value type. */
+        get isValueType() {
+            return !!Il2Cpp.api.classIsValueType(this);
+        }
+        /** Gets the interfaces implemented or inherited by the current class. */
+        get interfaces() {
+            return readNativeIterator(_ => Il2Cpp.api.classGetInterfaces(this, _)).map(_ => new Il2Cpp.Class(_));
+        }
+        /** Gets the methods implemented by the current class. */
+        get methods() {
+            return readNativeIterator(_ => Il2Cpp.api.classGetMethods(this, _)).map(_ => new Il2Cpp.Method(_));
+        }
+        /** Gets the name of the current class. */
+        get name() {
+            return Il2Cpp.api.classGetName(this).readUtf8String();
+        }
+        /** Gets the namespace of the current class. */
+        get namespace() {
+            return Il2Cpp.api.classGetNamespace(this).readUtf8String();
+        }
+        /** Gets the classes nested inside the current class. */
+        get nestedClasses() {
+            return readNativeIterator(_ => Il2Cpp.api.classGetNestedClasses(this, _)).map(_ => new Il2Cpp.Class(_));
+        }
+        /** Gets the class from which the current class directly inherits. */
+        get parent() {
+            return new Il2Cpp.Class(Il2Cpp.api.classGetParent(this)).asNullable();
+        }
+        /** Gets the rank (number of dimensions) of the current array class. */
+        get rank() {
+            let rank = 0;
+            const name = this.name;
+            for (let i = this.name.length - 1; i > 0; i--) {
+                const c = name[i];
+                if (c == "]")
+                    rank++;
+                else if (c == "[" || rank == 0)
+                    break;
+                else if (c == ",")
+                    rank++;
+                else
+                    break;
+            }
+            return rank;
+        }
+        /** Gets a pointer to the static fields of the current class. */
+        get staticFieldsData() {
+            return Il2Cpp.api.classGetStaticFieldData(this);
+        }
+        /** Gets the size of the instance - as a value type - of the current class. */
+        get valueTypeSize() {
+            return Il2Cpp.api.classGetValueTypeSize(this, NULL);
+        }
+        /** Gets the type of the current class. */
+        get type() {
+            return new Il2Cpp.Type(Il2Cpp.api.classGetType(this));
+        }
+        /** Allocates a new object of the current class. */
+        alloc() {
+            return new Il2Cpp.Object(Il2Cpp.api.objectNew(this));
+        }
+        /** Gets the field identified by the given name. */
+        field(name) {
+            return this.tryField(name) ?? raise(`couldn't find field ${name} in class ${this.type.name}`);
+        }
+        /** Builds a generic instance of the current generic class. */
+        inflate(...classes) {
+            if (!this.isGeneric) {
+                raise(`cannot inflate class ${this.type.name} as it has no generic parameters`);
+            }
+            if (this.generics.length != classes.length) {
+                raise(`cannot inflate class ${this.type.name} as it needs ${this.generics.length} generic parameter(s), not ${classes.length}`);
+            }
+            const types = classes.map(_ => _.type.object);
+            const typeArray = Il2Cpp.array(Il2Cpp.corlib.class("System.Type"), types);
+            const inflatedType = this.type.object.method("MakeGenericType", 1).invoke(typeArray);
+            return new Il2Cpp.Class(Il2Cpp.api.classFromObject(inflatedType));
+        }
+        /** Calls the static constructor of the current class. */
+        initialize() {
+            Il2Cpp.api.classInitialize(this);
+            return this;
+        }
+        /** Determines whether an instance of `other` class can be assigned to a variable of the current type. */
+        isAssignableFrom(other) {
+            return !!Il2Cpp.api.classIsAssignableFrom(this, other);
+        }
+        /** Determines whether the current class derives from `other` class. */
+        isSubclassOf(other, checkInterfaces) {
+            return !!Il2Cpp.api.classIsSubclassOf(this, other, +checkInterfaces);
+        }
+        /** Gets the method identified by the given name and parameter count. */
+        method(name, parameterCount = -1) {
+            return this.tryMethod(name, parameterCount) ?? raise(`couldn't find method ${name} in class ${this.type.name}`);
+        }
+        /** Gets the nested class with the given name. */
+        nested(name) {
+            return this.tryNested(name) ?? raise(`couldn't find nested class ${name} in class ${this.type.name}`);
+        }
+        /** Allocates a new object of the current class and calls its default constructor. */
+        new() {
+            const object = this.alloc();
+            const exceptionArray = Memory.alloc(Process.pointerSize);
+            Il2Cpp.api.objectInitialize(object, exceptionArray);
+            const exception = exceptionArray.readPointer();
+            if (!exception.isNull()) {
+                raise(new Il2Cpp.Object(exception).toString());
+            }
+            return object;
+        }
+        /** Gets the field with the given name. */
+        tryField(name) {
+            return new Il2Cpp.Field(Il2Cpp.api.classGetFieldFromName(this, Memory.allocUtf8String(name))).asNullable();
+        }
+        /** Gets the method with the given name and parameter count. */
+        tryMethod(name, parameterCount = -1) {
+            return new Il2Cpp.Method(Il2Cpp.api.classGetMethodFromName(this, Memory.allocUtf8String(name), parameterCount)).asNullable();
+        }
+        /** Gets the nested class with the given name. */
+        tryNested(name) {
+            return this.nestedClasses.find(_ => _.name == name);
+        }
+        /** */
+        toString() {
+            const inherited = [this.parent].concat(this.interfaces);
+            return `\
+// ${this.assemblyName}
+${this.isEnum ? `enum` : this.isStruct ? `struct` : this.isInterface ? `interface` : `class`} \
+${this.type.name}\
+${inherited ? ` : ${inherited.map(_ => _?.type.name).join(`, `)}` : ``}
+{
+    ${this.fields.join(`\n    `)}
+    ${this.methods.join(`\n    `)}
+}`;
+        }
+        /** Executes a callback for every defined class. */
+        static enumerate(block) {
+            const callback = new NativeCallback(_ => block(new Il2Cpp.Class(_)), "void", ["pointer", "pointer"]);
+            return Il2Cpp.api.classForEach(callback, NULL);
+        }
+    };
+    __decorate([
+        lazy
+    ], Class.prototype, "arrayClass", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "arrayElementSize", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "assemblyName", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "declaringClass", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "baseType", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "elementClass", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "fields", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "flags", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "fullName", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "generics", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "hasReferences", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "hasStaticConstructor", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "image", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "instanceSize", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "isAbstract", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "isBlittable", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "isEnum", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "isGeneric", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "isInflated", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "isInterface", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "isValueType", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "interfaces", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "methods", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "name", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "namespace", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "nestedClasses", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "parent", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "rank", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "staticFieldsData", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "valueTypeSize", null);
+    __decorate([
+        lazy
+    ], Class.prototype, "type", null);
+    Class = __decorate([
+        recycle
+    ], Class);
+    Il2Cpp.Class = Class;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    /** Creates a delegate object of the given delegate class. */
+    function delegate(klass, block) {
+        const SystemDelegate = Il2Cpp.corlib.class("System.Delegate");
+        const SystemMulticastDelegate = Il2Cpp.corlib.class("System.MulticastDelegate");
+        if (!SystemDelegate.isAssignableFrom(klass)) {
+            raise(`cannot create a delegate for ${klass.type.name} as it's a non-delegate class`);
+        }
+        if (klass.equals(SystemDelegate) || klass.equals(SystemMulticastDelegate)) {
+            raise(`cannot create a delegate for neither ${SystemDelegate.type.name} nor ${SystemMulticastDelegate.type.name}, use a subclass instead`);
+        }
+        const delegate = klass.alloc();
+        const key = delegate.handle.toString();
+        const Invoke = delegate.tryMethod("Invoke") ?? raise(`cannot create a delegate for ${klass.type.name}, there is no Invoke method`);
+        delegate.method(".ctor").invoke(delegate, Invoke.handle);
+        const callback = Invoke.wrap(block);
+        delegate.field("method_ptr").value = callback;
+        delegate.field("invoke_impl").value = callback;
+        Il2Cpp._callbacksToKeepAlive[key] = callback;
+        return delegate;
+    }
+    Il2Cpp.delegate = delegate;
+    /** @internal Used to prevent eager garbage collection against NativeCallbacks. */
+    Il2Cpp._callbacksToKeepAlive = {};
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    let Domain = class Domain extends NativeStruct {
+        /** Gets the assemblies that have been loaded into the execution context of the application domain. */
+        get assemblies() {
+            let handles = readNativeList(_ => Il2Cpp.api.domainGetAssemblies(this, _));
+            if (handles.length == 0) {
+                const assemblyObjects = this.object.method("GetAssemblies").overload().invoke();
+                handles = globalThis.Array.from(assemblyObjects).map(_ => _.field("_mono_assembly").value);
+            }
+            return handles.map(_ => new Il2Cpp.Assembly(_));
+        }
+        /** Gets the encompassing object of the application domain. */
+        get object() {
+            return Il2Cpp.corlib.class("System.AppDomain").method("get_CurrentDomain").invoke();
+        }
+        /** Opens and loads the assembly with the given name. */
+        assembly(name) {
+            return this.tryAssembly(name) ?? raise(`couldn't find assembly ${name}`);
+        }
+        /** Attached a new thread to the application domain. */
+        attach() {
+            return new Il2Cpp.Thread(Il2Cpp.api.threadAttach(this));
+        }
+        /** Opens and loads the assembly with the given name. */
+        tryAssembly(name) {
+            return new Il2Cpp.Assembly(Il2Cpp.api.domainGetAssemblyFromName(this, Memory.allocUtf8String(name))).asNullable();
+        }
+    };
+    __decorate([
+        lazy
+    ], Domain.prototype, "assemblies", null);
+    __decorate([
+        lazy
+    ], Domain.prototype, "object", null);
+    Domain = __decorate([
+        recycle
+    ], Domain);
+    Il2Cpp.Domain = Domain;
+    // prettier-ignore
+    getter(Il2Cpp, "domain", () => {
+        return new Il2Cpp.Domain(Il2Cpp.api.domainGet());
+    }, lazy);
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Field extends NativeStruct {
+        /** Gets the class in which this field is defined. */
+        get class() {
+            return new Il2Cpp.Class(Il2Cpp.api.fieldGetClass(this));
+        }
+        /** Gets the flags of the current field. */
+        get flags() {
+            return Il2Cpp.api.fieldGetFlags(this);
+        }
+        /** Determines whether this field value is known at compile time. */
+        get isLiteral() {
+            return (this.flags & 64 /* Il2Cpp.Field.Attributes.Literal */) != 0;
+        }
+        /** Determines whether this field is static. */
+        get isStatic() {
+            return (this.flags & 16 /* Il2Cpp.Field.Attributes.Static */) != 0;
+        }
+        /** Determines whether this field is thread static. */
+        get isThreadStatic() {
+            const offset = Il2Cpp.corlib.class("System.AppDomain").field("type_resolve_in_progress").offset;
+            // prettier-ignore
+            getter(Il2Cpp.Field.prototype, "isThreadStatic", function () {
+                return this.offset == offset;
+            }, lazy);
+            return this.isThreadStatic;
+        }
+        /** Gets the access modifier of this field. */
+        get modifier() {
+            switch (this.flags & 7 /* Il2Cpp.Field.Attributes.FieldAccessMask */) {
+                case 1 /* Il2Cpp.Field.Attributes.Private */:
+                    return "private";
+                case 2 /* Il2Cpp.Field.Attributes.FamilyAndAssembly */:
+                    return "private protected";
+                case 3 /* Il2Cpp.Field.Attributes.Assembly */:
+                    return "internal";
+                case 4 /* Il2Cpp.Field.Attributes.Family */:
+                    return "protected";
+                case 5 /* Il2Cpp.Field.Attributes.FamilyOrAssembly */:
+                    return "protected internal";
+                case 6 /* Il2Cpp.Field.Attributes.Public */:
+                    return "public";
+            }
+        }
+        /** Gets the name of this field. */
+        get name() {
+            return Il2Cpp.api.fieldGetName(this).readUtf8String();
+        }
+        /** Gets the offset of this field, calculated as the difference with its owner virtual address. */
+        get offset() {
+            return Il2Cpp.api.fieldGetOffset(this);
+        }
+        /** Gets the type of this field. */
+        get type() {
+            return new Il2Cpp.Type(Il2Cpp.api.fieldGetType(this));
+        }
+        /** Gets the value of this field. */
+        get value() {
+            if (!this.isStatic) {
+                raise(`cannot access instance field ${this.class.type.name}::${this.name} from a class, use an object instead`);
+            }
+            const handle = Memory.alloc(Process.pointerSize);
+            Il2Cpp.api.fieldGetStaticValue(this.handle, handle);
+            return Il2Cpp.read(handle, this.type);
+        }
+        /** Sets the value of this field. Thread static or literal values cannot be altered yet. */
+        set value(value) {
+            if (!this.isStatic) {
+                raise(`cannot access instance field ${this.class.type.name}::${this.name} from a class, use an object instead`);
+            }
+            if (this.isThreadStatic || this.isLiteral) {
+                raise(`cannot write the value of field ${this.name} as it's thread static or literal`);
+            }
+            const handle = 
+            // pointer-like values should be passed as-is, but boxed
+            // value types (primitives included) must be unboxed first
+            value instanceof Il2Cpp.Object && this.type.class.isValueType
+                ? value.unbox()
+                : value instanceof NativeStruct
+                    ? value.handle
+                    : value instanceof NativePointer
+                        ? value
+                        : Il2Cpp.write(Memory.alloc(this.type.class.valueTypeSize), value, this.type);
+            Il2Cpp.api.fieldSetStaticValue(this.handle, handle);
+        }
+        /** */
+        toString() {
+            return `\
+${this.isThreadStatic ? `[ThreadStatic] ` : ``}\
+${this.isStatic ? `static ` : ``}\
+${this.type.name} \
+${this.name}\
+${this.isLiteral ? ` = ${this.type.class.isEnum ? Il2Cpp.read(this.value.handle, this.type.class.baseType) : this.value}` : ``};\
+${this.isThreadStatic || this.isLiteral ? `` : ` // 0x${this.offset.toString(16)}`}`;
+        }
+        /** @internal */
+        withHolder(instance) {
+            if (this.isStatic) {
+                raise(`cannot access static field ${this.class.type.name}::${this.name} from an object, use a class instead`);
+            }
+            const valueHandle = instance.handle.add(this.offset - (instance instanceof Il2Cpp.ValueType ? Il2Cpp.Object.headerSize : 0));
+            return new Proxy(this, {
+                get(target, property) {
+                    if (property == "value") {
+                        return Il2Cpp.read(valueHandle, target.type);
+                    }
+                    return Reflect.get(target, property);
+                },
+                set(target, property, value) {
+                    if (property == "value") {
+                        Il2Cpp.write(valueHandle, value, target.type);
+                        return true;
+                    }
+                    return Reflect.set(target, property, value);
+                }
+            });
+        }
+    }
+    __decorate([
+        lazy
+    ], Field.prototype, "class", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "flags", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "isLiteral", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "isStatic", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "isThreadStatic", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "modifier", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "name", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "offset", null);
+    __decorate([
+        lazy
+    ], Field.prototype, "type", null);
+    Il2Cpp.Field = Field;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class GCHandle {
+        handle;
+        /** @internal */
+        constructor(handle) {
+            this.handle = handle;
+        }
+        /** Gets the object associated to this handle. */
+        get target() {
+            return new Il2Cpp.Object(Il2Cpp.api.gcHandleGetTarget(this.handle)).asNullable();
+        }
+        /** Frees this handle. */
+        free() {
+            return Il2Cpp.api.gcHandleFree(this.handle);
+        }
+    }
+    Il2Cpp.GCHandle = GCHandle;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    let Image = class Image extends NativeStruct {
+        /** Gets the assembly in which the current image is defined. */
+        get assembly() {
+            return new Il2Cpp.Assembly(Il2Cpp.api.imageGetAssembly(this));
+        }
+        /** Gets the amount of classes defined in this image. */
+        get classCount() {
+            if (Il2Cpp.unityVersionIsBelow201830) {
+                return this.classes.length;
+            }
+            else {
+                return Il2Cpp.api.imageGetClassCount(this);
+            }
+        }
+        /** Gets the classes defined in this image. */
+        get classes() {
+            if (Il2Cpp.unityVersionIsBelow201830) {
+                const types = this.assembly.object.method("GetTypes").invoke(false);
+                // In Unity 5.3.8f1, getting System.Reflection.Emit.OpCodes type name
+                // without iterating all the classes first somehow blows things up at
+                // app startup, hence the `Array.from`.
+                const classes = globalThis.Array.from(types, _ => new Il2Cpp.Class(Il2Cpp.api.classFromObject(_)));
+                classes.unshift(this.class("<Module>"));
+                return classes;
+            }
+            else {
+                return globalThis.Array.from(globalThis.Array(this.classCount), (_, i) => new Il2Cpp.Class(Il2Cpp.api.imageGetClass(this, i)));
+            }
+        }
+        /** Gets the name of this image. */
+        get name() {
+            return Il2Cpp.api.imageGetName(this).readUtf8String();
+        }
+        /** Gets the class with the specified name defined in this image. */
+        class(name) {
+            return this.tryClass(name) ?? raise(`couldn't find class ${name} in assembly ${this.name}`);
+        }
+        /** Gets the class with the specified name defined in this image. */
+        tryClass(name) {
+            const dotIndex = name.lastIndexOf(".");
+            const classNamespace = Memory.allocUtf8String(dotIndex == -1 ? "" : name.slice(0, dotIndex));
+            const className = Memory.allocUtf8String(name.slice(dotIndex + 1));
+            return new Il2Cpp.Class(Il2Cpp.api.classFromName(this, classNamespace, className)).asNullable();
+        }
+    };
+    __decorate([
+        lazy
+    ], Image.prototype, "assembly", null);
+    __decorate([
+        lazy
+    ], Image.prototype, "classCount", null);
+    __decorate([
+        lazy
+    ], Image.prototype, "classes", null);
+    __decorate([
+        lazy
+    ], Image.prototype, "name", null);
+    Image = __decorate([
+        recycle
+    ], Image);
+    Il2Cpp.Image = Image;
+    // prettier-ignore
+    getter(Il2Cpp, "corlib", () => {
+        return new Il2Cpp.Image(Il2Cpp.api.getCorlib());
+    }, lazy);
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class MemorySnapshot extends NativeStruct {
+        /** Captures a memory snapshot. */
+        static capture() {
+            return new Il2Cpp.MemorySnapshot();
+        }
+        /** Creates a memory snapshot with the given handle. */
+        constructor(handle = Il2Cpp.api.memorySnapshotCapture()) {
+            super(handle);
+        }
+        /** Gets any initialized class. */
+        get classes() {
+            return readNativeIterator(_ => Il2Cpp.api.memorySnapshotGetClasses(this, _)).map(_ => new Il2Cpp.Class(_));
+        }
+        /** Gets the objects tracked by this memory snapshot. */
+        get objects() {
+            // prettier-ignore
+            return readNativeList(_ => Il2Cpp.api.memorySnapshotGetObjects(this, _)).filter(_ => !_.isNull()).map(_ => new Il2Cpp.Object(_));
+        }
+        /** Frees this memory snapshot. */
+        free() {
+            Il2Cpp.api.memorySnapshotFree(this);
+        }
+    }
+    __decorate([
+        lazy
+    ], MemorySnapshot.prototype, "classes", null);
+    __decorate([
+        lazy
+    ], MemorySnapshot.prototype, "objects", null);
+    Il2Cpp.MemorySnapshot = MemorySnapshot;
+    /** */
+    function memorySnapshot(block) {
+        const memorySnapshot = Il2Cpp.MemorySnapshot.capture();
+        const result = block(memorySnapshot);
+        memorySnapshot.free();
+        return result;
+    }
+    Il2Cpp.memorySnapshot = memorySnapshot;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Method extends NativeStruct {
+        /** Gets the class in which this method is defined. */
+        get class() {
+            return new Il2Cpp.Class(Il2Cpp.api.methodGetClass(this));
+        }
+        /** Gets the flags of the current method. */
+        get flags() {
+            return Il2Cpp.api.methodGetFlags(this, NULL);
+        }
+        /** Gets the implementation flags of the current method. */
+        get implementationFlags() {
+            const implementationFlagsPointer = Memory.alloc(Process.pointerSize);
+            Il2Cpp.api.methodGetFlags(this, implementationFlagsPointer);
+            return implementationFlagsPointer.readU32();
+        }
+        /** */
+        get fridaSignature() {
+            const types = [];
+            for (const parameter of this.parameters) {
+                types.push(parameter.type.fridaAlias);
+            }
+            if (!this.isStatic || Il2Cpp.unityVersionIsBelow201830) {
+                types.unshift("pointer");
+            }
+            if (this.isInflated) {
+                types.push("pointer");
+            }
+            return types;
+        }
+        /** Gets the generic parameters of this generic method. */
+        get generics() {
+            if (!this.isGeneric && !this.isInflated) {
+                return [];
+            }
+            const types = this.object.method("GetGenericArguments").invoke();
+            return globalThis.Array.from(types).map(_ => new Il2Cpp.Class(Il2Cpp.api.classFromObject(_)));
+        }
+        /** Determines whether this method is external. */
+        get isExternal() {
+            return (this.implementationFlags & 4096 /* Il2Cpp.Method.ImplementationAttribute.InternalCall */) != 0;
+        }
+        /** Determines whether this method is generic. */
+        get isGeneric() {
+            return !!Il2Cpp.api.methodIsGeneric(this);
+        }
+        /** Determines whether this method is inflated (generic with a concrete type parameter). */
+        get isInflated() {
+            return !!Il2Cpp.api.methodIsInflated(this);
+        }
+        /** Determines whether this method is static. */
+        get isStatic() {
+            return !Il2Cpp.api.methodIsInstance(this);
+        }
+        /** Determines whether this method is synchronized. */
+        get isSynchronized() {
+            return (this.implementationFlags & 32 /* Il2Cpp.Method.ImplementationAttribute.Synchronized */) != 0;
+        }
+        /** Gets the access modifier of this method. */
+        get modifier() {
+            switch (this.flags & 7 /* Il2Cpp.Method.Attributes.MemberAccessMask */) {
+                case 1 /* Il2Cpp.Method.Attributes.Private */:
+                    return "private";
+                case 2 /* Il2Cpp.Method.Attributes.FamilyAndAssembly */:
+                    return "private protected";
+                case 3 /* Il2Cpp.Method.Attributes.Assembly */:
+                    return "internal";
+                case 4 /* Il2Cpp.Method.Attributes.Family */:
+                    return "protected";
+                case 5 /* Il2Cpp.Method.Attributes.FamilyOrAssembly */:
+                    return "protected internal";
+                case 6 /* Il2Cpp.Method.Attributes.Public */:
+                    return "public";
+            }
+        }
+        /** Gets the name of this method. */
+        get name() {
+            return Il2Cpp.api.methodGetName(this).readUtf8String();
+        }
+        /** @internal */
+        get nativeFunction() {
+            return new NativeFunction(this.virtualAddress, this.returnType.fridaAlias, this.fridaSignature);
+        }
+        /** Gets the encompassing object of the current method. */
+        get object() {
+            return new Il2Cpp.Object(Il2Cpp.api.methodGetObject(this, NULL));
+        }
+        /** Gets the amount of parameters of this method. */
+        get parameterCount() {
+            return Il2Cpp.api.methodGetParameterCount(this);
+        }
+        /** Gets the parameters of this method. */
+        get parameters() {
+            return globalThis.Array.from(globalThis.Array(this.parameterCount), (_, i) => {
+                const parameterName = Il2Cpp.api.methodGetParameterName(this, i).readUtf8String();
+                const parameterType = Il2Cpp.api.methodGetParameterType(this, i);
+                return new Il2Cpp.Parameter(parameterName, i, new Il2Cpp.Type(parameterType));
+            });
+        }
+        /** Gets the relative virtual address (RVA) of this method. */
+        get relativeVirtualAddress() {
+            return this.virtualAddress.sub(Il2Cpp.module.base);
+        }
+        /** Gets the return type of this method. */
+        get returnType() {
+            return new Il2Cpp.Type(Il2Cpp.api.methodGetReturnType(this));
+        }
+        /** Gets the virtual address (VA) of this method. */
+        get virtualAddress() {
+            const FilterTypeName = Il2Cpp.corlib.class("System.Reflection.Module").initialize().field("FilterTypeName").value;
+            const FilterTypeNameMethodPointer = FilterTypeName.field("method_ptr").value;
+            const FilterTypeNameMethod = FilterTypeName.field("method").value;
+            // prettier-ignore
+            const offset = FilterTypeNameMethod.offsetOf(_ => _.readPointer().equals(FilterTypeNameMethodPointer))
+                ?? raise("couldn't find the virtual address offset in the native method struct");
+            // prettier-ignore
+            getter(Il2Cpp.Method.prototype, "virtualAddress", function () {
+                return this.handle.add(offset).readPointer();
+            }, lazy);
+            // In Unity 2017.4.40f1 (don't know about others), Il2Cpp.Class::initialize
+            // somehow triggers a nasty bug during early instrumentation, so that we aren't
+            // able to obtain the offset to get the virtual address of a method when the script
+            // is reloaded.
+            // A workaround consists in manually re-invoking the static constructor.
+            Il2Cpp.corlib.class("System.Reflection.Module").method(".cctor").invoke();
+            return this.virtualAddress;
+        }
+        /** Replaces the body of this method. */
+        set implementation(block) {
+            try {
+                Interceptor.replace(this.virtualAddress, this.wrap(block));
+            }
+            catch (e) {
+                switch (e.message) {
+                    case "access violation accessing 0x0":
+                        raise(`couldn't set implementation for method ${this.name} as it has a NULL virtual address`);
+                    case /unable to intercept function at \w+; please file a bug/.exec(e.message)?.input:
+                        warn(`couldn't set implementation for method ${this.name} as it may be a thunk`);
+                        break;
+                    case "already replaced this function":
+                        warn(`couldn't set implementation for method ${this.name} as it has already been replaced by a thunk`);
+                        break;
+                    default:
+                        throw e;
+                }
+            }
+        }
+        /** Creates a generic instance of the current generic method. */
+        inflate(...classes) {
+            if (!this.isGeneric) {
+                raise(`cannot inflate method ${this.name} as it has no generic parameters`);
+            }
+            if (this.generics.length != classes.length) {
+                raise(`cannot inflate method ${this.name} as it needs ${this.generics.length} generic parameter(s), not ${classes.length}`);
+            }
+            const types = classes.map(_ => _.type.object);
+            const typeArray = Il2Cpp.array(Il2Cpp.corlib.class("System.Type"), types);
+            const inflatedMethodObject = this.object.method("MakeGenericMethod", 1).invoke(typeArray);
+            return new Il2Cpp.Method(inflatedMethodObject.field("mhandle").value);
+        }
+        /** Invokes this method. */
+        invoke(...parameters) {
+            if (!this.isStatic) {
+                raise(`cannot invoke non-static method ${this.name} as it must be invoked throught a Il2Cpp.Object, not a Il2Cpp.Class`);
+            }
+            return this.invokeRaw(NULL, ...parameters);
+        }
+        /** @internal */
+        invokeRaw(instance, ...parameters) {
+            const allocatedParameters = parameters.map(Il2Cpp.toFridaValue);
+            if (!this.isStatic || Il2Cpp.unityVersionIsBelow201830) {
+                allocatedParameters.unshift(instance);
+            }
+            if (this.isInflated) {
+                allocatedParameters.push(this.handle);
+            }
+            try {
+                const returnValue = this.nativeFunction(...allocatedParameters);
+                return Il2Cpp.fromFridaValue(returnValue, this.returnType);
+            }
+            catch (e) {
+                if (e == null) {
+                    raise("an unexpected native invocation exception occurred, this is due to parameter types mismatch");
+                }
+                switch (e.message) {
+                    case "bad argument count":
+                        raise(`couldn't invoke method ${this.name} as it needs ${this.parameterCount} parameter(s), not ${parameters.length}`);
+                    case "expected a pointer":
+                    case "expected number":
+                    case "expected array with fields":
+                        raise(`couldn't invoke method ${this.name} using incorrect parameter types`);
+                }
+                throw e;
+            }
+        }
+        /** Gets the overloaded method with the given parameter types. */
+        overload(...parameterTypes) {
+            const result = this.tryOverload(...parameterTypes);
+            if (result != undefined)
+                return result;
+            raise(`couldn't find overloaded method ${this.name}(${parameterTypes})`);
+        }
+        /** Gets the parameter with the given name. */
+        parameter(name) {
+            return this.tryParameter(name) ?? raise(`couldn't find parameter ${name} in method ${this.name}`);
+        }
+        /** Restore the original method implementation. */
+        revert() {
+            Interceptor.revert(this.virtualAddress);
+            Interceptor.flush();
+        }
+        /** Gets the overloaded method with the given parameter types. */
+        tryOverload(...parameterTypes) {
+            return this.class.methods.find(method => {
+                return (method.name == this.name &&
+                    method.parameterCount == parameterTypes.length &&
+                    method.parameters.every((e, i) => e.type.name == parameterTypes[i]));
+            });
+        }
+        /** Gets the parameter with the given name. */
+        tryParameter(name) {
+            return this.parameters.find(_ => _.name == name);
+        }
+        /** */
+        toString() {
+            return `\
+${this.isStatic ? `static ` : ``}\
+${this.returnType.name} \
+${this.name}\
+(${this.parameters.join(`, `)});\
+${this.virtualAddress.isNull() ? `` : ` // 0x${this.relativeVirtualAddress.toString(16).padStart(8, `0`)}`}`;
+        }
+        /** @internal */
+        withHolder(instance) {
+            if (this.isStatic) {
+                raise(`cannot access static method ${this.class.type.name}::${this.name} from an object, use a class instead`);
+            }
+            return new Proxy(this, {
+                get(target, property) {
+                    switch (property) {
+                        case "invoke":
+                            // value types methods may assume their `this`
+                            // parameter is a pointer to raw data (that is how
+                            // value types are layed out in memory) instead of
+                            // a pointer to an object (that is object header +
+                            // raw data)
+                            // in any case, they also don't use whatever there
+                            // is in the object header, so we can safely "skip"
+                            // the object header by adding the object header
+                            // size to the object (a boxed value type) handle
+                            //
+                            // observed in Unity 5.3.5f1 and >= 2021.2.0f1
+                            const handle = instance instanceof Il2Cpp.ValueType
+                                ? target.class.isValueType
+                                    ? instance.handle.add(maybeObjectHeaderSize() - Il2Cpp.Object.headerSize)
+                                    : raise(`cannot invoke method ${target.class.type.name}::${target.name} against a value type, you must box it first`)
+                                : target.class.isValueType
+                                    ? instance.handle.add(maybeObjectHeaderSize())
+                                    : instance.handle;
+                            return target.invokeRaw.bind(target, handle);
+                        case "inflate":
+                        case "overload":
+                        case "tryOverload":
+                            return function (...args) {
+                                return target[property](...args)?.withHolder(instance);
+                            };
+                    }
+                    return Reflect.get(target, property);
+                }
+            });
+        }
+        /** @internal */
+        wrap(block) {
+            const startIndex = +!this.isStatic | +Il2Cpp.unityVersionIsBelow201830;
+            return new NativeCallback((...args) => {
+                const thisObject = this.isStatic
+                    ? this.class
+                    : this.class.isValueType
+                        ? new Il2Cpp.ValueType(args[0].add(Il2Cpp.Object.headerSize - maybeObjectHeaderSize()), this.class.type)
+                        : new Il2Cpp.Object(args[0]);
+                const parameters = this.parameters.map((_, i) => Il2Cpp.fromFridaValue(args[i + startIndex], _.type));
+                const result = block.call(thisObject, ...parameters);
+                return Il2Cpp.toFridaValue(result);
+            }, this.returnType.fridaAlias, this.fridaSignature);
+        }
+    }
+    __decorate([
+        lazy
+    ], Method.prototype, "class", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "flags", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "implementationFlags", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "fridaSignature", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "generics", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "isExternal", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "isGeneric", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "isInflated", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "isStatic", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "isSynchronized", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "modifier", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "name", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "nativeFunction", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "object", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "parameterCount", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "parameters", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "relativeVirtualAddress", null);
+    __decorate([
+        lazy
+    ], Method.prototype, "returnType", null);
+    Il2Cpp.Method = Method;
+    let maybeObjectHeaderSize = () => {
+        const struct = Il2Cpp.corlib.class("System.RuntimeTypeHandle").initialize().alloc();
+        struct.method(".ctor").invokeRaw(struct, ptr(0xdeadbeef));
+        // here we check where the sentinel value is
+        // if it's not where it is supposed to be, it means struct methods
+        // assume they are receiving value types (that is a pointer to raw data)
+        // hence, we must "skip" the object header when invoking such methods
+        const offset = struct.field("value").value.equals(ptr(0xdeadbeef)) ? 0 : Il2Cpp.Object.headerSize;
+        return (maybeObjectHeaderSize = () => offset)();
+    };
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Object extends NativeStruct {
+        /** Gets the Il2CppObject struct size, possibly equal to `Process.pointerSize * 2`. */
+        static get headerSize() {
+            return Il2Cpp.corlib.class("System.Object").instanceSize;
+        }
+        /** Gets the class of this object. */
+        get class() {
+            return new Il2Cpp.Class(Il2Cpp.api.objectGetClass(this));
+        }
+        /** Returns a monitor for this object. */
+        get monitor() {
+            return new Il2Cpp.Object.Monitor(this);
+        }
+        /** Gets the size of the current object. */
+        get size() {
+            return Il2Cpp.api.objectGetSize(this);
+        }
+        /** Gets the field with the given name. */
+        field(name) {
+            return this.class.field(name).withHolder(this);
+        }
+        /** Gets the method with the given name. */
+        method(name, parameterCount = -1) {
+            return this.class.method(name, parameterCount).withHolder(this);
+        }
+        /** Creates a reference to this object. */
+        ref(pin) {
+            return new Il2Cpp.GCHandle(Il2Cpp.api.gcHandleNew(this, +pin));
+        }
+        /** Gets the correct virtual method from the given virtual method. */
+        virtualMethod(method) {
+            return new Il2Cpp.Method(Il2Cpp.api.objectGetVirtualMethod(this, method)).withHolder(this);
+        }
+        /** Gets the field with the given name. */
+        tryField(name) {
+            return this.class.tryField(name)?.withHolder(this);
+        }
+        /** Gets the field with the given name. */
+        tryMethod(name, parameterCount = -1) {
+            return this.class.tryMethod(name, parameterCount)?.withHolder(this);
+        }
+        /** */
+        toString() {
+            return this.isNull() ? "null" : this.method("ToString", 0).invoke().content ?? "null";
+        }
+        /** Unboxes the value type (either a primitive, a struct or an enum) out of this object. */
+        unbox() {
+            return this.class.isValueType
+                ? new Il2Cpp.ValueType(Il2Cpp.api.objectUnbox(this), this.class.type)
+                : raise(`couldn't unbox instances of ${this.class.type.name} as they are not value types`);
+        }
+        /** Creates a weak reference to this object. */
+        weakRef(trackResurrection) {
+            return new Il2Cpp.GCHandle(Il2Cpp.api.gcHandleNewWeakRef(this, +trackResurrection));
+        }
+    }
+    __decorate([
+        lazy
+    ], Object.prototype, "class", null);
+    __decorate([
+        lazy
+    ], Object.prototype, "size", null);
+    __decorate([
+        lazy
+    ], Object, "headerSize", null);
+    Il2Cpp.Object = Object;
+    (function (Object) {
+        class Monitor {
+            handle;
+            /** @internal */
+            constructor(/** @internal */ handle) {
+                this.handle = handle;
+            }
+            /** Acquires an exclusive lock on the current object. */
+            enter() {
+                return Il2Cpp.api.monitorEnter(this.handle);
+            }
+            /** Release an exclusive lock on the current object. */
+            exit() {
+                return Il2Cpp.api.monitorExit(this.handle);
+            }
+            /** Notifies a thread in the waiting queue of a change in the locked object's state. */
+            pulse() {
+                return Il2Cpp.api.monitorPulse(this.handle);
+            }
+            /** Notifies all waiting threads of a change in the object's state. */
+            pulseAll() {
+                return Il2Cpp.api.monitorPulseAll(this.handle);
+            }
+            /** Attempts to acquire an exclusive lock on the current object. */
+            tryEnter(timeout) {
+                return !!Il2Cpp.api.monitorTryEnter(this.handle, timeout);
+            }
+            /** Releases the lock on an object and attempts to block the current thread until it reacquires the lock. */
+            tryWait(timeout) {
+                return !!Il2Cpp.api.monitorTryWait(this.handle, timeout);
+            }
+            /** Releases the lock on an object and blocks the current thread until it reacquires the lock. */
+            wait() {
+                return Il2Cpp.api.monitorWait(this.handle);
+            }
+        }
+        Object.Monitor = Monitor;
+    })(Object = Il2Cpp.Object || (Il2Cpp.Object = {}));
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Parameter {
+        /** Name of this parameter. */
+        name;
+        /** Position of this parameter. */
+        position;
+        /** Type of this parameter. */
+        type;
+        constructor(name, position, type) {
+            this.name = name;
+            this.position = position;
+            this.type = type;
+        }
+        /** */
+        toString() {
+            return `${this.type.name} ${this.name}`;
+        }
+    }
+    Il2Cpp.Parameter = Parameter;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Pointer extends NativeStruct {
+        type;
+        constructor(handle, type) {
+            super(handle);
+            this.type = type;
+        }
+        /** Gets the element at the given index. */
+        get(index) {
+            return Il2Cpp.read(this.handle.add(index * this.type.class.arrayElementSize), this.type);
+        }
+        /** Reads the given amount of elements starting at the given offset. */
+        read(length, offset = 0) {
+            const values = new globalThis.Array(length);
+            for (let i = 0; i < length; i++) {
+                values[i] = this.get(i + offset);
+            }
+            return values;
+        }
+        /** Sets the given element at the given index */
+        set(index, value) {
+            Il2Cpp.write(this.handle.add(index * this.type.class.arrayElementSize), value, this.type);
+        }
+        /** */
+        toString() {
+            return this.handle.toString();
+        }
+        /** Writes the given elements starting at the given index. */
+        write(values, offset = 0) {
+            for (let i = 0; i < values.length; i++) {
+                this.set(i + offset, values[i]);
+            }
+        }
+    }
+    Il2Cpp.Pointer = Pointer;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Reference extends NativeStruct {
+        type;
+        constructor(handle, type) {
+            super(handle);
+            this.type = type;
+        }
+        /** Gets the element referenced by the current reference. */
+        get value() {
+            return Il2Cpp.read(this.handle, this.type);
+        }
+        /** Sets the element referenced by the current reference. */
+        set value(value) {
+            Il2Cpp.write(this.handle, value, this.type);
+        }
+        /** */
+        toString() {
+            return this.isNull() ? "null" : `->${this.value}`;
+        }
+    }
+    Il2Cpp.Reference = Reference;
+    /** Creates a reference to the specified value. */
+    function reference(value, type) {
+        const handle = Memory.alloc(Process.pointerSize);
+        switch (typeof value) {
+            case "boolean":
+                return new Il2Cpp.Reference(handle.writeS8(+value), Il2Cpp.corlib.class("System.Boolean").type);
+            case "number":
+                switch (type?.typeEnum) {
+                    case Il2Cpp.Type.enum.unsignedByte:
+                        return new Il2Cpp.Reference(handle.writeU8(value), type);
+                    case Il2Cpp.Type.enum.byte:
+                        return new Il2Cpp.Reference(handle.writeS8(value), type);
+                    case Il2Cpp.Type.enum.char:
+                    case Il2Cpp.Type.enum.unsignedShort:
+                        return new Il2Cpp.Reference(handle.writeU16(value), type);
+                    case Il2Cpp.Type.enum.short:
+                        return new Il2Cpp.Reference(handle.writeS16(value), type);
+                    case Il2Cpp.Type.enum.unsignedInt:
+                        return new Il2Cpp.Reference(handle.writeU32(value), type);
+                    case Il2Cpp.Type.enum.int:
+                        return new Il2Cpp.Reference(handle.writeS32(value), type);
+                    case Il2Cpp.Type.enum.unsignedLong:
+                        return new Il2Cpp.Reference(handle.writeU64(value), type);
+                    case Il2Cpp.Type.enum.long:
+                        return new Il2Cpp.Reference(handle.writeS64(value), type);
+                    case Il2Cpp.Type.enum.float:
+                        return new Il2Cpp.Reference(handle.writeFloat(value), type);
+                    case Il2Cpp.Type.enum.double:
+                        return new Il2Cpp.Reference(handle.writeDouble(value), type);
+                }
+            case "object":
+                if (value instanceof Il2Cpp.ValueType || value instanceof Il2Cpp.Pointer) {
+                    return new Il2Cpp.Reference(handle.writePointer(value), value.type);
+                }
+                else if (value instanceof Il2Cpp.Object) {
+                    return new Il2Cpp.Reference(handle.writePointer(value), value.class.type);
+                }
+                else if (value instanceof Il2Cpp.String || value instanceof Il2Cpp.Array) {
+                    return new Il2Cpp.Reference(handle.writePointer(value), value.object.class.type);
+                }
+                else if (value instanceof NativePointer) {
+                    switch (type?.typeEnum) {
+                        case Il2Cpp.Type.enum.unsignedNativePointer:
+                        case Il2Cpp.Type.enum.nativePointer:
+                            return new Il2Cpp.Reference(handle.writePointer(value), type);
+                    }
+                }
+                else if (value instanceof Int64) {
+                    return new Il2Cpp.Reference(handle.writeS64(value), Il2Cpp.corlib.class("System.Int64").type);
+                }
+                else if (value instanceof UInt64) {
+                    return new Il2Cpp.Reference(handle.writeU64(value), Il2Cpp.corlib.class("System.UInt64").type);
+                }
+            default:
+                raise(`couldn't create a reference to ${value} using an unhandled type ${type?.name}`);
+        }
+    }
+    Il2Cpp.reference = reference;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class String extends NativeStruct {
+        /** Gets the content of this string. */
+        get content() {
+            return Il2Cpp.api.stringGetChars(this).readUtf16String(this.length);
+        }
+        /** @unsafe Sets the content of this string - it may write out of bounds! */
+        set content(value) {
+            // prettier-ignore
+            const offset = Il2Cpp.string("vfsfitvnm").handle.offsetOf(_ => _.readInt() == 9)
+                ?? raise("couldn't find the length offset in the native string struct");
+            globalThis.Object.defineProperty(Il2Cpp.String.prototype, "content", {
+                set(value) {
+                    Il2Cpp.api.stringGetChars(this).writeUtf16String(value ?? "");
+                    this.handle.add(offset).writeS32(value?.length ?? 0);
+                }
+            });
+            this.content = value;
+        }
+        /** Gets the length of this string. */
+        get length() {
+            return Il2Cpp.api.stringGetLength(this);
+        }
+        /** Gets the encompassing object of the current string. */
+        get object() {
+            return new Il2Cpp.Object(this);
+        }
+        /** */
+        toString() {
+            return this.isNull() ? "null" : `"${this.content}"`;
+        }
+    }
+    Il2Cpp.String = String;
+    /** Creates a new string with the specified content. */
+    function string(content) {
+        return new Il2Cpp.String(Il2Cpp.api.stringNew(Memory.allocUtf8String(content ?? "")));
+    }
+    Il2Cpp.string = string;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class Thread extends NativeStruct {
+        /** Gets the native id of the current thread. */
+        get id() {
+            let get = function () {
+                return this.internal.field("thread_id").value.toNumber();
+            };
+            // https://github.com/mono/linux-packaging-mono/blob/d586f84dfea30217f34b076a616a098518aa72cd/mono/utils/mono-threads.h#L642
+            if (Process.platform != "windows") {
+                const currentThreadId = Process.getCurrentThreadId();
+                const currentPosixThread = ptr(get.apply(Il2Cpp.currentThread));
+                // prettier-ignore
+                const offset = currentPosixThread.offsetOf(_ => _.readS32() == currentThreadId, 1024) ??
+                    raise(`couldn't find the offset for determining the kernel id of a posix thread`);
+                const _get = get;
+                get = function () {
+                    return ptr(_get.apply(this)).add(offset).readS32();
+                };
+            }
+            getter(Il2Cpp.Thread.prototype, "id", get, lazy);
+            return this.id;
+        }
+        /** Gets the encompassing internal object (System.Threding.InternalThreead) of the current thread. */
+        get internal() {
+            return this.object.tryField("internal_thread")?.value ?? this.object;
+        }
+        /** Determines whether the current thread is the garbage collector finalizer one. */
+        get isFinalizer() {
+            return !Il2Cpp.api.threadIsVm(this);
+        }
+        /** Gets the managed id of the current thread. */
+        get managedId() {
+            return this.object.method("get_ManagedThreadId").invoke();
+        }
+        /** Gets the encompassing object of the current thread. */
+        get object() {
+            return new Il2Cpp.Object(this);
+        }
+        /** @internal */
+        get staticData() {
+            return this.internal.field("static_data").value;
+        }
+        /** @internal */
+        get synchronizationContext() {
+            const get_ExecutionContext = this.object.tryMethod("GetMutableExecutionContext") ?? this.object.method("get_ExecutionContext");
+            const executionContext = get_ExecutionContext.invoke();
+            let synchronizationContext = executionContext.tryField("_syncContext")?.value ??
+                executionContext.tryMethod("get_SynchronizationContext")?.invoke() ??
+                this.tryLocalValue(Il2Cpp.corlib.class("System.Threading.SynchronizationContext"));
+            if (synchronizationContext == null || synchronizationContext.isNull()) {
+                if (this.handle.equals(Il2Cpp.mainThread.handle)) {
+                    raise(`couldn't find the synchronization context of the main thread, perhaps this is early instrumentation?`);
+                }
+                else {
+                    raise(`couldn't find the synchronization context of thread #${this.managedId}, only the main thread is expected to have one`);
+                }
+            }
+            return synchronizationContext;
+        }
+        /** Detaches the thread from the application domain. */
+        detach() {
+            return Il2Cpp.api.threadDetach(this);
+        }
+        /** Schedules a callback on the current thread. */
+        schedule(block) {
+            const Post = this.synchronizationContext.method("Post");
+            return new Promise(resolve => {
+                const delegate = Il2Cpp.delegate(Il2Cpp.corlib.class("System.Threading.SendOrPostCallback"), () => {
+                    const result = block();
+                    setImmediate(() => resolve(result));
+                });
+                // This is to replace pending scheduled callbacks when the script is about to get unlaoded.
+                // If we skip this cleanup, Frida's native callbacks will point to invalid memory, making
+                // the application crash as soon as the IL2CPP runtime tries to execute such callbacks.
+                // For instance, without the following code, this is how you can trigger a crash:
+                // 1) unfocus the application;
+                // 2) schedule a callback;
+                // 3) reload the script;
+                // 4) focus application.
+                //
+                // The "proper" solution consists in removing our delegates from the Unity synchroniztion
+                // context, but the interface is not consisent across Unity versions - e.g. 2017.4.40f1 uses
+                // a queue instead of a list, whereas newer versions do not allow null work requests.
+                // The following solution, which basically redirects the invocation to a native function that
+                // survives the script reloading, is much simpler, honestly.
+                Script.bindWeak(globalThis, () => {
+                    delegate.field("method_ptr").value = delegate.field("invoke_impl").value = Il2Cpp.api.domainGet;
+                });
+                Post.invoke(delegate, NULL);
+            });
+        }
+        /** @internal */
+        tryLocalValue(klass) {
+            for (let i = 0; i < 16; i++) {
+                const base = this.staticData.add(i * Process.pointerSize).readPointer();
+                if (!base.isNull()) {
+                    const object = new Il2Cpp.Object(base.readPointer()).asNullable();
+                    if (object?.class?.isSubclassOf(klass, false)) {
+                        return object;
+                    }
+                }
+            }
+        }
+    }
+    __decorate([
+        lazy
+    ], Thread.prototype, "internal", null);
+    __decorate([
+        lazy
+    ], Thread.prototype, "isFinalizer", null);
+    __decorate([
+        lazy
+    ], Thread.prototype, "managedId", null);
+    __decorate([
+        lazy
+    ], Thread.prototype, "object", null);
+    __decorate([
+        lazy
+    ], Thread.prototype, "staticData", null);
+    __decorate([
+        lazy
+    ], Thread.prototype, "synchronizationContext", null);
+    Il2Cpp.Thread = Thread;
+    getter(Il2Cpp, "attachedThreads", () => {
+        return readNativeList(Il2Cpp.api.threadGetAttachedThreads).map(_ => new Il2Cpp.Thread(_));
+    });
+    getter(Il2Cpp, "currentThread", () => {
+        return new Il2Cpp.Thread(Il2Cpp.api.threadGetCurrent()).asNullable();
+    });
+    getter(Il2Cpp, "mainThread", () => {
+        // I'm not sure if this is always the case. Typically, the main
+        // thread managed id is 1, but this isn't always true: spawning
+        // an Android application with Unity 5.3.8f1 will cause the Frida
+        // thread to have the managed id equal to 1, whereas the main thread
+        // managed id is 2.
+        return Il2Cpp.attachedThreads[0];
+    });
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    let Type = class Type extends NativeStruct {
+        /** */
+        static get enum() {
+            const _ = (_, block = (_) => _) => block(Il2Cpp.corlib.class(_)).type.typeEnum;
+            return {
+                void: _("System.Void"),
+                boolean: _("System.Boolean"),
+                char: _("System.Char"),
+                byte: _("System.SByte"),
+                unsignedByte: _("System.Byte"),
+                short: _("System.Int16"),
+                unsignedShort: _("System.UInt16"),
+                int: _("System.Int32"),
+                unsignedInt: _("System.UInt32"),
+                long: _("System.Int64"),
+                unsignedLong: _("System.UInt64"),
+                nativePointer: _("System.IntPtr"),
+                unsignedNativePointer: _("System.UIntPtr"),
+                float: _("System.Single"),
+                double: _("System.Double"),
+                pointer: _("System.IntPtr", _ => _.field("m_value")),
+                valueType: _("System.Decimal"),
+                object: _("System.Object"),
+                string: _("System.String"),
+                class: _("System.Array"),
+                array: _("System.Void", _ => _.arrayClass),
+                multidimensionalArray: _("System.Void", _ => new Il2Cpp.Class(Il2Cpp.api.classGetArrayClass(_, 2))),
+                genericInstance: _("System.Int32", _ => _.interfaces.find(_ => _.name.endsWith("`1")))
+            };
+        }
+        /** Gets the class of this type. */
+        get class() {
+            return new Il2Cpp.Class(Il2Cpp.api.typeGetClass(this));
+        }
+        /** */
+        get fridaAlias() {
+            function getValueTypeFields(type) {
+                const instanceFields = type.class.fields.filter(_ => !_.isStatic);
+                return instanceFields.length == 0 ? ["char"] : instanceFields.map(_ => _.type.fridaAlias);
+            }
+            if (this.isByReference) {
+                return "pointer";
+            }
+            switch (this.typeEnum) {
+                case Il2Cpp.Type.enum.void:
+                    return "void";
+                case Il2Cpp.Type.enum.boolean:
+                    return "bool";
+                case Il2Cpp.Type.enum.char:
+                    return "uchar";
+                case Il2Cpp.Type.enum.byte:
+                    return "int8";
+                case Il2Cpp.Type.enum.unsignedByte:
+                    return "uint8";
+                case Il2Cpp.Type.enum.short:
+                    return "int16";
+                case Il2Cpp.Type.enum.unsignedShort:
+                    return "uint16";
+                case Il2Cpp.Type.enum.int:
+                    return "int32";
+                case Il2Cpp.Type.enum.unsignedInt:
+                    return "uint32";
+                case Il2Cpp.Type.enum.long:
+                    return "int64";
+                case Il2Cpp.Type.enum.unsignedLong:
+                    return "uint64";
+                case Il2Cpp.Type.enum.float:
+                    return "float";
+                case Il2Cpp.Type.enum.double:
+                    return "double";
+                case Il2Cpp.Type.enum.nativePointer:
+                case Il2Cpp.Type.enum.unsignedNativePointer:
+                case Il2Cpp.Type.enum.pointer:
+                case Il2Cpp.Type.enum.string:
+                case Il2Cpp.Type.enum.array:
+                case Il2Cpp.Type.enum.multidimensionalArray:
+                    return "pointer";
+                case Il2Cpp.Type.enum.valueType:
+                    return this.class.isEnum ? this.class.baseType.fridaAlias : getValueTypeFields(this);
+                case Il2Cpp.Type.enum.class:
+                case Il2Cpp.Type.enum.object:
+                case Il2Cpp.Type.enum.genericInstance:
+                    return this.class.isStruct ? getValueTypeFields(this) : this.class.isEnum ? this.class.baseType.fridaAlias : "pointer";
+                default:
+                    return "pointer";
+            }
+        }
+        /** Determines whether this type is passed by reference. */
+        get isByReference() {
+            return this.name.endsWith("&");
+        }
+        /** Determines whether this type is primitive. */
+        get isPrimitive() {
+            switch (this.typeEnum) {
+                case Il2Cpp.Type.enum.boolean:
+                case Il2Cpp.Type.enum.char:
+                case Il2Cpp.Type.enum.byte:
+                case Il2Cpp.Type.enum.unsignedByte:
+                case Il2Cpp.Type.enum.short:
+                case Il2Cpp.Type.enum.unsignedShort:
+                case Il2Cpp.Type.enum.int:
+                case Il2Cpp.Type.enum.unsignedInt:
+                case Il2Cpp.Type.enum.long:
+                case Il2Cpp.Type.enum.unsignedLong:
+                case Il2Cpp.Type.enum.float:
+                case Il2Cpp.Type.enum.double:
+                case Il2Cpp.Type.enum.nativePointer:
+                case Il2Cpp.Type.enum.unsignedNativePointer:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        /** Gets the name of this type. */
+        get name() {
+            const handle = Il2Cpp.api.typeGetName(this);
+            try {
+                return handle.readUtf8String();
+            }
+            finally {
+                Il2Cpp.free(handle);
+            }
+        }
+        /** Gets the encompassing object of the current type. */
+        get object() {
+            return new Il2Cpp.Object(Il2Cpp.api.typeGetObject(this));
+        }
+        /** Gets the type enum of the current type. */
+        get typeEnum() {
+            return Il2Cpp.api.typeGetTypeEnum(this);
+        }
+        /** */
+        toString() {
+            return this.name;
+        }
+    };
+    __decorate([
+        lazy
+    ], Type.prototype, "class", null);
+    __decorate([
+        lazy
+    ], Type.prototype, "fridaAlias", null);
+    __decorate([
+        lazy
+    ], Type.prototype, "isByReference", null);
+    __decorate([
+        lazy
+    ], Type.prototype, "isPrimitive", null);
+    __decorate([
+        lazy
+    ], Type.prototype, "name", null);
+    __decorate([
+        lazy
+    ], Type.prototype, "object", null);
+    __decorate([
+        lazy
+    ], Type.prototype, "typeEnum", null);
+    __decorate([
+        lazy
+    ], Type, "enum", null);
+    Type = __decorate([
+        recycle
+    ], Type);
+    Il2Cpp.Type = Type;
+})(Il2Cpp || (Il2Cpp = {}));
+var Il2Cpp;
+(function (Il2Cpp) {
+    class ValueType extends NativeStruct {
+        type;
+        constructor(handle, type) {
+            super(handle);
+            this.type = type;
+        }
+        /** Boxes the current value type in a object. */
+        box() {
+            return new Il2Cpp.Object(Il2Cpp.api.valueTypeBox(this.type.class, this));
+        }
+        /** Gets the field with the given name. */
+        field(name) {
+            return this.type.class.field(name).withHolder(this);
+        }
+        /** Gets the method with the given name. */
+        method(name, parameterCount = -1) {
+            return this.type.class.method(name, parameterCount).withHolder(this);
+        }
+        /** Gets the field with the given name. */
+        tryField(name) {
+            return this.type.class.tryField(name)?.withHolder(this);
+        }
+        /** Gets the field with the given name. */
+        tryMethod(name, parameterCount = -1) {
+            return this.type.class.tryMethod(name, parameterCount)?.withHolder(this);
+        }
+        /** */
+        toString() {
+            const ToString = this.method("ToString", 0);
+            return this.isNull()
+                ? "null"
+                : // if ToString is defined within a value type class, we can
+                    // avoid a boxing operaion
+                    ToString.class.isValueType
+                        ? ToString.invoke().content ?? "null"
+                        : this.box().toString() ?? "null";
+        }
+    }
+    Il2Cpp.ValueType = ValueType;
+})(Il2Cpp || (Il2Cpp = {}));
+/// <reference path="./utils/android.ts">/>
+/// <reference path="./utils/console.ts">/>
+/// <reference path="./utils/decorate.ts">/>
+/// <reference path="./utils/getter.ts">/>
+/// <reference path="./utils/lazy.ts">/>
+/// <reference path="./utils/native-struct.ts">/>
+/// <reference path="./utils/native-wait.ts">/>
+/// <reference path="./utils/offset-of.ts">/>
+/// <reference path="./utils/read-native-iterator.ts">/>
+/// <reference path="./utils/read-native-list.ts">/>
+/// <reference path="./utils/recycle.ts">/>
+/// <reference path="./utils/unity-version.ts">/>
+/// <reference path="./il2cpp/api.ts">/>
+/// <reference path="./il2cpp/application.ts">/>
+/// <reference path="./il2cpp/dump.ts">/>
+/// <reference path="./il2cpp/exception-listener.ts">/>
+/// <reference path="./il2cpp/filters.ts">/>
+/// <reference path="./il2cpp/gc.ts">/>
+/// <reference path="./il2cpp/memory.ts">/>
+/// <reference path="./il2cpp/module.ts">/>
+/// <reference path="./il2cpp/perform.ts">/>
+/// <reference path="./il2cpp/tracer.ts">/>
+/// <reference path="./il2cpp/structs/array.ts">/>
+/// <reference path="./il2cpp/structs/assembly.ts">/>
+/// <reference path="./il2cpp/structs/class.ts">/>
+/// <reference path="./il2cpp/structs/delegate.ts">/>
+/// <reference path="./il2cpp/structs/domain.ts">/>
+/// <reference path="./il2cpp/structs/field.ts">/>
+/// <reference path="./il2cpp/structs/gc-handle.ts">/>
+/// <reference path="./il2cpp/structs/image.ts">/>
+/// <reference path="./il2cpp/structs/memory-snapshot.ts">/>
+/// <reference path="./il2cpp/structs/method.ts">/>
+/// <reference path="./il2cpp/structs/object.ts">/>
+/// <reference path="./il2cpp/structs/parameter.ts">/>
+/// <reference path="./il2cpp/structs/pointer.ts">/>
+/// <reference path="./il2cpp/structs/reference.ts">/>
+/// <reference path="./il2cpp/structs/string.ts">/>
+/// <reference path="./il2cpp/structs/thread.ts">/>
+/// <reference path="./il2cpp/structs/type.ts">/>
+/// <reference path="./il2cpp/structs/value-type.ts">/>
+globalThis.Il2Cpp = Il2Cpp;
