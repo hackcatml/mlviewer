@@ -135,34 +135,43 @@ class GadgetDialogClass(QtWidgets.QDialog):
         # self.spawndialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.gadgetui = Ui_prepareGadgetDialogUi()
         self.gadgetui.setupUi(self.gadgetdialog)
-        self.gadgetui.prepareGadgetBtn.clicked.connect(self.prepare_gadget)
+        self.gadgetui.sleepTimeInput.returnPressed.connect(self.sleep_time_input_return_pressed_func)
+        self.gadgetui.prepareGadgetBtn.clicked.connect(lambda: self.prepare_gadget("clicked", None, None))
         self.gadgetdialog.show()
 
         self.interested_widgets = []
         QApplication.instance().installEventFilter(self)
 
-    def prepare_gadget(self):
+    def sleep_time_input_return_pressed_func(self):
         if (pkgName := self.gadgetui.pkgNameInput.text()) and (sleepTime := self.gadgetui.sleepTimeInput.text()):
-            gadget_dir = "gadget"
-            zygisk_gadget_name = "zygisk-gadget-v1.0.0-release.zip"
-            zygisk_gadget_path = f"{gadget_dir}/{zygisk_gadget_name}"
-            for item in ["targetpkg", "sleeptime"]:
-                with open(f"{gadget_dir}/{item}", "w") as f:
-                    f.write(pkgName) if item == "targetpkg" else f.write(sleepTime)
-                    f.close()
-
-                unzip(zygisk_gadget_path, item)
-                add_file_to_zip(zygisk_gadget_path, f"{gadget_dir}/{item}", "")
-                os.remove(item)
-                os.remove(f"{gadget_dir}/{item}")
-
-            # install zygisk-gadget
-            os.system(f"adb push {zygisk_gadget_path} /data/local/tmp/")
-            os.system(f"adb shell su -c \"magisk --install-module /data/local/tmp/{zygisk_gadget_name}\"")
-            os.system(f"adb shell su -c \"rm -rf /data/local/tmp/{zygisk_gadget_name}\"")
-            os.system("adb reboot")
+            self.prepare_gadget("returnPressed", pkgName, sleepTime)
         else:
             return
+
+    def prepare_gadget(self, caller, pkgName, sleepTime):
+        if caller == "returnPressed":
+            pkgName = pkgName
+            sleepTime = sleepTime
+        elif caller == "clicked":
+            if not (pkgName := self.gadgetui.pkgNameInput.text()) or not (sleepTime := self.gadgetui.sleepTimeInput.text()):
+                return
+
+        gadget_dir = "gadget"
+        zygisk_gadget_name = "zygisk-gadget-v1.0.0-release.zip"
+        zygisk_gadget_path = f"{gadget_dir}/{zygisk_gadget_name}"
+        for item in ["targetpkg", "sleeptime"]:
+            with open(f"{gadget_dir}/{item}", "w") as f:
+                f.write(pkgName) if item == "targetpkg" else f.write(sleepTime)
+                f.close()
+            unzip(zygisk_gadget_path, item)
+            add_file_to_zip(zygisk_gadget_path, f"{gadget_dir}/{item}", "")
+            os.remove(item)
+            os.remove(f"{gadget_dir}/{item}")
+        # install zygisk-gadget
+        os.system(f"adb push {zygisk_gadget_path} /data/local/tmp/")
+        os.system(f"adb shell su -c \"magisk --install-module /data/local/tmp/{zygisk_gadget_name}\"")
+        os.system(f"adb shell su -c \"rm -rf /data/local/tmp/{zygisk_gadget_name}\"")
+        os.system("adb reboot")
 
     def eventFilter(self, obj, event):
         self.interested_widgets = [self.gadgetui.pkgNameInput]
