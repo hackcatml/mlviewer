@@ -159,18 +159,23 @@ class GadgetDialogClass(QtWidgets.QDialog):
         gadget_dir = "gadget"
         zygisk_gadget_name = "zygisk-gadget-v1.0.0-release.zip"
         zygisk_gadget_path = f"{gadget_dir}/{zygisk_gadget_name}"
+        shutil.copy2(zygisk_gadget_path, f"{gadget_dir}/temp.zip")
+        temp_zip_name = "temp.zip"
+        temp_zip_path = f"{gadget_dir}/{temp_zip_name}"
+
         for item in ["targetpkg", "sleeptime"]:
             with open(f"{gadget_dir}/{item}", "w") as f:
                 f.write(pkgName) if item == "targetpkg" else f.write(sleepTime)
                 f.close()
-            unzip(zygisk_gadget_path, item)
-            add_file_to_zip(zygisk_gadget_path, f"{gadget_dir}/{item}", "")
+            unzip(temp_zip_path, item)
+            add_file_to_zip(temp_zip_path, f"{gadget_dir}/{item}", "")
             os.remove(item)
             os.remove(f"{gadget_dir}/{item}")
         # install zygisk-gadget
-        os.system(f"adb push {zygisk_gadget_path} /data/local/tmp/")
-        os.system(f"adb shell su -c \"magisk --install-module /data/local/tmp/{zygisk_gadget_name}\"")
-        os.system(f"adb shell su -c \"rm -rf /data/local/tmp/{zygisk_gadget_name}\"")
+        os.system(f"adb push {temp_zip_path} /data/local/tmp/")
+        os.remove(temp_zip_path)
+        os.system(f"adb shell su -c \"magisk --install-module /data/local/tmp/{temp_zip_name}\"")
+        os.system(f"adb shell su -c \"rm -rf /data/local/tmp/{temp_zip_name}\"")
         os.system("adb reboot")
 
     def eventFilter(self, obj, event):
