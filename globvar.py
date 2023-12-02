@@ -17,3 +17,5 @@ scanProgressRatio = 0
 dumpModuleName = ''
 
 visitedAddress = []
+
+fridaPortalMode = False

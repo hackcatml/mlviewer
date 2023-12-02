@@ -1,12 +1,16 @@
 import os
 import shutil
+import socket
 import warnings
 import zipfile
 import platform
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import Qt, QEvent
+from PyQt6.QtCore import Qt, QEvent, pyqtSlot, QThread
 from PyQt6.QtWidgets import QApplication
+
+import fridaportal
+import globvar
 
 
 def unzip(target_zip: str, target_file: str) -> None:
@@ -29,6 +33,20 @@ def add_file_to_zip(target_zip: str, file_to_insert: str, target_dir: str):
         print(f"[*] {file_to_insert} added into {target_zip}")
 
 
+def get_local_ip():
+    try:
+        # Create a socket to connect to an Internet host
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            # Connect the socket to a remote server on the internet
+            s.connect(("8.8.8.8", 80))  # Google's DNS
+            # Get the socket's own address
+            local_ip = s.getsockname()[0]
+            return local_ip
+    except Exception as e:
+        print(f"Error obtaining local IP: {e}")
+        return None
+
+
 class Ui_prepareGadgetDialogUi(object):
     def setupUi(self, prepareGadgetDialogUi):
         prepareGadgetDialogUi.setObjectName("prepareGadgetDialogUi")
@@ -43,22 +61,25 @@ class Ui_prepareGadgetDialogUi(object):
         self.prepareGadgetBrowser = QtWidgets.QTextBrowser(prepareGadgetDialogUi)
         self.prepareGadgetBrowser.setObjectName("prepareGadgetBrowser")
         self.gridLayout.addWidget(self.prepareGadgetBrowser, 0, 0, 1, 3)
+        self.fridaPortalModeCheckBox = QtWidgets.QCheckBox(prepareGadgetDialogUi)
+        self.fridaPortalModeCheckBox.setObjectName("fridaPortalModeCheckBox")
+        self.gridLayout.addWidget(self.fridaPortalModeCheckBox, 1, 0, 1, 1)
         self.pkgNameInput = QtWidgets.QLineEdit(prepareGadgetDialogUi)
         self.pkgNameInput.setEnabled(True)
         self.pkgNameInput.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.pkgNameInput.setText("")
         self.pkgNameInput.setFrame(True)
         self.pkgNameInput.setObjectName("pkgNameInput")
-        self.gridLayout.addWidget(self.pkgNameInput, 1, 0, 1, 1)
-        self.prepareGadgetBtn = QtWidgets.QPushButton(prepareGadgetDialogUi)
-        self.prepareGadgetBtn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-        self.prepareGadgetBtn.setObjectName("prepareGadgetBtn")
-        self.gridLayout.addWidget(self.prepareGadgetBtn, 1, 2, 1, 1)
+        self.gridLayout.addWidget(self.pkgNameInput, 2, 0, 1, 1)
         self.sleepTimeInput = QtWidgets.QLineEdit(prepareGadgetDialogUi)
         self.sleepTimeInput.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.sleepTimeInput.setText("")
         self.sleepTimeInput.setObjectName("sleepTimeInput")
-        self.gridLayout.addWidget(self.sleepTimeInput, 1, 1, 1, 1)
+        self.gridLayout.addWidget(self.sleepTimeInput, 2, 1, 1, 1)
+        self.prepareGadgetBtn = QtWidgets.QPushButton(prepareGadgetDialogUi)
+        self.prepareGadgetBtn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.prepareGadgetBtn.setObjectName("prepareGadgetBtn")
+        self.gridLayout.addWidget(self.prepareGadgetBtn, 2, 2, 1, 1)
 
         self.retranslateUi(prepareGadgetDialogUi)
         QtCore.QMetaObject.connectSlotsByName(prepareGadgetDialogUi)
@@ -85,10 +106,14 @@ class Ui_prepareGadgetDialogUi(object):
                                                          "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700;\">[*] Usage</span></p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">1. Enter the package name (e.g., com.android.chrome).</p>\n"
-                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">2. Enter the sleep time (in milliseconds) before loading the frida-gadget.</p>\n"
+                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">2. Enter the sleep time (in microseconds) before loading the frida-gadget.</p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">3. Click the &quot;Prepare&quot; button. Your device will reboot.</p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">4. After rebooting, launch the target app.</p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">5. Attach to the target app.</p>\n"
+                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700;\">[*] frida-portal mode</span></p>\n"
+                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">In this mode, the gadget will attempt to attach to your computer. </p>\n"
+                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Ensure that your device and computer are on the same local network.</p>\n"
+                                                         "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700;\">[*] Remove</span></p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">1. Remove the ZygiskGadget module in Magisk Manager.</p>\n"
                                                          "</body></html>"))
@@ -116,10 +141,14 @@ class Ui_prepareGadgetDialogUi(object):
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">3. Click the &quot;Prepare&quot; button. Your device will reboot.</p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">4. After rebooting, launch the target app.</p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">5. Attach to the target app.</p>\n"
+                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700;\">[*] frida-portal mode</span></p>\n"
+                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">In this mode, the gadget will attempt to attach to your computer. </p>\n"
+                                                         "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Ensure that your device and computer are on the same local network.</p>\n"
                                                          "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700;\">[*] Remove</span></p>\n"
                                                          "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Remove the ZygiskGadget module in Magisk Manager.</p></body></html>"))
         self.pkgNameInput.setPlaceholderText(_translate("prepareGadgetDialogUi", "com.android.chrome"))
+        self.fridaPortalModeCheckBox.setText(_translate("prepareGadgetDialogUi", "frida-portal mode"))
         self.prepareGadgetBtn.setText(_translate("prepareGadgetDialogUi", "Prepare"))
         self.sleepTimeInput.setPlaceholderText(_translate("prepareGadgetDialogUi", "sleep time(ex. 500000)"))
         self.pkgNameInput.setPlaceholderText(_translate("prepareGadgetDialogUi", "com.android.chrome"))
@@ -128,6 +157,8 @@ class Ui_prepareGadgetDialogUi(object):
 
 
 class GadgetDialogClass(QtWidgets.QDialog):
+    fridaportalsig = QtCore.pyqtSignal(list)
+
     def __init__(self):
         super(GadgetDialogClass, self).__init__()
         self.gadgetdialog = QtWidgets.QDialog()
@@ -137,10 +168,21 @@ class GadgetDialogClass(QtWidgets.QDialog):
         self.gadgetui.setupUi(self.gadgetdialog)
         self.gadgetui.sleepTimeInput.returnPressed.connect(self.sleep_time_input_return_pressed_func)
         self.gadgetui.prepareGadgetBtn.clicked.connect(lambda: self.prepare_gadget("clicked", None, None))
+        self.gadgetui.fridaPortalModeCheckBox.stateChanged.connect(self.frida_portal_checkbox)
+        self.isfridaportalmodechecked = False
+        self.fridaportalworker = None
         self.gadgetdialog.show()
 
         self.interested_widgets = []
         QApplication.instance().installEventFilter(self)
+
+    @pyqtSlot(list)
+    def frida_portal_node_joined_sig_func(self, nodeinfo: list):
+        if nodeinfo:
+            self.fridaportalsig.emit(nodeinfo)
+
+    def frida_portal_checkbox(self, state):
+        self.isfridaportalmodechecked = state == Qt.CheckState.Checked.value
 
     def sleep_time_input_return_pressed_func(self):
         if (pkgName := self.gadgetui.pkgNameInput.text()) and (sleepTime := self.gadgetui.sleepTimeInput.text()):
@@ -157,7 +199,7 @@ class GadgetDialogClass(QtWidgets.QDialog):
                 return
 
         gadget_dir = "gadget"
-        zygisk_gadget_name = "zygisk-gadget-v1.0.0-release.zip"
+        zygisk_gadget_name = "zygisk-gadget-v1.0.1-release.zip"
         zygisk_gadget_path = f"{gadget_dir}/{zygisk_gadget_name}"
         shutil.copy2(zygisk_gadget_path, f"{gadget_dir}/temp.zip")
         temp_zip_name = "temp.zip"
@@ -171,6 +213,29 @@ class GadgetDialogClass(QtWidgets.QDialog):
             add_file_to_zip(temp_zip_path, f"{gadget_dir}/{item}", "")
             os.remove(item)
             os.remove(f"{gadget_dir}/{item}")
+
+        if self.isfridaportalmodechecked:
+            frida_config_name = "frida-gadget.config"
+            local_ip = get_local_ip()
+            content = f'''{{\n "interaction": {{\n\t "type": "connect",\n\t "address": "{local_ip}",\n\t "port": 27052\n }}\n}}'''
+            with open(f"{gadget_dir}/{frida_config_name}", "w") as f:
+                f.write(content)
+                f.close()
+
+            add_file_to_zip(temp_zip_path, f"{gadget_dir}/{frida_config_name}", "")
+            os.remove(f"{gadget_dir}/{frida_config_name}")
+
+            # run frida-portal
+            if self.fridaportalworker is not None:
+                self.fridaportalworker.process_stop()
+                QThread.msleep(300)
+
+            self.fridaportalworker = fridaportal.FridaPortalClassWorker()
+            self.fridaportalworker.nodejoinedsig.connect(self.frida_portal_node_joined_sig_func)
+            self.fridaportalworker.start()
+            globvar.fridaPortalMode = True
+            # return
+
         # install zygisk-gadget
         os.system(f"adb push {temp_zip_path} /data/local/tmp/")
         os.remove(temp_zip_path)

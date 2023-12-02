@@ -50,10 +50,13 @@ class Instrument(QObject):
         self.spawntarget = None
         self.remoteaddr = ''
         if isremote is True and remoteaddr != '':
-            self.remoteip = remoteaddr[:remoteaddr.find(':')].strip()
-            self.remoteport = remoteaddr[remoteaddr.find(':') + 1:].strip()
-            self.remoteaddr = self.remoteip + ':' + self.remoteport
-            self.device = frida.get_device_manager().add_remote_device(self.remoteip + ':' + self.remoteport)
+            if remoteaddr == 'localhost':
+                self.device = frida.get_device_manager().add_remote_device(remoteaddr)
+            else:
+                self.remoteip = remoteaddr[:remoteaddr.find(':')].strip()
+                self.remoteport = remoteaddr[remoteaddr.find(':') + 1:].strip()
+                self.remoteaddr = self.remoteip + ':' + self.remoteport
+                self.device = frida.get_device_manager().add_remote_device(self.remoteip + ':' + self.remoteport)
         else:
             self.device = frida.get_usb_device(1)
 
@@ -109,8 +112,8 @@ class Instrument(QObject):
                 else open(self.script_text, "r") as f:
             return f.read()
 
-    def instrument(self):
-        if not any([self.spawntarget, self.attachtarget, self.device.get_frontmost_application()]):
+    def instrument(self, caller):
+        if not caller == "frida_portal_sig_func" and not any([self.spawntarget, self.attachtarget, self.device.get_frontmost_application()]):
             return "Launch the target app first"
 
         if self.attachtarget:  # list pid mode

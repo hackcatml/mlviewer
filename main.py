@@ -196,7 +196,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.refreshCurrentAddressShortcut.activated.connect(self.refresh_curr_addr)
         self.isPalera1n = False
 
-        self.attachBtn.clicked.connect(self.attach_frida)
+        self.attachBtn.clicked.connect(lambda: self.attach_frida("attachBtnClicked"))
         self.detachBtn.clicked.connect(self.detach_frida)
         self.offsetInput.returnPressed.connect(lambda: self.offset_ok_btn_pressed_func("returnPressed"))
         self.offsetOkbtn.pressed.connect(lambda: self.offset_ok_btn_pressed_func("pressed"))
@@ -309,7 +309,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.attachtargetname = None
                 return
             self.remoteaddr = self.spawndialog.spawnui.remoteAddrInput.text()
-        self.attach_frida()
+        self.attach_frida("targetsig_func")
         self.spawndialog = None
         self.spawntargetid = None
         self.attachtargetname = None
@@ -344,6 +344,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.detach_frida()
         self.set_status_light()
 
+    @pyqtSlot(list)
+    def frida_portal_sig_func(self, nodeinfo: list):
+        if nodeinfo:
+            self.remoteaddr = "localhost"
+            self.attachtargetname = nodeinfo[0]
+            self.attach_frida("frida_portal_sig_func")
+
     def adjust_label_pos(self):
         tc = self.hexViewer.textCursor()
         text_length = len(tc.block().text())
@@ -366,11 +373,12 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     def prepare_gadget(self):
         try:
             self.prepareGadgetDialog = gadget.GadgetDialogClass()
+            self.prepareGadgetDialog.fridaportalsig.connect(self.frida_portal_sig_func)
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
             return
 
-    def attach_frida(self):
+    def attach_frida(self, caller: str):
         if globvar.isFridaAttached is True:
             try:
                 # check if script is still alive. if not exception will occur
@@ -382,37 +390,46 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             return
 
         try:
-            if (self.islistpidchecked and not self.isspawnchecked and self.attachtargetname is None) or \
-                    (self.isspawnchecked and self.spawntargetid is None):
-                self.spawndialog = spawn.SpawnDialogClass() if (
-                        platform.system() == 'Darwin') else spawn_win.SpawnDialogClass()
-                if self.islistpidchecked and not self.isspawnchecked:
-                    self.spawndialog.ispidlistchecked = True
-                    self.spawndialog.spawnui.spawnTargetIdInput.setPlaceholderText("AppStore")
-                    self.spawndialog.spawnui.appListLabel.setText("PID           Name")
-                    self.spawndialog.spawnui.spawnBtn.setText("Attach")
-                    self.spawndialog.attachtargetnamesig.connect(self.targetsig_func)
+            if not caller == "frida_portal_sig_func":
+                if (self.islistpidchecked and not self.isspawnchecked and self.attachtargetname is None) or \
+                        (self.isspawnchecked and self.spawntargetid is None):
+                    self.spawndialog = spawn.SpawnDialogClass() if (
+                            platform.system() == 'Darwin') else spawn_win.SpawnDialogClass()
+                    if self.islistpidchecked and not self.isspawnchecked:
+                        self.spawndialog.ispidlistchecked = True
+                        self.spawndialog.spawnui.spawnTargetIdInput.setPlaceholderText("AppStore")
+                        self.spawndialog.spawnui.appListLabel.setText("PID           Name")
+                        self.spawndialog.spawnui.spawnBtn.setText("Attach")
+                        self.spawndialog.attachtargetnamesig.connect(self.targetsig_func)
 
-                self.spawndialog.spawntargetidsig.connect(self.targetsig_func)
+                    self.spawndialog.spawntargetidsig.connect(self.targetsig_func)
 
-                if self.isremoteattachchecked is False:
-                    self.spawndialog.spawnui.remoteAddrInput.setEnabled(False)
-                    self.spawndialog.spawnui.spawnTargetIdInput.setFocus()
-                else:
-                    self.spawndialog.spawnui.remoteAddrInput.setFocus()
-                return
-
-            if self.isremoteattachchecked and self.remoteaddr == '':
-                self.remoteaddr, ok = QInputDialog.getText(self, 'Remote Attach', 'Enter IP:PORT')
-                if ok is False:
+                    if self.isremoteattachchecked is False:
+                        self.spawndialog.spawnui.remoteAddrInput.setEnabled(False)
+                        self.spawndialog.spawnui.spawnTargetIdInput.setFocus()
+                    else:
+                        self.spawndialog.spawnui.remoteAddrInput.setFocus()
                     return
 
-            globvar.fridaInstrument = code.Instrument("scripts/default.js", self.isremoteattachchecked, self.remoteaddr,
-                                                      self.attachtargetname if (self.islistpidchecked and not self.isspawnchecked) else self.spawntargetid,
-                                                      self.isspawnchecked)
-            # connect frida attach signal function
-            globvar.fridaInstrument.attachsig.connect(self.fridaattachsig_func)
-            msg = globvar.fridaInstrument.instrument()
+                if self.isremoteattachchecked and self.remoteaddr == '':
+                    self.remoteaddr, ok = QInputDialog.getText(self, 'Remote Attach', 'Enter IP:PORT')
+                    if ok is False:
+                        return
+
+                globvar.fridaInstrument = code.Instrument("scripts/default.js", self.isremoteattachchecked, self.remoteaddr,
+                                                          self.attachtargetname if (self.islistpidchecked and not self.isspawnchecked) else self.spawntargetid,
+                                                          self.isspawnchecked)
+                # connect frida attach signal function
+                globvar.fridaInstrument.attachsig.connect(self.fridaattachsig_func)
+                msg = globvar.fridaInstrument.instrument(caller)
+            elif caller == "frida_portal_sig_func":
+                globvar.fridaInstrument = code.Instrument("scripts/default.js", True, self.remoteaddr,
+                                                          self.attachtargetname,
+                                                          False)
+                # connect frida attach signal function
+                globvar.fridaInstrument.attachsig.connect(self.fridaattachsig_func)
+                msg = globvar.fridaInstrument.instrument(caller)
+
             self.remoteaddr = ''
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
@@ -447,6 +464,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 globvar.isFridaAttached = False
                 globvar.fridaInstrument = None
                 globvar.visitedAddress.clear()
+                globvar.fridaPortalMode = False
                 self.remoteaddr = ''
                 self.il2cppFridaInstrument = None
                 if self.hexViewer.new_watch_widget is not None:
@@ -1199,7 +1217,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                                                              globvar.fridaInstrument.remoteaddr,
                                                              self.attachtargetnamereserved if self.islistpidchecked else None,
                                                              False)
-                msg = self.il2cppFridaInstrument.instrument()
+                msg = self.il2cppFridaInstrument.instrument("dump_module")
                 if msg is not None:
                     QMessageBox.information(self, "info", msg)
                     return

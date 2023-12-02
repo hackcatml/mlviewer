@@ -409,7 +409,7 @@ class UtilViewerClass(QTextEdit):
                                                             globvar.fridaInstrument.remoteaddr,
                                                             globvar.fridaInstrument.attachtarget,
                                                             False)
-            msg = self.fullMemoryDumpInstrument.instrument()
+            msg = self.fullMemoryDumpInstrument.instrument("full_memory_dump")
             if msg is not None:
                 self.statusBar.showMessage(f"{inspect.currentframe().f_code.co_name}: {msg}", 3000)
                 return
