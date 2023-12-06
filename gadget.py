@@ -227,8 +227,11 @@ class GadgetDialogClass(QtWidgets.QDialog):
 
             # run frida-portal
             if self.fridaportalworker is not None:
-                self.fridaportalworker.process_stop()
-                QThread.msleep(300)
+                try:
+                    self.fridaportalworker.process_stop()
+                    QThread.msleep(500)
+                except Exception as e:
+                    print(e)
 
             self.fridaportalworker = fridaportal.FridaPortalClassWorker()
             self.fridaportalworker.nodejoinedsig.connect(self.frida_portal_node_joined_sig_func)

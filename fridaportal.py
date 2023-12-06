@@ -49,11 +49,9 @@ class FridaPortalClassWorker(QThread):
         self._service.stop()
 
     def _process_input(self, reactor):
-        # return
         while True:
             try:
-                # command = input("").strip()
-                QThread.usleep(5000000)
+                QThread.msleep(100)
                 continue
             except KeyboardInterrupt:
                 self._reactor.cancel_io()

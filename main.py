@@ -13,7 +13,6 @@ import code
 import gadget
 import globvar
 import spawn
-import spawn_win
 import ui
 import ui_win
 
@@ -393,8 +392,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             if not caller == "frida_portal_sig_func":
                 if (self.islistpidchecked and not self.isspawnchecked and self.attachtargetname is None) or \
                         (self.isspawnchecked and self.spawntargetid is None):
-                    self.spawndialog = spawn.SpawnDialogClass() if (
-                            platform.system() == 'Darwin') else spawn_win.SpawnDialogClass()
+                    self.spawndialog = spawn.SpawnDialogClass()
                     if self.islistpidchecked and not self.isspawnchecked:
                         self.spawndialog.ispidlistchecked = True
                         self.spawndialog.spawnui.spawnTargetIdInput.setPlaceholderText("AppStore")
