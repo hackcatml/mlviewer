@@ -16,19 +16,9 @@ Two ways to run<br>
 git clone https://github.com/hackcatml/mlviewer
 cd mlviewer
 
-# Create python virtual environment
-python -m venv .\venv (for Windows)
-python -m venv ./venv (for macOS)
-
-# Activate venv
-venv\Scripts\activate.bat (for Windows)
-source venv/bin/activate (for macOS)
-
-# Install requirements
-pip install -r requirements.txt
-
 # Run
-python main.py
+.\mlviewer_wincon.bat (for Windows)
+./mlviewer_macos.sh (for macOS)
 ```
 
 2.&nbsp;Current Python Environment
@@ -39,6 +29,10 @@ cd mlviewer
 
 # Install requirements
 pip install -r requirements.txt
+
+# Install capstoen
+pip install capstone
+pip install --pre --no-binary capstone capstone (for m1, m2 macOS)
 
 # Run
 python main.py
@@ -72,3 +66,4 @@ https://hackcatml.tistory.com/174
 [dump-so](https://github.com/lasting-yang/frida_dump)<br>
 [frida-il2cpp-bridge](https://github.com/vfsfitvnm/frida-il2cpp-bridge)<br>
 [https://armconverter.com](https://armconverter.com)
+[capstone](https://www.capstone-engine.org/)
