@@ -15,7 +15,7 @@
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
-    <widget class="QTextBrowser" name="disasmBrowser">
+    <widget class="QTextEdit" name="disasmBrowser">
      <property name="font">
       <font>
        <family>Courier New</family>

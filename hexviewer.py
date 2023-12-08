@@ -4,14 +4,16 @@ import re
 from PyQt6 import QtGui, QtCore
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QTextCursor, QAction, QCursor
-from PyQt6.QtWidgets import QTextEdit, QApplication, QWidget, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QListWidget, \
-    QPushButton, QMenu, QCheckBox, QWidgetAction
+from PyQt6.QtWidgets import QTextEdit, QApplication, QWidget, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QPushButton, \
+    QCheckBox, QWidgetAction
 
 import globvar
 
 
 class HexViewerClass(QTextEdit):
     wheelupsig = QtCore.pyqtSignal(str)
+    wheelsig = QtCore.pyqtSignal(str)
+    scrollsig = QtCore.pyqtSignal(int)
     movesig = QtCore.pyqtSignal(int)
 
     def __init__(self, args):
@@ -23,6 +25,7 @@ class HexViewerClass(QTextEdit):
 
     def setScrollBarPos(self, value):
         # print("[hackcatml] slidermoved: ", value)
+        self.scrollsig.emit(value)
         globvar.currentFrameBlockNumber = round(value / 15)
 
     # wheelevent https://spec.tistory.com/449
@@ -46,6 +49,7 @@ class HexViewerClass(QTextEdit):
                 self.wheelupsig.emit(globvar.currentFrameStartAddress)
                 self.hitcount = 0
 
+        self.wheelsig.emit(globvar.currentFrameStartAddress)
         # print("[hackcatml] globvar.currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
         # print("[hackcatml] tc.blockNumber(): ", tc.blockNumber())
         # print("[hackcatml] tc.block().text(): ", tc.block().text())

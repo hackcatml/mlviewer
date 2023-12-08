@@ -234,6 +234,9 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         self.disasm_thread = QThread()
         self.disasm_worker = DisassembleWorker()
+        self.disasm_worker.hexviewer = self.hexViewer
+        self.disasm_worker.hexviewer.wheelsig.connect(self.disasm_worker.hexviewer_wheelsig_func)
+        self.disasm_worker.hexviewer.scrollsig.connect(self.disasm_worker.hexviewer_scrollsig_func)
         self.disasm_worker.moveToThread(self.disasm_thread)
         self.disasm_thread.start()
         self.disassemBtnClickCount = 0
