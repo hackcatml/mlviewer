@@ -191,17 +191,22 @@ class HexViewerClass(QTextEdit):
             if globvar.fridaInstrument is None:
                 self.statusBar.showMessage(f"Attach first", 3000)
                 return
-            arch = globvar.fridaInstrument.arch()
             addr_match = hex_regex.match(tc.block().text())
             if addr_match is not None:
                 addr_length = len(addr_match[0])
                 hex_start = addr_length + 2
                 cursor_len_4bytes = 12  # '00 00 00 00 '
                 cursor_len_8bytes = 2 * 12
-                if arch == "arm64" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2]):
-                    copy_pointer_action = create_action("Copy Pointer", match is None, lambda: self.copy_pointer(tc, arch, hex_start))
-                elif arch == "arm" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_4bytes, hex_start + cursor_len_4bytes + 1, hex_start + cursor_len_4bytes + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2] or tcx in [hex_start + 3 * cursor_len_4bytes, hex_start + 3 * cursor_len_4bytes + 1, hex_start + 3 * cursor_len_4bytes + 2]):
-                    copy_pointer_action = create_action("Copy Pointer", match is None, lambda: self.copy_pointer(tc, arch, hex_start))
+                if globvar.arch == "arm64" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2]):
+                    make_copy_pointer_action = True
+                elif globvar.arch == "arm" and (tcx in [hex_start, hex_start + 1, hex_start + 2] or tcx in [hex_start + cursor_len_4bytes, hex_start + cursor_len_4bytes + 1, hex_start + cursor_len_4bytes + 2] or tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2] or tcx in [hex_start + 3 * cursor_len_4bytes, hex_start + 3 * cursor_len_4bytes + 1, hex_start + 3 * cursor_len_4bytes + 2]):
+                    make_copy_pointer_action = True
+                else:
+                    make_copy_pointer_action = False
+
+                if make_copy_pointer_action:
+                    copy_pointer_action = create_action("Copy Pointer", match is None,
+                                                        lambda: self.copy_pointer(tc, hex_start))
 
             if match:
                 watch_action = create_action("Set Watch Func", True, lambda: self.set_watch_on_addr("watch_func"))
@@ -221,7 +226,6 @@ class HexViewerClass(QTextEdit):
         selected_text = self.textCursor().selectedText()  # gets the currently selected text
         selected_text = selected_text.replace('\u2029', '\n')
         lines = selected_text.strip().split('\n')
-        hex_string = ''
         if len(lines) <= 2:
             hex_data = []
             for line in lines:
@@ -271,19 +275,13 @@ class HexViewerClass(QTextEdit):
 
         url = 'https://armconverter.com/api/convert'
         hex_string = self.selected_text(True)
-        arch = ''
-        try:
-            arch = globvar.fridaInstrument.arch()
-        except Exception as e:
-            print(f"{inspect.currentframe().f_code.co_name}: {e}")
-            return
 
-        payload = {"hex":hex_string,"offset":"","arch":[arch]}
+        payload = {"hex": hex_string, "offset": "", "arch": [globvar.arch]}
         response = requests.post(url, json=payload)
         data = response.json()
 
-        if data['asm'][arch][0] is True:
-            hex_to_arm_result = data['asm'][arch][1]
+        if data['asm'][globvar.arch][0] is True:
+            hex_to_arm_result = data['asm'][globvar.arch][1]
             # Show the copied text in a new widget
             self.new_hex_to_arm_widget = NewHexToArmWidget(hex_to_arm_result)
             cursor_pos = QCursor.pos()
@@ -293,17 +291,17 @@ class HexViewerClass(QTextEdit):
         else:
             print("Fail to hex to arm convert")
 
-    def copy_pointer(self, tc: QTextCursor, arch: str, hex_start):
+    def copy_pointer(self, tc: QTextCursor, hex_start):
         tcx = tc.positionInBlock()
         cursor_len_4bytes = 12
         cursor_len_8bytes = 12 * 2
         hex_code = None
         if tcx in [hex_start, hex_start + 1, hex_start + 2]:
-            hex_code = tc.block().text()[hex_start:hex_start + cursor_len_8bytes - 1] if arch == "arm64" else tc.block().text()[hex_start:hex_start + cursor_len_4bytes - 1]
+            hex_code = tc.block().text()[hex_start:hex_start + cursor_len_8bytes - 1] if globvar.arch == "arm64" else tc.block().text()[hex_start:hex_start + cursor_len_4bytes - 1]
         elif tcx in [hex_start + cursor_len_4bytes, hex_start + cursor_len_4bytes + 1, hex_start + cursor_len_4bytes + 2]:
             hex_code = tc.block().text()[hex_start + cursor_len_4bytes:hex_start + cursor_len_8bytes - 1]
         elif tcx in [hex_start + cursor_len_8bytes, hex_start + cursor_len_8bytes + 1, hex_start + cursor_len_8bytes + 2]:
-            hex_code = tc.block().text()[hex_start + cursor_len_8bytes:hex_start + 2 * cursor_len_8bytes - 1] if arch == "arm64" else tc.block().text()[hex_start + cursor_len_8bytes:hex_start + 3 * cursor_len_4bytes - 1]
+            hex_code = tc.block().text()[hex_start + cursor_len_8bytes:hex_start + 2 * cursor_len_8bytes - 1] if globvar.arch == "arm64" else tc.block().text()[hex_start + cursor_len_8bytes:hex_start + 3 * cursor_len_4bytes - 1]
         elif tcx in [hex_start + 3 * cursor_len_4bytes, hex_start + 3 * cursor_len_4bytes + 1, hex_start + 3 * cursor_len_4bytes + 2]:
             hex_code = tc.block().text()[hex_start + 3 * cursor_len_4bytes:hex_start + 4 * cursor_len_4bytes - 1]
         pointer = hex(int(''.join(reversed(hex_code.split(' '))), 16))

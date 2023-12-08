@@ -5,6 +5,7 @@ enumerateRanges = []
 isFridaAttached = False
 remote = False
 listModules = []
+arch = None
 
 isHexEditMode = False
 hexEdited = []

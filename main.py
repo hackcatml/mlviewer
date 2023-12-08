@@ -4,8 +4,8 @@ import os
 import platform
 import re
 
-from PyQt6 import QtCore
-from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent
+from PyQt6 import QtCore, QtGui
+from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent, QPoint
 from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, QIcon, QPalette
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
@@ -15,6 +15,8 @@ import globvar
 import spawn
 import ui
 import ui_win
+
+from disasm import DisassembleWorker
 
 
 def is_readable_addr(addr):
@@ -230,6 +232,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.moveBackwardBtn.clicked.connect(self.move_backward)
         self.moveForwardBtn.clicked.connect(self.move_forward)
 
+        self.disasm_thread = QThread()
+        self.disasm_worker = DisassembleWorker()
+        self.disasm_worker.moveToThread(self.disasm_thread)
+        self.disasm_thread.start()
+        self.disassemBtnClickCount = 0
+        self.disassemBtn.clicked.connect(self.show_disassemble_result)
+
         self.utilViewer.parse_img_name = self.parse_img_name
         self.utilViewer.parse_img_base = self.parse_img_base
         self.utilViewer.parse_img_path = self.parse_img_path
@@ -444,6 +453,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         if self.platform == 'darwin':
             self.isPalera1n = globvar.fridaInstrument.is_palera1n()
         self.utilViewer.platform = self.platform
+        globvar.arch = globvar.fridaInstrument.arch()
         name = globvar.fridaInstrument.list_modules()[0]['name']
         self.attachedname = name
         self.set_status(name)
@@ -459,6 +469,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 globvar.enumerateRanges.clear()
                 globvar.hexEdited.clear()
                 globvar.listModules.clear()
+                globvar.arch = None
                 globvar.isFridaAttached = False
                 globvar.fridaInstrument = None
                 globvar.visitedAddress.clear()
@@ -660,7 +671,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # empty changed hex list before refresh hexviewer
         globvar.hexEdited.clear()
         # show hex dump result
-        self.hexViewer.setPlainText(result[result.find('\n') + 1:])
+        hex_dump_result = result[result.find('\n') + 1:]
+        self.hexViewer.setPlainText(hex_dump_result)
         # adjust label pos
         self.adjust_label_pos()
 
@@ -681,6 +693,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # print("[hackcatml] currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
             # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
             self.visited_addr()
+            # disassemble the result of hex dump
+            self.disasm_worker.disassemble(globvar.arch, globvar.currentFrameStartAddress, hex_dump_result)
             return
 
         if inspect.currentframe().f_back.f_code.co_name != "offset_ok_btn_func":
@@ -702,6 +716,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # print("[hackcatml] currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
         # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
         self.visited_addr()
+
+        self.disasm_worker.disassemble(globvar.arch, globvar.currentFrameStartAddress, hex_dump_result)
 
     # remember visited address
     def visited_addr(self):
@@ -743,6 +759,14 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         globvar.visitedAddress[revisit_index][0] = 'last'
                         if revisit_index != last_visit_index:
                             globvar.visitedAddress[last_visit_index][0] = 'notlast'
+
+    def show_disassemble_result(self):
+        self.disassemBtnClickCount += 1
+        self.disasm_worker.disasm_window.show()
+        if self.disassemBtnClickCount == 1:
+            curr_pos = self.disasm_worker.disasm_window.pos()
+            new_pos = curr_pos + QPoint(-270, 150)
+            self.disasm_worker.disasm_window.move(new_pos)
 
     def util_tab_bar_click_func(self, index):
         pass
@@ -1342,6 +1366,12 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         # For other events, we let them be handled normally
         return super().eventFilter(obj, event)
+
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+        if self.prepareGadgetDialog is not None:
+            self.prepareGadgetDialog.gadgetdialog.close()
+        if self.disasm_worker is not None:
+            self.disasm_worker.disasm_window.close()
 
 
 if __name__ == "__main__":
