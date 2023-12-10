@@ -67,3 +67,4 @@ https://hackcatml.tistory.com/174
 [frida-il2cpp-bridge](https://github.com/vfsfitvnm/frida-il2cpp-bridge)<br>
 [https://armconverter.com](https://armconverter.com)<br>
 [capstone](https://www.capstone-engine.org/)
+[frida-dexdump](https://github.com/hluwa/frida-dexdump)

@@ -49,9 +49,11 @@ class Instrument(QObject):
         self.attachtarget = None
         self.spawntarget = None
         self.remoteaddr = ''
+        self.pid = None
         if isremote is True and remoteaddr != '':
             if remoteaddr == 'localhost':
-                self.device = frida.get_device_manager().add_remote_device(remoteaddr)
+                self.remoteaddr = remoteaddr
+                self.device = frida.get_device_manager().add_remote_device(self.remoteaddr)
             else:
                 self.remoteip = remoteaddr[:remoteaddr.find(':')].strip()
                 self.remoteport = remoteaddr[remoteaddr.find(':') + 1:].strip()
@@ -121,12 +123,12 @@ class Instrument(QObject):
             self.name = self.attachtarget
         else:
             if self.spawntarget:  # spawn mode
-                pid = self.device.spawn([self.spawntarget])
-                session = self.device.attach(pid)
-                self.device.resume(pid)
+                self.pid = self.device.spawn([self.spawntarget])
+                session = self.device.attach(self.pid)
+                self.device.resume(self.pid)
             else:  # attach frontmost application
-                pid = self.device.get_frontmost_application().pid
-                session = self.device.attach(pid)
+                self.pid = self.device.get_frontmost_application().pid
+                session = self.device.attach(self.pid)
 
             if self.device.get_frontmost_application():
                 self.name = self.device.get_frontmost_application().name

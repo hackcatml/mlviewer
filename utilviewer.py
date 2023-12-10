@@ -6,9 +6,9 @@ import warnings
 import zipfile
 
 from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import pyqtSlot, QThread
+from PyQt6.QtCore import pyqtSlot, QThread, Qt
 from PyQt6.QtGui import QAction, QTextCursor
-from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QPushButton
+from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QPushButton, QCheckBox
 
 import code
 import dumper
@@ -104,6 +104,49 @@ class PullIPAWorker(QThread):
             return
 
 
+class DexDumpWorker(QThread):
+    dex_dump_finished_sig = QtCore.pyqtSignal(bool)
+
+    def __init__(self, dexDumpFridaInstrument, deepDexDumpMode):
+        super().__init__()
+        self.dexDumpFridaInstrument = dexDumpFridaInstrument
+        self.deep_dex_dump = deepDexDumpMode
+
+        self.name = self.dexDumpFridaInstrument.name
+        self.remoteaddr = self.dexDumpFridaInstrument.remoteaddr
+        self.pid = self.dexDumpFridaInstrument.pid
+
+        self.out_dir = os.getcwd() + "/dump/dex_dump"
+        if not os.path.exists(self.out_dir):
+            os.makedirs(self.out_dir)
+        else:
+            shutil.rmtree(self.out_dir)
+            os.makedirs(self.out_dir)
+
+    def run(self):
+        deep_dex_dump_option = ''
+        if self.deep_dex_dump:
+            deep_dex_dump_option = '-d'
+
+        try:
+            if self.remoteaddr != '':
+                if self.pid is not None:
+                    os.system(f"frida-dexdump -H {self.remoteaddr} -p {self.pid} -o {self.out_dir} {deep_dex_dump_option}")
+                elif self.name is not None:
+                    os.system(f"frida-dexdump -H {self.remoteaddr} -n \'{self.name}\' -o {self.out_dir} {deep_dex_dump_option}")
+            else:
+                if self.name is not None:
+                    os.system(f"frida-dexdump -UF -n \'{self.name}\' -o {self.out_dir} {deep_dex_dump_option}")
+                elif self.pid is not None:
+                    os.system(f"frida-dexdump -UF -p {self.pid} -o {self.out_dir} {deep_dex_dump_option}")
+
+            self.dex_dump_finished_sig.emit(True)
+
+        except Exception as e:
+            print(e)
+            self.dex_dump_finished_sig.emit(False)
+
+
 class UtilViewerClass(QTextEdit):
     def __init__(self, args):
         super(UtilViewerClass, self).__init__(args)
@@ -134,6 +177,11 @@ class UtilViewerClass(QTextEdit):
 
         self.pullIpaWorker = None
         self.fullMemoryDumpWorker = None
+
+        self.dex_dump_btn = QPushButton(None)
+        self.dex_dump_check_box = QCheckBox(None)
+        self.is_deep_dex_dump_checked = False
+        self.dex_dump_worker = None
 
     @pyqtSlot(dict)
     def parsesig_func(self, message: dict):
@@ -420,6 +468,27 @@ class UtilViewerClass(QTextEdit):
         self.fullMemoryDumpWorker.start()
         self.statusBar.showMessage("Start memory dump...")
         return
+
+    @pyqtSlot(bool)
+    def dex_dump_finished_sig_func(self, sig: bool):
+        if sig is True:
+            self.statusBar.showMessage(f"Dex dump done!", 3000)
+            self.dex_dump_worker.quit()
+        elif sig is False:
+            self.statusBar.showMessage(f"Dex dump failed", 3000)
+            self.dex_dump_worker.quit()
+
+    def dex_dump_checkbox(self, state):
+        self.is_deep_dex_dump_checked = state == Qt.CheckState.Checked.value
+
+    def dex_dump(self):
+        if self.platform == 'darwin':
+            self.statusBar.showMessage(f"Dex dump is only for Android", 3000)
+            return
+
+        self.dex_dump_worker = DexDumpWorker(globvar.fridaInstrument, self.is_deep_dex_dump_checked)
+        self.dex_dump_worker.dex_dump_finished_sig.connect(self.dex_dump_finished_sig_func)
+        self.dex_dump_worker.start()
 
     def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
         menu = super(UtilViewerClass, self).createStandardContextMenu()  # Get the default context menu

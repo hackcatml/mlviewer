@@ -510,8 +510,24 @@ class Ui_MainWindow(object):
         self.fullMemoryDumpBtn = QtWidgets.QPushButton(self.tab_6)
         self.fullMemoryDumpBtn.setObjectName("fullMemoryDumpBtn")
         self.gridLayout_8.addWidget(self.fullMemoryDumpBtn, 4, 1, 1, 1)
+
+        self.dexDumpBtn = QtWidgets.QPushButton(self.tab_6)
+        self.dexDumpBtn.setObjectName("dexDumpBtn")
+        self.gridLayout_8.addWidget(self.dexDumpBtn, 5, 1, 1, 1)
+        self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        self.dexDumpLabel = QtWidgets.QLabel(self.tab_6)
+        self.dexDumpLabel.setMaximumSize(QtCore.QSize(16777215, 40))
+        self.dexDumpLabel.setObjectName("dexDumpLabel")
+        self.horizontalLayout_5.addWidget(self.dexDumpLabel)
+        self.dexDumpCheckBox = QtWidgets.QCheckBox(self.tab_6)
+        self.dexDumpCheckBox.setObjectName("dexDumpCheckBox")
+        self.horizontalLayout_5.addWidget(self.dexDumpCheckBox)
+        self.gridLayout_8.addLayout(self.horizontalLayout_5, 5, 0, 1, 1)
+
         spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
-        self.gridLayout_8.addItem(spacerItem4, 5, 0, 1, 1)
+        self.gridLayout_8.addItem(spacerItem4, 7, 0, 1, 1)
+
         self.parseImgTabWidget.addTab(self.tab_6, "")
         self.tab_7 = QtWidgets.QWidget()
         self.tab_7.setObjectName("tab_7")
@@ -656,6 +672,9 @@ class Ui_MainWindow(object):
         self.fullMemoryDumpLabel.setText(
             _translate("MainWindow", "<html><head/><body><p>Full Memory Dump</p></body></html>"))
         self.fullMemoryDumpBtn.setText(_translate("MainWindow", "Dump"))
+        self.dexDumpBtn.setText(_translate("MainWindow", "Dump"))
+        self.dexDumpLabel.setText(_translate("MainWindow", "<html><head/><body><p>Dex dump</p></body></html>"))
+        self.dexDumpCheckBox.setText(_translate("MainWindow", "Deep"))
         self.parseImgTabWidget.setTabText(self.parseImgTabWidget.indexOf(self.tab_6), _translate("MainWindow", "Info"))
         self.utilViewer.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\n"

@@ -253,13 +253,18 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.parseImgName.returnPressed.connect(lambda: self.utilViewer.parse("parseImgName"))
 
         self.utilViewer.app_info_btn = self.appInfoBtn
-        self.appInfoBtn.clicked.connect(self.utilViewer.app_info)
+        self.utilViewer.app_info_btn.clicked.connect(self.utilViewer.app_info)
 
         self.utilViewer.pull_package_btn = self.pullPackageBtn
-        self.pullPackageBtn.clicked.connect(self.utilViewer.pull_package)
+        self.utilViewer.pull_package_btn.clicked.connect(self.utilViewer.pull_package)
 
         self.utilViewer.full_memory_dump_btn = self.fullMemoryDumpBtn
-        self.fullMemoryDumpBtn.clicked.connect(self.utilViewer.full_memory_dump)
+        self.utilViewer.full_memory_dump_btn.clicked.connect(self.utilViewer.full_memory_dump)
+
+        self.utilViewer.dex_dump_btn = self.dexDumpBtn
+        self.utilViewer.dex_dump_btn.clicked.connect(self.utilViewer.dex_dump)
+        self.utilViewer.dex_dump_check_box = self.dexDumpCheckBox
+        self.utilViewer.dex_dump_check_box.stateChanged.connect(self.utilViewer.dex_dump_checkbox)
 
         # install event filter to use tab and move to some input fields
         self.interested_widgets = []
@@ -426,14 +431,18 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     if ok is False:
                         return
 
-                globvar.fridaInstrument = code.Instrument("scripts/default.js", self.isremoteattachchecked, self.remoteaddr,
+                globvar.fridaInstrument = code.Instrument("scripts/default.js",
+                                                          self.isremoteattachchecked,
+                                                          self.remoteaddr,
                                                           self.attachtargetname if (self.islistpidchecked and not self.isspawnchecked) else self.spawntargetid,
                                                           self.isspawnchecked)
                 # connect frida attach signal function
                 globvar.fridaInstrument.attachsig.connect(self.fridaattachsig_func)
                 msg = globvar.fridaInstrument.instrument(caller)
             elif caller == "frida_portal_sig_func":
-                globvar.fridaInstrument = code.Instrument("scripts/default.js", True, self.remoteaddr,
+                globvar.fridaInstrument = code.Instrument("scripts/default.js",
+                                                          True,
+                                                          self.remoteaddr,
                                                           self.attachtargetname,
                                                           False)
                 # connect frida attach signal function
@@ -1238,7 +1247,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
             # print("[hackcatml] il2cppFridaInstrument: ", self.il2cppFridaInstrument)
             if self.il2cppFridaInstrument is None or len(self.il2cppFridaInstrument.sessions) == 0:
-                self.il2cppFridaInstrument = code.Instrument("scripts/il2cppdump.js", self.isremoteattachchecked,
+                self.il2cppFridaInstrument = code.Instrument("scripts/il2cppdump.js",
+                                                             self.isremoteattachchecked,
                                                              globvar.fridaInstrument.remoteaddr,
                                                              self.attachtargetnamereserved if self.islistpidchecked else None,
                                                              False)
@@ -1246,6 +1256,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 if msg is not None:
                     QMessageBox.information(self, "info", msg)
                     return
+
             # il2cpp dump thread worker start
             self.il2cppdumpworker = Il2CppDumpWorker(self.il2cppFridaInstrument, self.statusBar())
             self.il2cppdumpworker.il2cppdumpsig.connect(self.il2cppdumpsig_func)
@@ -1375,6 +1386,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.prepareGadgetDialog.gadgetdialog.close()
         if self.disasm_worker is not None:
             self.disasm_worker.disasm_window.close()
+        if self.utilViewer.dex_dump_worker is not None:
+            self.utilViewer.dex_dump_worker.quit()
 
 
 if __name__ == "__main__":
