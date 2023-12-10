@@ -133,10 +133,10 @@ class DexDumpWorker(QThread):
                 if self.pid is not None:
                     os.system(f"frida-dexdump -H {self.remoteaddr} -p {self.pid} -o {self.out_dir} {deep_dex_dump_option}")
                 elif self.name is not None:
-                    os.system(f"frida-dexdump -H {self.remoteaddr} -n \'{self.name}\' -o {self.out_dir} {deep_dex_dump_option}")
+                    os.system(f"frida-dexdump -H {self.remoteaddr} -n \"{self.name}\" -o {self.out_dir} {deep_dex_dump_option}")
             else:
                 if self.name is not None:
-                    os.system(f"frida-dexdump -UF -n \'{self.name}\' -o {self.out_dir} {deep_dex_dump_option}")
+                    os.system(f"frida-dexdump -UF -n \"{self.name}\" -o {self.out_dir} {deep_dex_dump_option}")
                 elif self.pid is not None:
                     os.system(f"frida-dexdump -UF -p {self.pid} -o {self.out_dir} {deep_dex_dump_option}")
 
