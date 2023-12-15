@@ -208,11 +208,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.addrBtn.clicked.connect(self.addr_btn_func)
         self.tabWidget.tabBarClicked.connect(self.util_tab_bar_click_func)
         self.tabWidget2.tabBarClicked.connect(self.status_tab_bar_click_func)
-        # hexviewer text changed event
-        self.hexViewer.textChanged.connect(self.text_changed)
+
         self.hexEditBtn.clicked.connect(self.hex_edit)
         self.hexEditDoneBtn.clicked.connect(self.hex_edit)
         self.hexEditShortcut.activated.connect(self.hex_edit)
+
         self.memSearchBtn.clicked.connect(self.mem_search_func)
         self.memReplaceBtn.clicked.connect(self.mem_search_replace_func)
         self.memSearchTargetImgCheckBox.stateChanged.connect(self.mem_search_with_img_checkbox)
@@ -840,57 +840,6 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.listImgViewer.setTextColor(self.defaultcolor)
             self.listImgViewer.setPlainText(text)
 
-    def text_changed(self):
-        tc = self.hexViewer.textCursor()
-        tcx = tc.positionInBlock()
-        # print("[hackcatml] text changed: " + tc.block().text())
-        # if tc.block().text() == "", index out of error occurs so need to return
-        if tc.block().text() == "": return
-        indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
-        hexstart = indices[1] + 1
-
-        # print("[hackcatml] (tcx - hexstart) // 3 = ", (tcx - hexstart) // 3)
-        if (tcx - hexstart) // 3 < 0 or (tcx - hexstart) // 3 > 15: return
-
-        addr = hex(int(tc.block().text()[:tc.block().text().find(" ")], 16) + (tcx - hexstart) // 3)
-        # print("[hackcatml] text changed addr: ", addr)
-
-        changed = tc.block().text()[3 * ((tcx - hexstart) // 3) + hexstart: 3 * ((tcx - hexstart) // 3) + hexstart + 2]
-        changed = "".join(("0x", changed))
-        # print("[hackcatml] changed hex: ", changed)
-
-        pos = tc.position()
-
-        try:
-            orig = globvar.fridaInstrument.read_mem_addr(addr, 1)
-            index = orig.find("\n")
-            index = index + orig[index:].find(' ') + 2
-            orig = orig[index: index + 2]
-            orig = "".join(("0x", orig))
-            if changed == orig or len(changed.replace('0x', '').strip()) == 1 or re.search(r"(?![0-9a-fA-F]).",
-                                                                                           changed.replace('0x', '')):
-                return
-        except Exception as e:
-            if str(e) == globvar.errorType1:
-                globvar.fridaInstrument.sessions.clear()
-            return
-
-        prot = '---'
-        for i in range(len(globvar.enumerateRanges)):
-            if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
-                prot = globvar.enumerateRanges[i][2]
-
-        for i in range(len(globvar.hexEdited)):
-            if addr in globvar.hexEdited[i]:
-                globvar.hexEdited[i][1] = changed
-                globvar.hexEdited[i][2] = orig
-                globvar.hexEdited[i][3] = prot
-                globvar.hexEdited[i][4] = pos
-                return
-
-        globvar.hexEdited.append([addr, changed, orig, prot, pos])
-        # print(f"text changed pos: {tcx}")
-
     def is_hex_edited_from_search(self):
         tc = self.hexViewer.textCursor()
         finalposlist = []
@@ -1329,13 +1278,21 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         if offsetinput.startswith('0x') is False:
             offsetinput = "".join(("0x0", offsetinput))
-        current_addr = hex(int(result['base'], 16) + int(offsetinput, 16)) + f"({offsetinput})"
+
+        current_addr = ""
+        try:
+            current_addr = hex(int(result['base'], 16) + int(offsetinput, 16)) + f"({offsetinput})"
+        except Exception:
+            pass
+
         if inspect.stack()[2].function == "addr_btn_func":
             current_addr = hex(int(offsetinput, 16)) + f"({hex(int(offsetinput, 16) - int(result['base'], 16))})"
 
         # caller function 찾기. https://stackoverflow.com/questions/900392/getting-the-caller-function-name-inside-another-function-in-python
         if inspect.currentframe().f_back.f_code.co_name == "attach_frida":
             current_addr = ""
+            self.offsetInput.clear()
+            self.addrInput.clear()
 
         self.status_current.setPlainText(current_addr)
 

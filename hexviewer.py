@@ -22,6 +22,8 @@ class HexViewerClass(QTextEdit):
         self.verticalScrollBar().sliderMoved.connect(self.setScrollBarPos)
         self.statusBar = None
         self.new_watch_widget = NewWatchWidget()
+        # hexviewer text changed event
+        self.textChanged.connect(self.text_changed_event)
 
     def setScrollBarPos(self, value):
         # print("[hackcatml] slidermoved: ", value)
@@ -48,8 +50,8 @@ class HexViewerClass(QTextEdit):
             if self.hitcount > 0 and delta > 0:
                 self.wheelupsig.emit(globvar.currentFrameStartAddress)
                 self.hitcount = 0
-
-        self.wheelsig.emit(globvar.currentFrameStartAddress)
+        elif re.search(r"\d+\. 0x[0-9a-f]+, module:", tc.block().text()) is None:
+            self.wheelsig.emit(globvar.currentFrameStartAddress)
         # print("[hackcatml] globvar.currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
         # print("[hackcatml] tc.blockNumber(): ", tc.blockNumber())
         # print("[hackcatml] tc.block().text(): ", tc.block().text())
@@ -225,6 +227,57 @@ class HexViewerClass(QTextEdit):
                 menu.insertAction(select_all_action, copy_pointer_action)
 
         menu.exec(e.globalPos())
+
+    def text_changed_event(self):
+        tc = self.textCursor()
+        tcx = tc.positionInBlock()
+        # print("[hackcatml] text changed: " + tc.block().text())
+        # if tc.block().text() == "", index out of error occurs so need to return
+        if tc.block().text() == "": return
+        indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
+        hexstart = indices[1] + 1
+
+        # print("[hackcatml] (tcx - hexstart) // 3 = ", (tcx - hexstart) // 3)
+        if (tcx - hexstart) // 3 < 0 or (tcx - hexstart) // 3 > 15: return
+
+        addr = hex(int(tc.block().text()[:tc.block().text().find(" ")], 16) + (tcx - hexstart) // 3)
+        # print("[hackcatml] text changed addr: ", addr)
+
+        changed = tc.block().text()[3 * ((tcx - hexstart) // 3) + hexstart: 3 * ((tcx - hexstart) // 3) + hexstart + 2]
+        changed = "".join(("0x", changed))
+        # print("[hackcatml] changed hex: ", changed)
+
+        pos = tc.position()
+
+        try:
+            orig = globvar.fridaInstrument.read_mem_addr(addr, 1)
+            index = orig.find("\n")
+            index = index + orig[index:].find(' ') + 2
+            orig = orig[index: index + 2]
+            orig = "".join(("0x", orig))
+            if changed == orig or len(changed.replace('0x', '').strip()) == 1 or re.search(r"(?![0-9a-fA-F]).",
+                                                                                           changed.replace('0x', '')):
+                return
+        except Exception as e:
+            if str(e) == globvar.errorType1:
+                globvar.fridaInstrument.sessions.clear()
+            return
+
+        prot = '---'
+        for i in range(len(globvar.enumerateRanges)):
+            if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
+                prot = globvar.enumerateRanges[i][2]
+
+        for i in range(len(globvar.hexEdited)):
+            if addr in globvar.hexEdited[i]:
+                globvar.hexEdited[i][1] = changed
+                globvar.hexEdited[i][2] = orig
+                globvar.hexEdited[i][3] = prot
+                globvar.hexEdited[i][4] = pos
+                return
+
+        globvar.hexEdited.append([addr, changed, orig, prot, pos])
+        # print(f"text changed pos: {tcx}")
 
     def selected_text(self, request_to_armconverter: bool) -> str:
         selected_text = self.textCursor().selectedText()  # gets the currently selected text
