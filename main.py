@@ -178,6 +178,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.memReplacePattern.setEnabled(False)
         self.hexViewer.wheelupsig.connect(self.wheelupsig_func)
         self.hexViewer.movesig.connect(self.movesig_func)
+        self.hexViewer.refreshsig.connect(self.refreshsig_func)
         self.hexViewer.statusBar = self.statusBar()
         self.defaultcolor = QLabel().palette().color(QPalette.ColorRole.WindowText)
         self.listImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "listImgViewer"))
@@ -298,6 +299,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     @pyqtSlot(int)
     def movesig_func(self, movesig: int):
         self.move_backward() if movesig == 0 else self.move_forward()
+
+    @pyqtSlot(int)
+    def refreshsig_func(self, refreshsig: int):
+        if refreshsig:
+            self.refresh_curr_addr()
 
     @pyqtSlot(str)
     def modulenamesig_func(self, modulenamesig: str, caller):
@@ -912,6 +918,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     globvar.hexEdited.clear()
                     # reset current frame block number
                     globvar.currentFrameBlockNumber = 0
+                    # reset current global mem scan hex view variable
+                    globvar.currentMemScanHexViewResult = self.hexViewer.toPlainText()
                     return
 
                 # refresh hex viewer after patching
@@ -1088,6 +1096,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.arrangedresult2 += f"{i[1][:index]}\n"
 
             self.hexViewer.setPlainText(self.arrangedresult)
+            globvar.currentMemScanHexViewResult = self.arrangedresult
             self.memSearchResult.setText(self.arrangedresult2)
             self.memSearchFoundCount.setText(str(matchcount) + ' found')
             # terminate memory scan thread

@@ -15,6 +15,7 @@ class HexViewerClass(QTextEdit):
     wheelsig = QtCore.pyqtSignal(str)
     scrollsig = QtCore.pyqtSignal(int)
     movesig = QtCore.pyqtSignal(int)
+    refreshsig = QtCore.pyqtSignal(int)
 
     def __init__(self, args):
         super(HexViewerClass, self).__init__(args)
@@ -94,9 +95,9 @@ class HexViewerClass(QTextEdit):
         tcy = tc.anchor()
         # print("keypress pos: ", tcx, tcy)
 
-        # backspace, delete, enter, left key is not allowed
+        # backspace, delete, enter, left key and space is not allowed
         if e.key() in (
-                QtCore.Qt.Key.Key_Backspace, QtCore.Qt.Key.Key_Delete, QtCore.Qt.Key.Key_Return, Qt.Key.Key_Left
+                QtCore.Qt.Key.Key_Backspace, QtCore.Qt.Key.Key_Delete, QtCore.Qt.Key.Key_Return, Qt.Key.Key_Left, Qt.Key.Key_Space
         ): return
 
         # hexedit 모드에서 ctrl + a, cmd + a (select all), ctrl + v, cmd + v (paste) is not allowed
@@ -126,19 +127,19 @@ class HexViewerClass(QTextEdit):
         pos = e.pos()
         tc = self.cursorForPosition(pos)
         tcx = tc.positionInBlock()
-        tcy = tc.blockNumber()
+        line = tc.block().text()
         # print(tc.block().text())
         # print("mousepress pos: ", tcx, tcy)
 
-        indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
+        indices = [i for i, x in enumerate(line) if x == " "]
         # memory pattern search 한 결과창에서 마우스 클릭한 경우
         if len(indices) == 0:
             if e.buttons() == QtCore.Qt.MouseButton.XButton1 or e.buttons() == QtCore.Qt.MouseButton.XButton2: return
             for i in range(2): self.moveCursor(QTextCursor.MoveOperation.Up)
             self.moveCursor(QTextCursor.MoveOperation.NextWord)
             return
-        # elif tc.block().text().find(', module:') != -1:
-        elif re.search(r"\d+\. 0x[a-f0-9]+, module:", tc.block().text()):
+        # elif line.find(', module:') != -1:
+        elif re.search(r"\d+\. 0x[a-f0-9]+, module:", line):
             if e.buttons() == QtCore.Qt.MouseButton.XButton1 or e.buttons() == QtCore.Qt.MouseButton.XButton2: return
             self.moveCursor(QTextCursor.MoveOperation.Down)
             self.moveCursor(QTextCursor.MoveOperation.StartOfBlock)
@@ -157,9 +158,10 @@ class HexViewerClass(QTextEdit):
                 self.moveCursor(QTextCursor.MoveOperation.NextWord)
                 return
             # ASCII String Region
-            if tcx in range(indices[len(indices) - 1], len(tc.block().text()) + 1):
+            if tcx in range(len(line) - 16, len(line) + 1):
                 self.moveCursor(QTextCursor.MoveOperation.StartOfLine)
-                for i in range(len(indices) - 3): self.moveCursor(QTextCursor.MoveOperation.NextWord)
+                for i in range(16):
+                    self.moveCursor(QTextCursor.MoveOperation.NextWord)
                 return
             # if (tcx - 9) % 3 == 0 or (tcx - 9) % 3 == 1:
             if tcx in indices or (tcx + 1) in indices:
@@ -231,19 +233,42 @@ class HexViewerClass(QTextEdit):
     def text_changed_event(self):
         tc = self.textCursor()
         tcx = tc.positionInBlock()
+        line = tc.block().text()
         # print("[hackcatml] text changed: " + tc.block().text())
-        # if tc.block().text() == "", index out of error occurs so need to return
-        if tc.block().text() == "": return
-        indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
-        hexstart = indices[1] + 1
+
+        # if tc.block().text() == "", index out of error occurs
+        if line == "": return
+
+        # check if it's the mem scan result view
+        if self.toPlainText() is not None and re.search(r"\d+\. 0x[0-9a-f]+, module:", self.toPlainText()):
+            is_mem_scan_result_view = True
+        else:
+            is_mem_scan_result_view = False
+
+        # if changed text is not hex, then refresh the hex viewer
+        # print(f"text: {line[len(line) - 66:len(line) - 16]}")
+        if re.search(r"[^0-9a-f\s]+", line[len(line) - 66:len(line) - 16]) and not re.search(r"\d+\. 0x[0-9a-f]+, module:", line):
+            if is_mem_scan_result_view:
+                self.setText(globvar.currentMemScanHexViewResult)
+            else:
+                self.refreshsig.emit(1) if globvar.isFridaAttached else None
+            return
+
+        indices = [i for i, x in enumerate(line) if x == " "]
+        try:
+            hexstart = indices[1] + 1
+        except Exception as e:
+            print(f"{inspect.currentframe().f_code.co_name}: {e}")
+            self.clear()
+            return
 
         # print("[hackcatml] (tcx - hexstart) // 3 = ", (tcx - hexstart) // 3)
         if (tcx - hexstart) // 3 < 0 or (tcx - hexstart) // 3 > 15: return
 
-        addr = hex(int(tc.block().text()[:tc.block().text().find(" ")], 16) + (tcx - hexstart) // 3)
+        addr = hex(int(line[:line.find(" ")], 16) + (tcx - hexstart) // 3)
         # print("[hackcatml] text changed addr: ", addr)
 
-        changed = tc.block().text()[3 * ((tcx - hexstart) // 3) + hexstart: 3 * ((tcx - hexstart) // 3) + hexstart + 2]
+        changed = line[3 * ((tcx - hexstart) // 3) + hexstart: 3 * ((tcx - hexstart) // 3) + hexstart + 2]
         changed = "".join(("0x", changed))
         # print("[hackcatml] changed hex: ", changed)
 

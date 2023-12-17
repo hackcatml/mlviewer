@@ -13,6 +13,8 @@ hexEdited = []
 currentFrameBlockNumber = 0
 currentFrameStartAddress = ''
 
+currentMemScanHexViewResult = ''
+
 scanProgressRatio = 0
 
 dumpModuleName = ''
