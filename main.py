@@ -10,11 +10,13 @@ from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, Q
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
 import code
+import diff
 import gadget
 import globvar
 import spawn
 import ui
 import ui_win
+import utilviewer
 
 from disasm import DisassembleWorker
 
@@ -261,6 +263,9 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         self.utilViewer.full_memory_dump_btn = self.fullMemoryDumpBtn
         self.utilViewer.full_memory_dump_btn.clicked.connect(self.utilViewer.full_memory_dump)
+
+        self.utilViewer.binary_diff_btn = self.binaryDiffBtn
+        self.utilViewer.binary_diff_btn.clicked.connect(self.utilViewer.binary_diff)
 
         self.utilViewer.dex_dump_btn = self.dexDumpBtn
         self.utilViewer.dex_dump_btn.clicked.connect(self.utilViewer.dex_dump)

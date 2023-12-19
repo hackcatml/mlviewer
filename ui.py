@@ -490,12 +490,14 @@ class Ui_MainWindow(object):
         self.tab_6.setObjectName("tab_6")
         self.gridLayout_8 = QtWidgets.QGridLayout(self.tab_6)
         self.gridLayout_8.setObjectName("gridLayout_8")
+
         self.appInfoBtn = QtWidgets.QPushButton(self.tab_6)
         self.appInfoBtn.setObjectName("appInfoBtn")
         self.gridLayout_8.addWidget(self.appInfoBtn, 0, 1, 1, 1)
         self.AppInfoLabel = QtWidgets.QLabel(self.tab_6)
         self.AppInfoLabel.setObjectName("AppInfoLabel")
         self.gridLayout_8.addWidget(self.AppInfoLabel, 0, 0, 1, 1)
+
         self.pullPackageLabel = QtWidgets.QLabel(self.tab_6)
         self.pullPackageLabel.setMaximumSize(QtCore.QSize(16777215, 40))
         self.pullPackageLabel.setObjectName("pullPackageLabel")
@@ -503,6 +505,7 @@ class Ui_MainWindow(object):
         self.pullPackageBtn = QtWidgets.QPushButton(self.tab_6)
         self.pullPackageBtn.setObjectName("pullPackageBtn")
         self.gridLayout_8.addWidget(self.pullPackageBtn, 3, 1, 1, 1)
+
         self.fullMemoryDumpLabel = QtWidgets.QLabel(self.tab_6)
         self.fullMemoryDumpLabel.setMaximumSize(QtCore.QSize(16777215, 40))
         self.fullMemoryDumpLabel.setObjectName("fullMemoryDumpLabel")
@@ -511,9 +514,17 @@ class Ui_MainWindow(object):
         self.fullMemoryDumpBtn.setObjectName("fullMemoryDumpBtn")
         self.gridLayout_8.addWidget(self.fullMemoryDumpBtn, 4, 1, 1, 1)
 
+        self.binaryDiffLabel = QtWidgets.QLabel(self.tab_6)
+        self.binaryDiffLabel.setMaximumSize(QtCore.QSize(16777215, 40))
+        self.binaryDiffLabel.setObjectName("binaryDiffLabel")
+        self.gridLayout_8.addWidget(self.binaryDiffLabel, 5, 0, 1, 1)
+        self.binaryDiffBtn = QtWidgets.QPushButton(self.tab_6)
+        self.binaryDiffBtn.setObjectName("binaryDiffBtn")
+        self.gridLayout_8.addWidget(self.binaryDiffBtn, 5, 1, 1, 1)
+
         self.dexDumpBtn = QtWidgets.QPushButton(self.tab_6)
         self.dexDumpBtn.setObjectName("dexDumpBtn")
-        self.gridLayout_8.addWidget(self.dexDumpBtn, 5, 1, 1, 1)
+        self.gridLayout_8.addWidget(self.dexDumpBtn, 6, 1, 1, 1)
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
         self.dexDumpLabel = QtWidgets.QLabel(self.tab_6)
@@ -523,7 +534,7 @@ class Ui_MainWindow(object):
         self.dexDumpCheckBox = QtWidgets.QCheckBox(self.tab_6)
         self.dexDumpCheckBox.setObjectName("dexDumpCheckBox")
         self.horizontalLayout_5.addWidget(self.dexDumpCheckBox)
-        self.gridLayout_8.addLayout(self.horizontalLayout_5, 5, 0, 1, 1)
+        self.gridLayout_8.addLayout(self.horizontalLayout_5, 6, 0, 1, 1)
 
         spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.gridLayout_8.addItem(spacerItem4, 7, 0, 1, 1)
@@ -664,17 +675,25 @@ class Ui_MainWindow(object):
         self.moveForwardBtn.setText(_translate("MainWindow", "▶"))
         self.disassemBtn.setText(_translate("MainWindow", "Disasm"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Viewer"))
+
         self.appInfoBtn.setText(_translate("MainWindow", "Info"))
         self.AppInfoLabel.setText(_translate("MainWindow", "Basic App Info"))
+
         self.pullPackageLabel.setText(
             _translate("MainWindow", "<html><head/><body><p>Pull Package</p></body></html>"))
         self.pullPackageBtn.setText(_translate("MainWindow", "Pull"))
+
         self.fullMemoryDumpLabel.setText(
             _translate("MainWindow", "<html><head/><body><p>Full Memory Dump</p></body></html>"))
         self.fullMemoryDumpBtn.setText(_translate("MainWindow", "Dump"))
+
+        self.binaryDiffLabel.setText(_translate("MainWindow", "<html><head/><body><p>Binary Diff</p></body></html>"))
+        self.binaryDiffBtn.setText(_translate("MainWindow", "Diff"))
+
         self.dexDumpBtn.setText(_translate("MainWindow", "Dump"))
         self.dexDumpLabel.setText(_translate("MainWindow", "<html><head/><body><p>Dex dump</p></body></html>"))
         self.dexDumpCheckBox.setText(_translate("MainWindow", "Deep"))
+
         self.parseImgTabWidget.setTabText(self.parseImgTabWidget.indexOf(self.tab_6), _translate("MainWindow", "Info"))
         self.utilViewer.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\n"

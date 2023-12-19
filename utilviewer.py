@@ -5,12 +5,14 @@ import shutil
 import warnings
 import zipfile
 
-from PyQt6 import QtCore, QtGui
+from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import pyqtSlot, QThread, Qt
 from PyQt6.QtGui import QAction, QTextCursor
-from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QPushButton, QCheckBox
+from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QPushButton, QCheckBox, \
+    QMessageBox
 
 import code
+import diff
 import dumper
 import globvar
 
@@ -177,6 +179,9 @@ class UtilViewerClass(QTextEdit):
 
         self.pullIpaWorker = None
         self.fullMemoryDumpWorker = None
+
+        self.binary_diff_btn = QPushButton(None)
+        self.binary_diff_dialog = None
 
         self.dex_dump_btn = QPushButton(None)
         self.dex_dump_check_box = QCheckBox(None)
@@ -469,6 +474,26 @@ class UtilViewerClass(QTextEdit):
         self.statusBar.showMessage("Start memory dump...")
         return
 
+    def binary_diff(self):
+        if self.binary_diff_dialog is not None and self.binary_diff_dialog.diff_result is not None:
+            reply = QMessageBox.question(
+                self,
+                "Binary Diff",
+                "There's a binary diff result already done. Show the result?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self.binary_diff_dialog.binary_diff_result_window.show()
+                return
+        elif self.binary_diff_dialog is not None and self.binary_diff_dialog.binary_diff_result_window is not None:
+            self.binary_diff_dialog.binary_diff_result_window.show()
+            return
+        else:
+            self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
+            self.binary_diff_dialog.diff_dialog.show()
+
     @pyqtSlot(bool)
     def dex_dump_finished_sig_func(self, sig: bool):
         if sig is True:
@@ -482,8 +507,11 @@ class UtilViewerClass(QTextEdit):
         self.is_deep_dex_dump_checked = state == Qt.CheckState.Checked.value
 
     def dex_dump(self):
+        if not globvar.isFridaAttached:
+            self.statusBar.showMessage(f"Attach first", 5000)
+            return
         if self.platform == 'darwin':
-            self.statusBar.showMessage(f"Dex dump is only for Android", 3000)
+            self.statusBar.showMessage(f"Dex dump is only for Android", 5000)
             return
 
         self.dex_dump_worker = DexDumpWorker(globvar.fridaInstrument, self.is_deep_dex_dump_checked)
