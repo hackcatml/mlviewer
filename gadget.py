@@ -1,6 +1,7 @@
 import os
 import shutil
 import socket
+import subprocess
 import warnings
 import zipfile
 import platform
@@ -45,6 +46,25 @@ def get_local_ip():
     except Exception as e:
         print(f"Error obtaining local IP: {e}")
         return None
+
+
+def command_exists_on_device(device_command):
+    try:
+        # Construct the full adb command
+        full_command = f"adb shell su -c \"{device_command}\""
+
+        # Run the command and capture the output
+        result = subprocess.run(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        # Determine if the command exists based on the output or error
+        # Adjust this logic based on what you observe in the output
+        if "not found" not in result.stderr:
+            return True
+        else:
+            return False
+    except subprocess.CalledProcessError:
+        # The command failed to execute
+        return False
 
 
 class Ui_prepareGadgetDialogUi(object):
@@ -242,7 +262,10 @@ class GadgetDialogClass(QtWidgets.QDialog):
         # install zygisk-gadget
         os.system(f"adb push {temp_zip_path} /data/local/tmp/")
         os.remove(temp_zip_path)
-        os.system(f"adb shell su -c \"magisk --install-module /data/local/tmp/{temp_zip_name}\"")
+        if command_exists_on_device("ksud"):
+            os.system(f"adb shell su -c \"ksud module install /data/local/tmp/{temp_zip_name}\"")
+        else:
+            os.system(f"adb shell su -c \"magisk --install-module /data/local/tmp/{temp_zip_name}\"")
         os.system(f"adb shell su -c \"rm -rf /data/local/tmp/{temp_zip_name}\"")
         os.system("adb reboot")
 
