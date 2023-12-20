@@ -9,7 +9,8 @@ import time
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, pyqtSlot, QThread
-from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtGui import QPalette
+from PyQt6.QtWidgets import QFileDialog, QApplication
 
 
 class Ui_DiffDialog(object):
@@ -19,12 +20,10 @@ class Ui_DiffDialog(object):
         self.gridLayout = QtWidgets.QGridLayout(Dialog)
         self.gridLayout.setObjectName("gridLayout")
         self.textEdit = DroppableTextEdit(parent=Dialog, text_edit_for_file1or2="file1")
-        self.textEdit.setStyleSheet("background-color: rgb(210, 209, 211);")
         self.textEdit.setReadOnly(True)
         self.textEdit.setObjectName("textEdit")
         self.gridLayout.addWidget(self.textEdit, 0, 0, 1, 1)
         self.textEdit_2 = DroppableTextEdit(parent=Dialog, text_edit_for_file1or2="file2")
-        self.textEdit_2.setStyleSheet("background-color: rgb(210, 209, 211);")
         self.textEdit_2.setReadOnly(True)
         self.textEdit_2.setObjectName("textEdit_2")
         self.gridLayout.addWidget(self.textEdit_2, 0, 1, 1, 1)
@@ -80,9 +79,18 @@ class ProcessDiffResultWorker(QThread):
         super().__init__()
         self.formatted_diffs = formatted_diffs
 
+    def is_dark_mode(self):
+        palette = QApplication.palette()
+        background_color = palette.color(QPalette.ColorRole.Window)
+        return background_color.lightness() < 128  # Check if the background color is dark
+
     def run(self) -> None:
         line = ''
         line_count = 0
+
+        dark_mode = self.is_dark_mode()
+        default_color = "white" if dark_mode else "black"
+
         for block_start, (block1, block2) in self.formatted_diffs.items():
             line_count += 1
             if line_count == 1:
@@ -94,14 +102,22 @@ class ProcessDiffResultWorker(QThread):
 
             line += f"0x{block_start:08x} "
             for b1, b2 in zip(block1, block2):
-                color = "red" if b1 != b2 else "black"
-                formatted_b1 = '00' if b1 is None else f'{b1:02x}'
-                line += f'<span style="color:{color};">{formatted_b1} </span>'
+                if b1 != b2:
+                    color = "red"
+                    formatted_b1 = '00' if b1 is None else f'{b1:02x}'
+                    line += f'<span style="color:{color};">{formatted_b1} </span>'
+                else:
+                    formatted_b1 = '00' if b1 is None else f'{b1:02x}'
+                    line += f'{formatted_b1} '
             line += "!= "
             for b1, b2 in zip(block1, block2):
-                color = "red" if b1 != b2 else "black"
-                formatted_b2 = '00' if b2 is None else f'{b2:02x}'
-                line += f'<span style="color:{color};">{formatted_b2} </span>'
+                if b1 != b2:
+                    color = "red"
+                    formatted_b2 = '00' if b2 is None else f'{b2:02x}'
+                    line += f'<span style="color:{color};">{formatted_b2} </span>'
+                else:
+                    formatted_b2 = '00' if b2 is None else f'{b2:02x}'
+                    line += f'{formatted_b2} '
 
             self.process_diff_result_sig.emit(line)
             line = ''
@@ -155,10 +171,11 @@ class BinaryCompareWorker(QThread):
         first = False
         if not os.path.isfile(self.file1) or not os.path.isfile(self.file2):
             self.message = "not found"
-            return False
+            return
         if os.path.getsize(self.file1) != os.path.getsize(self.file2):
             self.message = "size"
-            return False
+            self.binary_compare_finished_sig.emit("size")
+            return
         result = True
         f1 = open(self.file1, 'rb')
         f2 = open(self.file2, 'rb')
@@ -227,29 +244,34 @@ class CompareFilesWindow(object):
         self.horizontalLayout.setContentsMargins(-1, 0, -1, -1)
         self.horizontalLayout.setSpacing(0)
         self.horizontalLayout.setObjectName("horizontalLayout")
+
+        self.stopDiffBtn = QtWidgets.QPushButton(Form)
+        self.stopDiffBtn.setMaximumSize(QtCore.QSize(50, 16777215))
+        self.stopDiffBtn.setObjectName("stopDiffBtn")
+        self.gridLayout.addWidget(self.stopDiffBtn, 0, 0, 1, 1)
+
         self.file1TextEdit = QtWidgets.QTextEdit(Form)
         self.file1TextEdit.setMaximumSize(QtCore.QSize(16777215, 50))
-        self.file1TextEdit.setStyleSheet("background-color: rgb(242, 241, 243);")
         self.file1TextEdit.setReadOnly(True)
         self.file1TextEdit.setObjectName("file1TextEdit")
         self.horizontalLayout.addWidget(self.file1TextEdit)
         self.file2TextEdit = QtWidgets.QTextEdit(Form)
         self.file2TextEdit.setMaximumSize(QtCore.QSize(16777215, 50))
-        self.file2TextEdit.setStyleSheet("background-color: rgb(242, 241, 243);")
         self.file2TextEdit.setReadOnly(True)
         self.file2TextEdit.setObjectName("file2TextEdit")
         self.horizontalLayout.addWidget(self.file2TextEdit)
-        self.gridLayout.addLayout(self.horizontalLayout, 0, 0, 2, 1)
+        self.gridLayout.addLayout(self.horizontalLayout, 1, 0, 2, 1)
+
+        self.addressTextEdit = QtWidgets.QTextEdit(Form)
+        self.addressTextEdit.setMaximumSize(QtCore.QSize(16777215, 26))
+        self.addressTextEdit.setReadOnly(True)
+        self.addressTextEdit.setObjectName("addressTextEdit")
+        self.gridLayout.addWidget(self.addressTextEdit, 3, 0, 1, 1)
+
         self.binaryDiffResultView = QtWidgets.QTextEdit(Form)
         self.binaryDiffResultView.setReadOnly(True)
         self.binaryDiffResultView.setObjectName("binaryDiffResultView")
-        self.gridLayout.addWidget(self.binaryDiffResultView, 3, 0, 1, 1)
-        self.addressTextEdit = QtWidgets.QTextEdit(Form)
-        self.addressTextEdit.setMaximumSize(QtCore.QSize(16777215, 26))
-        self.addressTextEdit.setStyleSheet("background-color: rgb(242, 241, 243);")
-        self.addressTextEdit.setReadOnly(True)
-        self.addressTextEdit.setObjectName("addressTextEdit")
-        self.gridLayout.addWidget(self.addressTextEdit, 2, 0, 1, 1)
+        self.gridLayout.addWidget(self.binaryDiffResultView, 4, 0, 1, 1)
 
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
@@ -257,6 +279,7 @@ class CompareFilesWindow(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Binary Diff Result"))
+        self.stopDiffBtn.setText(_translate("Form", "Stop"))
 
 
 class DroppableTextEdit(QtWidgets.QTextEdit):
@@ -330,17 +353,21 @@ class DiffDialogClass(QtWidgets.QDialog):
         file, _ = QFileDialog.getOpenFileNames(self, caption="Select a file to compare", directory="./dump", initialFilter="All Files (*)")
         if file1or2 == "file1":
             self.file1 = "" if len(file) == 0 else file[0]
-            self.diff_dialog_ui.textEdit.setText(self.file1)
+            if self.file1:
+                self.diff_dialog_ui.textEdit.setText(self.file1)
         elif file1or2 == "file2":
             self.file2 = "" if len(file) == 0 else file[0]
-            self.diff_dialog_ui.textEdit_2.setText(self.file2)
+            if self.file2:
+                self.diff_dialog_ui.textEdit_2.setText(self.file2)
 
         if self.file1 and self.file2:
             self.diff_dialog_ui.doDiffBtn.setEnabled(True)
 
     @pyqtSlot(str)
     def binary_compare_finished_sig_func(self, is_finished: str):
-        if is_finished == "identical":
+        if is_finished == "size":
+            self.statusBar.showMessage("The sizes of the two files are different", 5000)
+        elif is_finished == "identical":
             self.statusBar.showMessage("Two files are identical", 5000)
         elif is_finished == "finished":
             self.process_diff_result()
@@ -366,6 +393,7 @@ class DiffDialogClass(QtWidgets.QDialog):
         self.binary_diff_result_window = QtWidgets.QWidget()
         self.binary_diff_result_ui = CompareFilesWindow()
         self.binary_diff_result_ui.setupUi(self.binary_diff_result_window)
+        self.binary_diff_result_ui.stopDiffBtn.clicked.connect(self.stop_diff)
 
         formatted_diffs = self.binary_compare_worker.format_diff(16)
         self.binary_compare_worker.quit()
@@ -374,6 +402,14 @@ class DiffDialogClass(QtWidgets.QDialog):
         self.process_diff_result_worker.process_diff_result_sig.connect(self.process_diff_result_sig_func)
         self.process_diff_result_worker.process_diff_finished_sig.connect(self.process_diff_finished_sig_func)
         self.process_diff_result_worker.start()
+
+    def stop_diff(self):
+        if self.process_diff_result_worker is not None:
+            self.process_diff_result_worker.process_diff_result_sig.disconnect(self.process_diff_result_sig_func)
+            self.process_diff_result_worker.process_diff_finished_sig.disconnect(self.process_diff_finished_sig_func)
+            self.process_diff_result_worker.terminate()
+            self.diff_result = self.binary_diff_result_ui.binaryDiffResultView.toPlainText()
+            self.statusBar.showMessage("Binary diff is done!", 5000)
 
     def do_diff(self):
         self.diff_dialog.close()

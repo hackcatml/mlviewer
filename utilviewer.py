@@ -487,6 +487,10 @@ class UtilViewerClass(QTextEdit):
             if reply == QMessageBox.StandardButton.Yes:
                 self.binary_diff_dialog.binary_diff_result_window.show()
                 return
+            else:
+                self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
+                self.binary_diff_dialog.diff_dialog.show()
+                return
         elif self.binary_diff_dialog is not None and self.binary_diff_dialog.binary_diff_result_window is not None:
             self.binary_diff_dialog.binary_diff_result_window.show()
             return
