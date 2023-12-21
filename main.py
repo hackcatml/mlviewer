@@ -1140,7 +1140,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
     def watch_mem_checkbox(self, state):
         isChecked = state == Qt.CheckState.Checked.value
-        if isChecked:
+        if isChecked and globvar.isFridaAttached:
             self.memrefreshworker = MemRefreshWorker()
             self.memrefreshworker.status_current = self.status_current
             self.memrefreshworker.addrInput = self.addrInput
