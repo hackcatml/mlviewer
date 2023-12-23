@@ -1286,27 +1286,33 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.status_img_name.setText(result['name'])
         self.status_img_base.setPlainText(result['base'])
 
-        offsetinput = self.offsetInput.text()
+        input = self.offsetInput.text()
         if inspect.stack()[2].function == "addr_btn_func":
-            offsetinput = self.addrInput.text()
+            input = self.addrInput.text()
 
-        if offsetinput.startswith('0x') is False:
-            offsetinput = "".join(("0x0", offsetinput))
+        if input.startswith('0x') is False:
+            input = "".join(("0x0", input))
 
+        addr = ""
         current_addr = ""
         try:
-            current_addr = hex(int(result['base'], 16) + int(offsetinput, 16)) + f"({offsetinput})"
-        except Exception:
+            if inspect.stack()[2].function == "offset_ok_btn_func":
+                addr = hex(int(result['base'], 16) + int(input, 16))
+                current_addr = addr + f"({input})"
+            elif inspect.stack()[2].function == "addr_btn_func":
+                addr = hex(int(input, 16))
+                current_addr = addr + f"({hex(int(input, 16) - int(result['base'], 16))})"
+            # caller function 찾기. https://stackoverflow.com/questions/900392/getting-the-caller-function-name-inside-another-function-in-python
+            elif inspect.currentframe().f_back.f_code.co_name == "attach_frida":
+                self.offsetInput.clear()
+                self.addrInput.clear()
+            # show the function name if it can be found
+            if name is not None and current_addr != "" and globvar.isFridaAttached:
+                if (sym_name := globvar.fridaInstrument.find_sym_name_by_addr(name, addr)) is not None:
+                    current_addr += f"({sym_name})"
+        except Exception as e:
+            print(e)
             pass
-
-        if inspect.stack()[2].function == "addr_btn_func":
-            current_addr = hex(int(offsetinput, 16)) + f"({hex(int(offsetinput, 16) - int(result['base'], 16))})"
-
-        # caller function 찾기. https://stackoverflow.com/questions/900392/getting-the-caller-function-name-inside-another-function-in-python
-        if inspect.currentframe().f_back.f_code.co_name == "attach_frida":
-            current_addr = ""
-            self.offsetInput.clear()
-            self.addrInput.clear()
 
         self.status_current.setPlainText(current_addr)
 

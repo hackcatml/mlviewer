@@ -161,6 +161,10 @@ class Instrument(QObject):
         result = self.script.exports.findsymaddrbyname(name)
         return result
 
+    def find_sym_name_by_addr(self, module, addr):
+        result = self.script.exports.find_sym_name_by_addr(module, addr)
+        return result
+
     def list_modules(self):
         self.script.exports.listmodules()
         return MESSAGE

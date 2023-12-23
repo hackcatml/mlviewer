@@ -126,6 +126,17 @@ rpc.exports = {
             return symbol_addr
         }
     },
+    findSymNameByAddr: (module_name, addr) => {
+        let symbols = Module.enumerateSymbolsSync(module_name);
+        let sym_name = null;
+        symbols.some(x => {
+            if (x.address == addr && x.type === "function") {
+              sym_name = x.name;
+              return true;
+            }
+        })
+        return sym_name;
+    },
     enumerateranges:(prot) => {
         // send(Process.enumerateRangesSync(prot))
         return Process.enumerateRangesSync(prot)
