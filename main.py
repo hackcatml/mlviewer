@@ -10,15 +10,13 @@ from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, Q
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog
 
 import code
-import diff
 import gadget
 import globvar
 import spawn
 import ui
 import ui_win
-import utilviewer
-
 from disasm import DisassembleWorker
+from history import HistoryViewClass
 
 
 def is_readable_addr(addr):
@@ -242,8 +240,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.disasm_worker.hexviewer.scrollsig.connect(self.disasm_worker.hexviewer_scrollsig_func)
         self.disasm_worker.moveToThread(self.disasm_thread)
         self.disasm_thread.start()
-        self.disassemBtnClickCount = 0
+        self.disassemBtnClickedCount = 0
         self.disassemBtn.clicked.connect(self.show_disassemble_result)
+
+        self.history_view = HistoryViewClass()
+        self.history_view.historyaddrsig.connect(self.history_addr_sig_func)
+        self.historyBtn.clicked.connect(self.show_history)
+        self.historyBtnClickedCount = 0
 
         self.utilViewer.parse_img_name = self.parse_img_name
         self.utilViewer.parse_img_base = self.parse_img_base
@@ -377,6 +380,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.remoteaddr = "localhost"
             self.attachtargetname = nodeinfo[0]
             self.attach_frida("frida_portal_sig_func")
+
+    @pyqtSlot(str)
+    def history_addr_sig_func(self, addr: str):
+        self.addrInput.setText(addr)
+        self.addr_btn_func()
 
     def adjust_label_pos(self):
         tc = self.hexViewer.textCursor()
@@ -782,14 +790,24 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         globvar.visitedAddress[revisit_index][0] = 'last'
                         if revisit_index != last_visit_index:
                             globvar.visitedAddress[last_visit_index][0] = 'notlast'
+            # add visted_addr to the history table
+            self.history_view.add_row(visited_addr)
 
     def show_disassemble_result(self):
-        self.disassemBtnClickCount += 1
+        self.disassemBtnClickedCount += 1
         self.disasm_worker.disasm_window.show()
-        if self.disassemBtnClickCount == 1:
+        if self.disassemBtnClickedCount == 1:
             curr_pos = self.disasm_worker.disasm_window.pos()
             new_pos = curr_pos + QPoint(-270, 150)
             self.disasm_worker.disasm_window.move(new_pos)
+
+    def show_history(self):
+        self.historyBtnClickedCount += 1
+        self.history_view.history_window.show()
+        if self.historyBtnClickedCount == 1:
+            curr_pos = self.history_view.history_window.pos()
+            new_pos = curr_pos + QPoint(480, -350)
+            self.history_view.history_window.move(new_pos)
 
     def util_tab_bar_click_func(self, index):
         pass
@@ -1363,6 +1381,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.prepareGadgetDialog.gadgetdialog.close()
         if self.disasm_worker is not None:
             self.disasm_worker.disasm_window.close()
+        if self.history_view is not None:
+            self.history_view.history_window.close()
         if self.utilViewer.dex_dump_worker is not None:
             self.utilViewer.dex_dump_worker.quit()
 

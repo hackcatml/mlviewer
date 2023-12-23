@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>428</width>
+    <height>174</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>Courier New</family>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>History</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QTableWidget" name="historyTableWidget">
+     <property name="font">
+      <font>
+       <family>Courier New</family>
+      </font>
+     </property>
+     <property name="rowCount">
+      <number>1</number>
+     </property>
+     <property name="columnCount">
+      <number>2</number>
+     </property>
+     <row/>
+     <column/>
+     <column/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
