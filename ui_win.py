@@ -55,6 +55,7 @@ class Ui_MainWindow(object):
         self.gridLayout_2.addLayout(self.horizontalLayout, 6, 2, 1, 2)
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
+
         self.hexEditBtn = QtWidgets.QPushButton(self.tab)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -73,6 +74,7 @@ class Ui_MainWindow(object):
         self.hexEditDoneBtn.setMinimumSize(QtCore.QSize(70, 0))
         self.hexEditDoneBtn.setObjectName("hexEditDoneBtn")
         self.horizontalLayout_4.addWidget(self.hexEditDoneBtn)
+
         self.watchMemoryCheckBox = QtWidgets.QCheckBox(self.tab)
         self.watchMemoryCheckBox.setObjectName("watchMemoryCheckBox")
         self.horizontalLayout_4.addWidget(self.watchMemoryCheckBox)
@@ -82,6 +84,7 @@ class Ui_MainWindow(object):
         self.watchMemorySpinBox.setSingleStep(0.1)
         self.watchMemorySpinBox.setObjectName("watchMemorySpinBox")
         self.horizontalLayout_4.addWidget(self.watchMemorySpinBox)
+
         self.refreshBtn = QtWidgets.QPushButton(self.tab)
         self.refreshBtn.setMaximumSize(QtCore.QSize(25, 24))
         font = QtGui.QFont()
@@ -91,6 +94,7 @@ class Ui_MainWindow(object):
         self.refreshBtn.setFont(font)
         self.refreshBtn.setObjectName("refreshBtn")
         self.horizontalLayout_4.addWidget(self.refreshBtn)
+
         self.moveBackwardBtn = QtWidgets.QPushButton(self.tab)
         self.moveBackwardBtn.setMaximumSize(QtCore.QSize(25, 16777215))
         self.moveBackwardBtn.setObjectName("moveBackwardBtn")
@@ -99,16 +103,20 @@ class Ui_MainWindow(object):
         self.moveForwardBtn.setMaximumSize(QtCore.QSize(25, 16777215))
         self.moveForwardBtn.setObjectName("moveForwardBtn")
         self.horizontalLayout_4.addWidget(self.moveForwardBtn)
+
         self.disassemBtn = QtWidgets.QPushButton(self.tab)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.disassemBtn.sizePolicy().hasHeightForWidth())
         self.disassemBtn.setSizePolicy(sizePolicy)
         self.disassemBtn.setMinimumSize(QtCore.QSize(75, 0))
         self.disassemBtn.setMaximumSize(QtCore.QSize(75, 16777215))
         self.disassemBtn.setObjectName("disassemBtn")
         self.horizontalLayout_4.addWidget(self.disassemBtn)
+
+        self.historyBtn = QtWidgets.QPushButton(self.tab)
+        self.historyBtn.setSizePolicy(sizePolicy)
+        self.historyBtn.setMinimumSize(QtCore.QSize(70, 0))
+        self.historyBtn.setObjectName("historyBtn")
+        self.horizontalLayout_4.addWidget(self.historyBtn)
+
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.horizontalLayout_4.addItem(spacerItem)
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
@@ -616,6 +624,7 @@ class Ui_MainWindow(object):
         self.moveBackwardBtn.setText(_translate("MainWindow", "◀"))
         self.moveForwardBtn.setText(_translate("MainWindow", "▶"))
         self.disassemBtn.setText(_translate("MainWindow", "Disasm"))
+        self.historyBtn.setText(_translate("MainWindow", "History"))
         self.label_8.setText(_translate("MainWindow", "Size"))
         self.label_5.setText(_translate("MainWindow", "Base"))
         self.label_4.setText(_translate("MainWindow", "Name"))

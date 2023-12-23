@@ -1,3 +1,5 @@
+import platform
+
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, QObject
 from PyQt6.QtWidgets import QTableWidgetItem, QWidget
@@ -9,7 +11,8 @@ class Ui_Form(object):
         Form.resize(450, 170)
         font = QtGui.QFont()
         font.setFamily("Courier New")
-        font.setPointSize(13)
+        font_size = 13 if platform.system() == "Darwin" else 9
+        font.setPointSize(font_size)
         Form.setFont(font)
         self.gridLayout = QtWidgets.QGridLayout(Form)
         self.gridLayout.setObjectName("gridLayout")
@@ -54,7 +57,7 @@ class HistoryViewClass(QObject):
     def add_row(self, addr):
         for row in range(self.history_ui.historyTableWidget.rowCount()):
             item = self.history_ui.historyTableWidget.item(row, 0)
-            if item.text() == addr:
+            if item is not None and item.text() == addr:
                 return
 
         row_position = self.history_ui.historyTableWidget.rowCount()
@@ -72,3 +75,8 @@ class HistoryViewClass(QObject):
     def addr_clicked(self, item):
         if item.column() == 0:
             self.historyaddrsig.emit(item.text())
+
+    def clear_table(self):
+        self.history_ui.historyTableWidget.clearContents()
+        while self.history_ui.historyTableWidget.rowCount() > 0:
+            self.history_ui.historyTableWidget.removeRow(0)

@@ -511,6 +511,9 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     self.hexViewer.new_watch_widget.close()
                 if self.utilViewer.pullIpaWorker is not None:
                     self.utilViewer.pullIpaWorker.quit()
+                if self.history_view is not None:
+                    self.history_view.history_window.close()
+                    self.history_view.clear_table()
                 self.statusBar().showMessage("")
             except Exception as e:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 5000)
@@ -806,7 +809,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.history_view.history_window.show()
         if self.historyBtnClickedCount == 1:
             curr_pos = self.history_view.history_window.pos()
-            new_pos = curr_pos + QPoint(480, -350)
+            new_pos = (curr_pos + QPoint(480, -350)) if platform.system() == "Darwin" else (curr_pos + QPoint(490, -360))
             self.history_view.history_window.move(new_pos)
 
     def util_tab_bar_click_func(self, index):
@@ -1381,8 +1384,6 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.prepareGadgetDialog.gadgetdialog.close()
         if self.disasm_worker is not None:
             self.disasm_worker.disasm_window.close()
-        if self.history_view is not None:
-            self.history_view.history_window.close()
         if self.utilViewer.dex_dump_worker is not None:
             self.utilViewer.dex_dump_worker.quit()
 
