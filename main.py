@@ -480,14 +480,18 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         set_mem_range('r--')
 
-        self.platform = globvar.fridaInstrument.platform()
-        if self.platform == 'darwin':
-            self.isPalera1n = globvar.fridaInstrument.is_palera1n()
-        self.utilViewer.platform = self.platform
-        globvar.arch = globvar.fridaInstrument.arch()
-        name = globvar.fridaInstrument.list_modules()[0]['name']
-        self.attachedname = name
-        self.set_status(name)
+        try:
+            self.platform = globvar.fridaInstrument.platform()
+            if self.platform == 'darwin':
+                self.isPalera1n = globvar.fridaInstrument.is_palera1n()
+            self.utilViewer.platform = self.platform
+            globvar.arch = globvar.fridaInstrument.arch()
+            name = globvar.fridaInstrument.list_modules()[0]['name']
+            self.attachedname = name
+            self.set_status(name)
+        except Exception as e:
+            print(e)
+            return
 
     def detach_frida(self):
         if globvar.fridaInstrument is None:
