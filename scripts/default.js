@@ -130,7 +130,7 @@ rpc.exports = {
         let symbols = Module.enumerateSymbolsSync(module_name);
         let sym_name = null;
         symbols.some(x => {
-            if (x.address == addr && x.type === "function") {
+            if (x.address == addr && (x.type === "function" || x.type === "section")) {
               sym_name = x.name;
               return true;
             }
