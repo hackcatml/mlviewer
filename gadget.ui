@@ -19,19 +19,6 @@
    <string>Prepare Gadget</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="2" column="1">
-    <widget class="QLineEdit" name="sleepTimeInput">
-     <property name="focusPolicy">
-      <enum>Qt::StrongFocus</enum>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
-     <property name="placeholderText">
-      <string>sleep time(ex. 500000)</string>
-     </property>
-    </widget>
-   </item>
    <item row="2" column="0">
     <widget class="QLineEdit" name="pkgNameInput">
      <property name="enabled">
@@ -48,6 +35,13 @@
      </property>
      <property name="placeholderText">
       <string>com.android.chrome</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QCheckBox" name="fridaPortalModeCheckBox">
+     <property name="text">
+      <string>frida-portal mode</string>
      </property>
     </widget>
    </item>
@@ -84,10 +78,16 @@ li.checked::marker { content: &quot;\2612&quot;; }
      </property>
     </widget>
    </item>
-   <item row="1" column="0">
-    <widget class="QCheckBox" name="fridaPortalModeCheckBox">
+   <item row="2" column="1">
+    <widget class="QLineEdit" name="sleepTimeInput">
+     <property name="focusPolicy">
+      <enum>Qt::StrongFocus</enum>
+     </property>
      <property name="text">
-      <string>frida-portal mode</string>
+      <string/>
+     </property>
+     <property name="placeholderText">
+      <string>sleep time(ex. 500000)</string>
      </property>
     </widget>
    </item>
@@ -98,6 +98,13 @@ li.checked::marker { content: &quot;\2612&quot;; }
      </property>
      <property name="text">
       <string>Prepare</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLabel" name="fridaPortalListeningLabel">
+     <property name="text">
+      <string/>
      </property>
     </widget>
    </item>

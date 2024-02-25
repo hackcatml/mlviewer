@@ -21,4 +21,5 @@ dumpModuleName = ''
 
 visitedAddress = []
 
+fridaPortalWorker = None
 fridaPortalMode = False

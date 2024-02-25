@@ -100,6 +100,9 @@ class Ui_prepareGadgetDialogUi(object):
         self.prepareGadgetBtn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.prepareGadgetBtn.setObjectName("prepareGadgetBtn")
         self.gridLayout.addWidget(self.prepareGadgetBtn, 2, 2, 1, 1)
+        self.fridaPortalListeningLabel = QtWidgets.QLabel(prepareGadgetDialogUi)
+        self.fridaPortalListeningLabel.setObjectName("fridaPortalListeningLabel")
+        self.gridLayout.addWidget(self.fridaPortalListeningLabel, 1, 1, 1, 1)
 
         self.retranslateUi(prepareGadgetDialogUi)
         QtCore.QMetaObject.connectSlotsByName(prepareGadgetDialogUi)
@@ -173,7 +176,7 @@ class Ui_prepareGadgetDialogUi(object):
         self.sleepTimeInput.setPlaceholderText(_translate("prepareGadgetDialogUi", "sleep time(ex. 500000)"))
         self.pkgNameInput.setPlaceholderText(_translate("prepareGadgetDialogUi", "com.android.chrome"))
         self.prepareGadgetBtn.setText(_translate("prepareGadgetDialogUi", "Prepare"))
-        self.sleepTimeInput.setPlaceholderText(_translate("prepareGadgetDialogUi", "sleep time(ex. 500000)"))
+        self.fridaPortalListeningLabel.setText(_translate("prepareGadgetDialogUi", ""))
 
 
 class GadgetDialogClass(QtWidgets.QDialog):
@@ -201,8 +204,34 @@ class GadgetDialogClass(QtWidgets.QDialog):
         if nodeinfo:
             self.fridaportalsig.emit(nodeinfo)
 
+    def run_frida_portal(self):
+        # run frida-portal
+        self.stop_frida_portal()
+        self.fridaportalworker = fridaportal.FridaPortalClassWorker()
+        globvar.fridaPortalWorker = self.fridaportalworker
+        self.fridaportalworker.nodejoinedsig.connect(self.frida_portal_node_joined_sig_func)
+        self.fridaportalworker.start()
+        globvar.fridaPortalMode = True
+
+    def stop_frida_portal(self):
+        # stop frida-portal
+        if globvar.fridaPortalWorker is not None:
+            try:
+                globvar.fridaPortalWorker.process_stop()
+                globvar.fridaPortalMode = False
+                QThread.msleep(500)
+            except Exception as e:
+                print(e)
+
     def frida_portal_checkbox(self, state):
         self.isfridaportalmodechecked = state == Qt.CheckState.Checked.value
+        if self.isfridaportalmodechecked:
+            self.run_frida_portal()
+            self.gadgetui.fridaPortalListeningLabel.setText(f"Listening on {get_local_ip()}:27052")
+        else:
+            self.stop_frida_portal()
+            self.gadgetui.fridaPortalListeningLabel.setText("")
+        return
 
     def sleep_time_input_return_pressed_func(self):
         if (pkgName := self.gadgetui.pkgNameInput.text()) and (sleepTime := self.gadgetui.sleepTimeInput.text()):
@@ -244,20 +273,6 @@ class GadgetDialogClass(QtWidgets.QDialog):
 
             add_file_to_zip(temp_zip_path, f"{gadget_dir}/{frida_config_name}", "")
             os.remove(f"{gadget_dir}/{frida_config_name}")
-
-            # run frida-portal
-            if self.fridaportalworker is not None:
-                try:
-                    self.fridaportalworker.process_stop()
-                    QThread.msleep(500)
-                except Exception as e:
-                    print(e)
-
-            self.fridaportalworker = fridaportal.FridaPortalClassWorker()
-            self.fridaportalworker.nodejoinedsig.connect(self.frida_portal_node_joined_sig_func)
-            self.fridaportalworker.start()
-            globvar.fridaPortalMode = True
-            # return
 
         # install zygisk-gadget
         os.system(f"adb push {temp_zip_path} /data/local/tmp/")

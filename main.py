@@ -518,6 +518,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 if self.history_view is not None:
                     self.history_view.history_window.close()
                     self.history_view.clear_table()
+                self.memDumpBtn.setEnabled(True)
                 self.statusBar().showMessage("")
             except Exception as e:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 5000)
