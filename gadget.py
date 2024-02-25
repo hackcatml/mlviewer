@@ -206,7 +206,6 @@ class GadgetDialogClass(QtWidgets.QDialog):
 
     def run_frida_portal(self):
         # run frida-portal
-        self.stop_frida_portal()
         self.fridaportalworker = fridaportal.FridaPortalClassWorker()
         globvar.fridaPortalWorker = self.fridaportalworker
         self.fridaportalworker.nodejoinedsig.connect(self.frida_portal_node_joined_sig_func)
@@ -218,6 +217,7 @@ class GadgetDialogClass(QtWidgets.QDialog):
         if globvar.fridaPortalWorker is not None:
             try:
                 globvar.fridaPortalWorker.process_stop()
+                globvar.fridaPortalWorker = None
                 globvar.fridaPortalMode = False
                 QThread.msleep(500)
             except Exception as e:
@@ -226,6 +226,7 @@ class GadgetDialogClass(QtWidgets.QDialog):
     def frida_portal_checkbox(self, state):
         self.isfridaportalmodechecked = state == Qt.CheckState.Checked.value
         if self.isfridaportalmodechecked:
+            self.stop_frida_portal()
             self.run_frida_portal()
             self.gadgetui.fridaPortalListeningLabel.setText(f"Listening on {get_local_ip()}:27052")
         else:
