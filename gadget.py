@@ -265,7 +265,7 @@ class GadgetDialogClass(QtWidgets.QDialog):
             os.remove(f"{gadget_dir}/{item}")
 
         if self.isfridaportalmodechecked:
-            frida_config_name = "frida-gadget.config"
+            frida_config_name = "hluda-gadget.config"
             local_ip = get_local_ip()
             content = f'''{{\n "interaction": {{\n\t "type": "connect",\n\t "address": "{local_ip}",\n\t "port": 27052\n }}\n}}'''
             with open(f"{gadget_dir}/{frida_config_name}", "w") as f:
