@@ -400,7 +400,7 @@ class HexViewerClass(QTextEdit):
         indices = [i for i, x in enumerate(tc.block().text()) if x == " "]
         self.new_watch_widget.addr_to_watch = ''.join(('0x', tc.block().text()[:indices[0]])).strip()
         try:
-            if not self.new_watch_widget.watch_list:
+            if not self.new_watch_widget.watch_list and not globvar.fridaInstrument.receivers(globvar.fridaInstrument.messagesig):
                 # watch list is empty. set connect once
                 globvar.fridaInstrument.messagesig.connect(self.messagesig_func)
 

@@ -249,7 +249,7 @@ class GadgetDialogClass(QtWidgets.QDialog):
                 return
 
         gadget_dir = "gadget"
-        zygisk_gadget_name = "zygisk-gadget-v1.0.1-release.zip"
+        zygisk_gadget_name = "zygisk-gadget-v1.1.0-release.zip"
         zygisk_gadget_path = f"{gadget_dir}/{zygisk_gadget_name}"
         shutil.copy2(zygisk_gadget_path, f"{gadget_dir}/temp.zip")
         temp_zip_name = "temp.zip"
