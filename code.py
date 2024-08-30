@@ -1,4 +1,5 @@
 import inspect
+import math
 import os
 import platform
 import threading
@@ -233,16 +234,37 @@ class Instrument(QObject):
             return False
 
     def dump_so(self, name):
+        MAX_SIZE = 100 * 1024 * 1024  # 100MB in bytes.  Maximum message length is 128MiB
         module_info = self.script.exports.findmodule(name)
         if module_info != -1:
             base = module_info["base"]
             size = module_info["size"]
-            module_buffer = self.script.exports.dumpmodule(name)
+
+            module_chunks = []
+            if size > MAX_SIZE:
+                for i in range(math.ceil(size / MAX_SIZE)):
+                    chunk_base = int(base, 16) + (i * MAX_SIZE)
+                    chunk_size = min(MAX_SIZE, size - (i * MAX_SIZE))  # Calculate the chunk size
+                    chunk = self.script.exports.dumpmodulechunk(chunk_base, chunk_size)
+                    if chunk is not None:
+                        module_chunks.append(chunk)
+                    else:
+                        print(f"Warning: Received a None chunk for {name} at base {chunk_base}")
+            else:
+                module_buffer = self.script.exports.dumpmodule(name)
+                if module_buffer is not None:
+                    module_chunks.append(module_buffer)
+                else:
+                    print(f"Warning: Received a None buffer for {name}")
+
             dumpdir = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
+            os.makedirs(dumpdir, exist_ok=True)  # Ensure the dump directory exists
             dump_so_name = f"{dumpdir}{name}_{base}_{size}.dump.so"
+
             with open(dump_so_name, "wb") as f:
-                f.write(module_buffer)
-                f.close()
+                for chunk in module_chunks:
+                    f.write(chunk)
+
             return dump_so_name
         else:
             return False
