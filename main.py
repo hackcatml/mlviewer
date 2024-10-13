@@ -27,7 +27,6 @@ def is_readable_addr(addr):
 
 
 def size_to_read(addr):
-    print(addr)
     for i in range(len(gvar.enumerate_ranges)):
         if int(gvar.enumerate_ranges[i][0], 16) <= int(addr, 16) <= int(gvar.enumerate_ranges[i][1], 16):
             return int(gvar.enumerate_ranges[i][1], 16) - int(addr, 16)
@@ -645,7 +644,6 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         if is_readable_addr(addr) is False:
             # refresh memory ranges just in case and if it's still not readable then return
             # set_mem_range('---')
-            # if is_readable_addr(addr) is False:
             try:
                 # on iOS in case frida's Process.enumerateRangesSync('---') doesn't show up every memory regions
                 if gvar.frida_instrument.get_module_name_by_addr(addr) != '':
