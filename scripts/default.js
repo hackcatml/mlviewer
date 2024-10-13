@@ -1,7 +1,7 @@
 var completed = false
-var scandestroyed = false
-var scanandreplacemode = false
-var replacecode = []
+var scan_destroyed = false
+var scan_and_replace_mode = false
+var replace_code = []
 
 var count = 0
 var modules = []
@@ -11,15 +11,15 @@ let read_args_options = {}
 let read_retval_options = {}
 
 // check if it's palera1n jb
-let isPalera1n = false;
-let forceread = false;
+let is_palera1n = false;
+let force_read = false;
 if (ObjC.available) {
     var access = new NativeFunction(Module.findExportByName(null, "access"), 'int', ['pointer', 'int'])
     var path = Memory.allocUtf8String("/cores/binpack/Applications/palera1nLoader.app");
-    isPalera1n = access(path, 0) === 0
+    is_palera1n = access(path, 0) === 0
 }
 
-function getmemprotection(name, addr){
+function getMemProtection(name, addr){
     count++
     var result
     // console.log("[hackcatml] re: " + re)
@@ -43,7 +43,7 @@ function getmemprotection(name, addr){
     return result
 }
 
-function readargs(args, index, addr) {
+function readArgs(args, index, addr) {
     // if the argument's index is in the read_args_options for the current address
     if (read_args_options[addr] && read_args_options[addr][index]) {
         // get the option from the read_args_options
@@ -63,7 +63,7 @@ function readargs(args, index, addr) {
     }
 }
 
-function readretval(retval, addr) {
+function readRetval(retval, addr) {
     // if the argument's index is in the read_args_options for the current address
     if (read_retval_options[addr]) {
         // get the option from the read_retval_options
@@ -98,20 +98,21 @@ rpc.exports = {
         return access(path, 0) === 0
     },
     isPalera1nJb: function() {
-        return isPalera1n;
+        return is_palera1n;
     },
-    findsymaddrbyname:(name) => {
-        let symbol_addr = Module.findExportByName(null, name)
+    findSymAddrByName:(module_name, sym_name) => {
+        module_name = null ? module_name === '' : module_name;
+        let symbol_addr = Module.findExportByName(module_name, sym_name);
         if(symbol_addr == null) {
-            function findsymaddr(modules) {
+            function findSymAddr(modules) {
                 for (let m of modules) {
-                    let result = Module.findExportByName(m['name'], name);
+                    let result = Module.findExportByName(m['name'], sym_name);
                     if (result !== null) {
                         return result;
                     }
                     let symbols = Module.enumerateSymbols(m['name']);
                     for (let sym of symbols) {
-                        if (sym['name'].indexOf(name) !== -1) {
+                        if (sym['name'].indexOf(sym_name) !== -1) {
                             console.log(`symbol name: ${sym['name']}, addr: ${sym['address']}`);
                             return sym['address'];
                         }
@@ -120,7 +121,7 @@ rpc.exports = {
                 return null;
             }
             let modules = Process.enumerateModules()
-            symbol_addr = findsymaddr(modules)
+            symbol_addr = findSymAddr(modules)
             return (symbol_addr == null || symbol_addr.isNull()) ? null : symbol_addr;
         } else {
             return symbol_addr
@@ -137,21 +138,20 @@ rpc.exports = {
         })
         return sym_name;
     },
-    enumerateranges:(prot) => {
+    enumerateRanges:(prot) => {
         // send(Process.enumerateRangesSync(prot))
         return Process.enumerateRangesSync(prot)
     },
-    listmodules:() => {
+    listModules:() => {
         send(Process.enumerateModulesSync())
     },
-    getmodulenamebyaddr:(addr) => {
+    getModuleNameByAddr:(addr) => {
         send(Process.findModuleByAddress(addr))
     },
-    hexdumpoffset: (name, offset, size) => {
-        // console.log(`[hackcatml]: name: ${name}, offset: ${offset}, size: ${size}`)
+    hexDumpOffset: (name, offset, size) => {
         var base = Process.findModuleByName(name).base
         var target = base.add(offset)
-        if (isPalera1n && !forceread) {
+        if (is_palera1n && !force_read) {
             try {
                 Process.getRangeByAddress(ptr(target));
                 send(hexdump(target, {offset: 0, length: size}));
@@ -162,8 +162,8 @@ rpc.exports = {
             send(hexdump(target, {offset: 0, length: size}));
         }
     },
-    hexdumpaddr: (addr, size) => {
-        if (isPalera1n && !forceread) {
+    hexDumpAddr: (addr, size) => {
+        if (is_palera1n && !force_read) {
             try {
                 Process.getRangeByAddress(ptr(addr));
                 send(hexdump(ptr(addr), {offset:0, length:size}))
@@ -174,10 +174,10 @@ rpc.exports = {
             send(hexdump(ptr(addr), {offset:0, length:size}))
         }
     },
-    forcereadmemaddr: (yesorno) => {
-        forceread = yesorno
+    forceReadMemAddr: (yesorno) => {
+        force_read = yesorno
     },
-    writememaddr: (addr, code, prot) => {
+    writeMemAddr: (addr, code, prot) => {
         // console.log("mem prot: " + prot)
         var newprot = prot
         if(prot == "r--" || prot == "r-x" || prot == "---") {
@@ -188,7 +188,7 @@ rpc.exports = {
         if(prot == "---") return    // if mem protection '---' then remain else back to orig prot
         Memory.protect(ptr(addr), 4, prot)
     },
-    modulestatus: (name) => {
+    moduleStatus: (name) => {
         if(name == "") {
             send(Process.enumerateModulesSync()[0])
         }
@@ -196,23 +196,23 @@ rpc.exports = {
             send(Process.findModuleByName(name))
         }
     },
-    memscan: function scan(ranges, pattern) {
-        var memranges = ranges
-        var mempattern = pattern
-        var returnmessage = ''
-        var scancompleted = 0
-        var totalscancount = memranges.length
+    memScan: function scan(ranges, pattern) {
+        var mem_ranges = ranges
+        var mem_pattern = pattern
+        var return_message = ''
+        var scan_completed = 0
+        var total_scan_count = mem_ranges.length
         completed = false
-        scandestroyed = false
+        scan_destroyed = false
 
         var timer = setInterval(function() {
-            send({'scancompletedratio':(scancompleted/totalscancount)*100})
-            if(completed && scandestroyed){
-                returnmessage += '[!] Memory Scan Done'
-                // console.log(returnmessage)
-                send(returnmessage)
+            send({'scan_completed_ratio':(scan_completed/total_scan_count)*100})
+            if(completed && scan_destroyed){
+                return_message += '[!] Memory Scan Done'
+                // console.log(return_message)
+                send(return_message)
                 completed = false
-                scanandreplacemode = false
+                scan_and_replace_mode = false
                 console.log("[hackcatml] clear interval")
                 clearInterval(timer)
                 return
@@ -220,26 +220,26 @@ rpc.exports = {
         }, 100);
 
         function scanMemory() {
-            var range = memranges.pop()
+            var range = mem_ranges.pop()
             if(!range || completed){
                 completed = true
                 console.log("[hackcatml] Memory Scan Done!")
-                scandestroyed = true
+                scan_destroyed = true
                 return 0;
             }
-            Memory.scan(ptr(range[0]), range[3], mempattern, {
+            Memory.scan(ptr(range[0]), range[3], mem_pattern, {
                 onMatch: function (address, size) {
                     if(completed){
                         return
                     }
-                    if(scanandreplacemode){
+                    if(scan_and_replace_mode){
                         var newprot = range[2]
                         if(range[2] == "r--" || range[2] == "r-x") {
                             newprot = "rw-"
                         }
-                        Memory.protect(address, replacecode.length, newprot)
-                        Memory.writeByteArray(address, replacecode)
-                        Memory.protect(address, replacecode.length, range[2])
+                        Memory.protect(address, replace_code.length, newprot)
+                        Memory.writeByteArray(address, replace_code)
+                        Memory.protect(address, replace_code.length, range[2])
                     }
 
                     var modulename = ''
@@ -249,12 +249,12 @@ rpc.exports = {
                         modulename = result.name
                         offset = address.sub(result.base)
                     }
-                    returnmessage += address.toString() + ', module: ' + modulename + ', offset: ' + offset + '\n';
-                    returnmessage += hexdump(address, {offset: 0, length: 32}) + '\n\n';
+                    return_message += address.toString() + ', module: ' + modulename + ', offset: ' + offset + '\n';
+                    return_message += hexdump(address, {offset: 0, length: 32}) + '\n\n';
                 },
                 onError: function (reason) { console.log('[!] Error Scanning Memory: ' + reason); },
                 onComplete: function () {
-                    scancompleted++;
+                    scan_completed++;
                     // Thread.sleep(0.05)
                     scanMemory()
                 }
@@ -262,25 +262,25 @@ rpc.exports = {
         }
         scanMemory()
     },
-    memscanwithimg: function scanImg(name, pattern) {
+    memScanWithImg: function scanImg(name, pattern) {
         var module = Process.findModuleByName(name)
         if(module == null){
             return 'module not found'
         }
-        var mempattern = pattern
-        var returnmessage = ''
-        var scancompleted = 0
-        var totalscancount = module.size
+        var mem_pattern = pattern
+        var return_message = ''
+        var scan_completed = 0
+        var total_scan_count = module.size
         completed = false
-        scandestroyed = false
+        scan_destroyed = false
 
         var timer = setInterval(function() {
-            send({'scancompletedratio':(scancompleted/totalscancount)*100})
-            if(completed && scandestroyed){
-                returnmessage += '[!] Memory Scan Done'
-                send(returnmessage)
+            send({'scan_completed_ratio':(scan_completed/total_scan_count)*100})
+            if(completed && scan_destroyed){
+                return_message += '[!] Memory Scan Done'
+                send(return_message)
                 completed = false
-                scanandreplacemode = false
+                scan_and_replace_mode = false
                 modules.length = 0
                 count = 0
                 console.log("[hackcatml] clear interval")
@@ -289,65 +289,65 @@ rpc.exports = {
             }
         }, 100);
 
-        function scanMemory(scanstart, scansize, mempattern) {
+        function scanMemory(scanstart, scansize, mem_pattern) {
             if(completed){
                 console.log("[hackcatml] Memory Scan Done!")
-                scandestroyed = true
-                scancompleted = module.size
+                scan_destroyed = true
+                scan_completed = module.size
                 return 0;
             }
-            Memory.scan(scanstart, scansize, mempattern, {
+            Memory.scan(scanstart, scansize, mem_pattern, {
                 onMatch: function (address, size) {
                     if(completed){
                         return
                     }
-                    if(scanandreplacemode){
-                        var origprot = getmemprotection(module.name, address)
+                    if(scan_and_replace_mode){
+                        var origprot = getMemProtection(module.name, address)
                         var newprot = origprot
                         if(origprot == "r--" || origprot == "r-x") {
                             newprot = "rw-"
                         }
                         // console.log("[hackcatml] origprot: " + origprot + ", newprot: " + newprot)
-                        Memory.protect(address, replacecode.length, newprot)
-                        Memory.writeByteArray(address, replacecode)
-                        Memory.protect(address, replacecode.length, origprot)
+                        Memory.protect(address, replace_code.length, newprot)
+                        Memory.writeByteArray(address, replace_code)
+                        Memory.protect(address, replace_code.length, origprot)
                     }
                     // console.log("[hackcatml] onMatch " + address)
                     var offset = address.sub(module.base)
-                    scancompleted = ptr(offset).toUInt32()
-                    returnmessage += address.toString() + ', module: ' + module.name + ', offset: ' + offset + '\n';
-                    returnmessage += hexdump(address, {offset: 0, length: 32}) + '\n\n';
+                    scan_completed = ptr(offset).toUInt32()
+                    return_message += address.toString() + ', module: ' + module.name + ', offset: ' + offset + '\n';
+                    return_message += hexdump(address, {offset: 0, length: 32}) + '\n\n';
                 },
                 onError: function (reason) {
                     console.log('[!] Error Scanning Memory: ' + reason);
                     var newstart = ptr(reason.match(/(0x[0-9a-f]+)/)[1]).add(0x4);
                     var newsize = scansize - parseInt(newstart.sub(scanstart));
                     this.error = true;
-                    scanMemory(newstart, newsize, mempattern);
+                    scanMemory(newstart, newsize, mem_pattern);
                 },
                 onComplete: function () {
                     if (!this.error) {
                         completed = true;
-                        scanMemory(scanstart, scansize, mempattern);
+                        scanMemory(scanstart, scansize, mem_pattern);
                     }
                 }
             });
         }
-        scanMemory(module.base, module.size, mempattern);
+        scanMemory(module.base, module.size, mem_pattern);
     },
-    memscanandreplace: (code) => {
-        scanandreplacemode = true
-        replacecode = code
-        // send(replacecode)
+    memScanAndReplace: (code) => {
+        scan_and_replace_mode = true
+        replace_code = code
+        // send(replace_code)
     },
-    stopmemscan: () => {
+    stopMemScan: () => {
         completed = true
-        scanandreplacemode = false
-        replacecode.length = 0
+        scan_and_replace_mode = false
+        replace_code.length = 0
         count = 0
         modules.length = 0
     },
-    setreadargsoptions: (addr, index, option, onleave) => {
+    setReadArgsOptions: (addr, index, option, onleave) => {
         // if the address is not in the read_args_options yet, add it
         if (!read_args_options[addr]) {
             read_args_options[addr] = {};
@@ -357,7 +357,7 @@ rpc.exports = {
         read_args_options[addr][index]["readOption"] = option
         read_args_options[addr][index]["onLeave"] = onleave !== 0;
     },
-    setreadretvalsoptions: (addr, option) => {
+    setReadRetvalsOptions: (addr, option) => {
         // if the address is not in the read_args_options yet, add it
         if (!read_retval_options[addr]) {
             read_retval_options[addr] = {};
@@ -365,10 +365,10 @@ rpc.exports = {
         // add/update the index and option for the address
         read_retval_options[addr] = option;
     },
-    setnargs: (nargs) => {
+    setNargs: (nargs) => {
         num_args_to_watch = nargs;
     },
-    setwatch: (addr, is_reg_watch) => {
+    setWatch: (addr, is_reg_watch) => {
         Interceptor.attach(ptr(addr), {
             onEnter: function (args) {
                 this.argv = []
@@ -389,20 +389,20 @@ rpc.exports = {
                         }
                         log += `${key}: ${reg_context[key]}, `
                     }
-                    send({'watchRegs':log})
+                    send({'watch_regs':log})
                 } else {
                     let log = `[+] ${ptr(addr)}\n`
                     for (let index = 0; index < num_args_to_watch - 1; index++) {
                         if(read_args_options[ptr(addr)] && read_args_options[ptr(addr)][index] && read_args_options[ptr(addr)][index]["onLeave"]) {
                             continue;
                         }
-                        log += `args${index}: ${readargs(args[index], index, ptr(addr))}, `
+                        log += `args${index}: ${readArgs(args[index], index, ptr(addr))}, `
                     }
                     if(read_args_options[ptr(addr)] && read_args_options[ptr(addr)][num_args_to_watch - 1] && read_args_options[ptr(addr)][num_args_to_watch - 1]["onLeave"]) {
-                        send({'watchArgs':log})
+                        send({'watch_args':log})
                     } else {
-                        log += `args${num_args_to_watch - 1}: ${readargs(args[num_args_to_watch - 1], num_args_to_watch - 1, ptr(addr))}`
-                        send({'watchArgs':log})
+                        log += `args${num_args_to_watch - 1}: ${readArgs(args[num_args_to_watch - 1], num_args_to_watch - 1, ptr(addr))}`
+                        send({'watch_args':log})
                     }
                 }
             },
@@ -420,12 +420,12 @@ rpc.exports = {
                         }
                         log += `${key}: ${reg_context[key]}, `
                     }
-                    send({'watchRegs':log})
+                    send({'watch_regs':log})
                 } else {
-                    let log = `return: ${readretval(retval, ptr(addr))}\n`
+                    let log = `return: ${readRetval(retval, ptr(addr))}\n`
                     for (let index = 0; index < num_args_to_watch; index++) {
                         if(read_args_options[ptr(addr)] && read_args_options[ptr(addr)][index] && read_args_options[ptr(addr)][index]["onLeave"]){
-                            log += `args${index}: ${readargs(this.argv[index], index, ptr(addr))}, `
+                            log += `args${index}: ${readArgs(this.argv[index], index, ptr(addr))}, `
                             this.onleave = true
                         }
                     }
@@ -433,12 +433,12 @@ rpc.exports = {
                         log += '\n'
                     }
                     log += `[-] ${ptr(addr)}`
-                    send({'watchArgs':log})
+                    send({'watch_args':log})
                 }
             }
         });
     },
-    detachall: () => {
+    detachAll: () => {
         Interceptor.detachAll()
     },
 }

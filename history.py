@@ -44,7 +44,7 @@ class EscapableWidget(QWidget):
 
 
 class HistoryViewClass(QObject):
-    historyaddrsig = QtCore.pyqtSignal(str)
+    history_addr_signal = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -74,7 +74,7 @@ class HistoryViewClass(QObject):
 
     def addr_clicked(self, item):
         if item.column() == 0:
-            self.historyaddrsig.emit(item.text())
+            self.history_addr_signal.emit(item.text())
 
     def clear_table(self):
         self.history_ui.historyTableWidget.clearContents()

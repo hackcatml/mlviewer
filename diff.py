@@ -76,8 +76,8 @@ class Ui_DiffDialog(object):
 
 
 class ProcessDiffResultWorker(QThread):
-    process_diff_result_sig = QtCore.pyqtSignal(str)
-    process_diff_finished_sig = QtCore.pyqtSignal()
+    process_diff_result_signal = QtCore.pyqtSignal(str)
+    process_diff_finished_signal = QtCore.pyqtSignal()
 
     def __init__(self, formatted_diffs):
         super().__init__()
@@ -100,7 +100,7 @@ class ProcessDiffResultWorker(QThread):
             if line_count == 1:
                 line += "ADDRESS ".rjust(len(f"0x{block_start:08x} "))
                 line += "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F || 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F"
-                self.process_diff_result_sig.emit(line)
+                self.process_diff_result_signal.emit(line)
                 line = ''
                 QThread.msleep(1)
 
@@ -123,12 +123,12 @@ class ProcessDiffResultWorker(QThread):
                     formatted_b2 = '00' if b2 is None else f'{b2:02x}'
                     line += f'{formatted_b2} '
 
-            self.process_diff_result_sig.emit(line)
+            self.process_diff_result_signal.emit(line)
             line = ''
             QThread.msleep(1)
 
-        self.process_diff_result_sig.emit(line)
-        self.process_diff_finished_sig.emit()
+        self.process_diff_result_signal.emit(line)
+        self.process_diff_finished_signal.emit()
 
 
 class BinaryCompareWorker(QThread):
@@ -377,15 +377,15 @@ class DiffDialogClass(QtWidgets.QDialog):
             self.process_diff_result()
 
     @pyqtSlot(str)
-    def process_diff_result_sig_func(self, line: str):
+    def process_diff_result_sig_func(self, sig: str):
         self.process_diff_result_sig_count += 1
-        if line and self.process_diff_result_sig_count == 1:
+        if sig and self.process_diff_result_sig_count == 1:
             self.binary_diff_result_ui.file1TextEdit.setText(f"file1:\n{self.file1}")
             self.binary_diff_result_ui.file2TextEdit.setText(f"file2:\n{self.file2}")
-            self.binary_diff_result_ui.addressTextEdit.setText(line)
+            self.binary_diff_result_ui.addressTextEdit.setText(sig)
             self.binary_diff_result_window.show()
         else:
-            self.binary_diff_result_ui.binaryDiffResultView.append(line)
+            self.binary_diff_result_ui.binaryDiffResultView.append(sig)
 
     @pyqtSlot()
     def process_diff_finished_sig_func(self):
@@ -403,14 +403,14 @@ class DiffDialogClass(QtWidgets.QDialog):
         self.binary_compare_worker.quit()
 
         self.process_diff_result_worker = ProcessDiffResultWorker(formatted_diffs)
-        self.process_diff_result_worker.process_diff_result_sig.connect(self.process_diff_result_sig_func)
-        self.process_diff_result_worker.process_diff_finished_sig.connect(self.process_diff_finished_sig_func)
+        self.process_diff_result_worker.process_diff_result_signal.connect(self.process_diff_result_sig_func)
+        self.process_diff_result_worker.process_diff_finished_signal.connect(self.process_diff_finished_sig_func)
         self.process_diff_result_worker.start()
 
     def stop_diff(self):
         if self.process_diff_result_worker is not None:
-            self.process_diff_result_worker.process_diff_result_sig.disconnect(self.process_diff_result_sig_func)
-            self.process_diff_result_worker.process_diff_finished_sig.disconnect(self.process_diff_finished_sig_func)
+            self.process_diff_result_worker.process_diff_result_signal.disconnect(self.process_diff_result_sig_func)
+            self.process_diff_result_worker.process_diff_finished_signal.disconnect(self.process_diff_finished_sig_func)
             self.process_diff_result_worker.terminate()
             self.diff_result = self.binary_diff_result_ui.binaryDiffResultView.toPlainText()
             self.statusBar.showMessage("Binary diff is done!", 5000)

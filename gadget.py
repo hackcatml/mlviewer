@@ -5,13 +5,15 @@ import subprocess
 import warnings
 import zipfile
 import platform
+import json
 
+import frida
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, QEvent, pyqtSlot, QThread
 from PyQt6.QtWidgets import QApplication
 
-import fridaportal
-import globvar
+import frida_portal
+import gvar
 
 
 def unzip(target_zip: str, target_file: str) -> None:
@@ -180,94 +182,99 @@ class Ui_prepareGadgetDialogUi(object):
 
 
 class GadgetDialogClass(QtWidgets.QDialog):
-    fridaportalsig = QtCore.pyqtSignal(list)
+    frida_portal_node_info_signal = QtCore.pyqtSignal(list)
 
     def __init__(self):
         super(GadgetDialogClass, self).__init__()
-        self.gadgetdialog = QtWidgets.QDialog()
-        self.gadgetdialog.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
-        # self.spawndialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.gadgetui = Ui_prepareGadgetDialogUi()
-        self.gadgetui.setupUi(self.gadgetdialog)
-        self.gadgetui.sleepTimeInput.returnPressed.connect(self.sleep_time_input_return_pressed_func)
-        self.gadgetui.prepareGadgetBtn.clicked.connect(lambda: self.prepare_gadget("clicked", None, None))
-        self.gadgetui.fridaPortalModeCheckBox.stateChanged.connect(self.frida_portal_checkbox)
-        self.isfridaportalmodechecked = False
-        self.fridaportalworker = None
-        self.gadgetdialog.show()
+        self.gadget_dialog = QtWidgets.QDialog()
+        self.gadget_dialog.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+        # self.spawn_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        self.gadget_ui = Ui_prepareGadgetDialogUi()
+        self.gadget_ui.setupUi(self.gadget_dialog)
+        self.gadget_ui.sleepTimeInput.returnPressed.connect(self.sleep_time_input_return_pressed)
+        self.gadget_ui.prepareGadgetBtn.clicked.connect(lambda: self.prepare_gadget("clicked", None, None))
+        self.gadget_ui.fridaPortalModeCheckBox.stateChanged.connect(self.frida_portal_checkbox)
+        self.is_frida_portal_mode_checked = False
+        self.frida_portal_worker = None
+        self.gadget_dialog.show()
 
         self.interested_widgets = []
         QApplication.instance().installEventFilter(self)
 
     @pyqtSlot(list)
-    def frida_portal_node_joined_sig_func(self, nodeinfo: list):
-        if nodeinfo:
-            self.fridaportalsig.emit(nodeinfo)
+    def frida_portal_node_joined_sig(self, sig: list):
+        if sig:
+            self.frida_portal_node_info_signal.emit(sig)
 
     def run_frida_portal(self):
         # run frida-portal
-        self.fridaportalworker = fridaportal.FridaPortalClassWorker()
-        globvar.fridaPortalWorker = self.fridaportalworker
-        self.fridaportalworker.nodejoinedsig.connect(self.frida_portal_node_joined_sig_func)
-        self.fridaportalworker.start()
-        globvar.fridaPortalMode = True
+        self.frida_portal_worker = frida_portal.FridaPortalClassWorker()
+        self.frida_portal_worker.node_joined_signal.connect(self.frida_portal_node_joined_sig)
+        self.frida_portal_worker.start()
 
     def stop_frida_portal(self):
-        # stop frida-portal
-        if globvar.fridaPortalWorker is not None:
+        if self.frida_portal_worker is not None:
             try:
-                globvar.fridaPortalWorker.process_stop()
-                globvar.fridaPortalWorker = None
-                globvar.fridaPortalMode = False
+                self.frida_portal_worker.process_stop()
+                self.frida_portal_worker.terminate()
+                self.frida_portal_worker = None
+                frida.get_device_manager().remove_remote_device('localhost')
                 QThread.msleep(500)
             except Exception as e:
                 print(e)
 
     def frida_portal_checkbox(self, state):
-        self.isfridaportalmodechecked = state == Qt.CheckState.Checked.value
-        if self.isfridaportalmodechecked:
+        self.is_frida_portal_mode_checked = state == Qt.CheckState.Checked.value
+        if self.is_frida_portal_mode_checked:
             self.stop_frida_portal()
             self.run_frida_portal()
-            self.gadgetui.fridaPortalListeningLabel.setText(f"Listening on {get_local_ip()}:27052")
+            self.gadget_ui.fridaPortalListeningLabel.setText(f"Listening on {get_local_ip()}:{gvar.frida_portal_cluster_port}")
         else:
             self.stop_frida_portal()
-            self.gadgetui.fridaPortalListeningLabel.setText("")
+            self.gadget_ui.fridaPortalListeningLabel.setText("")
         return
 
-    def sleep_time_input_return_pressed_func(self):
-        if (pkgName := self.gadgetui.pkgNameInput.text()) and (sleepTime := self.gadgetui.sleepTimeInput.text()):
-            self.prepare_gadget("returnPressed", pkgName, sleepTime)
+    def sleep_time_input_return_pressed(self):
+        if (pkg := self.gadget_ui.pkgNameInput.text()) and (delay := self.gadget_ui.sleepTimeInput.text()):
+            self.prepare_gadget("returnPressed", pkg, delay)
         else:
             return
 
-    def prepare_gadget(self, caller, pkgName, sleepTime):
-        if caller == "returnPressed":
-            pkgName = pkgName
-            sleepTime = sleepTime
-        elif caller == "clicked":
-            if not (pkgName := self.gadgetui.pkgNameInput.text()) or not (sleepTime := self.gadgetui.sleepTimeInput.text()):
+    def prepare_gadget(self, caller, pkg, delay):
+        if caller == "clicked":
+            if not (pkg := self.gadget_ui.pkgNameInput.text()) or not (delay := self.gadget_ui.sleepTimeInput.text()):
                 return
 
         gadget_dir = "gadget"
-        zygisk_gadget_name = "zygisk-gadget-v1.1.0-release.zip"
+        zygisk_gadget_name = "zygisk-gadget-v1.2.0-release.zip"
         zygisk_gadget_path = f"{gadget_dir}/{zygisk_gadget_name}"
         shutil.copy2(zygisk_gadget_path, f"{gadget_dir}/temp.zip")
         temp_zip_name = "temp.zip"
         temp_zip_path = f"{gadget_dir}/{temp_zip_name}"
+        config_name = "config"
 
-        for item in ["targetpkg", "sleeptime"]:
-            with open(f"{gadget_dir}/{item}", "w") as f:
-                f.write(pkgName) if item == "targetpkg" else f.write(sleepTime)
-                f.close()
-            unzip(temp_zip_path, item)
-            add_file_to_zip(temp_zip_path, f"{gadget_dir}/{item}", "")
-            os.remove(item)
-            os.remove(f"{gadget_dir}/{item}")
+        json_data = {
+            "package": {
+                "name": pkg,
+                "delay": int(delay),
+                "mode": {
+                    "config": True
+                }
+            }
+        }
 
-        if self.isfridaportalmodechecked:
-            frida_config_name = "hluda-gadget.config"
+        with open(f"{gadget_dir}/{config_name}", "w") as f:
+            json.dump(json_data, f, indent=4)
+
+        unzip(temp_zip_path, config_name)
+        add_file_to_zip(temp_zip_path, f"{gadget_dir}/{config_name}", "")
+        os.remove(config_name)
+        os.remove(f"{gadget_dir}/{config_name}")
+
+        if self.is_frida_portal_mode_checked:
+            frida_config_name = "ajeossida-gadget.config"
             local_ip = get_local_ip()
-            content = f'''{{\n "interaction": {{\n\t "type": "connect",\n\t "address": "{local_ip}",\n\t "port": 27052\n }}\n}}'''
+            content = f'''{{\n "interaction": {{\n\t "type": "connect",\n\t "address": "{local_ip}",\n\t "port": {gvar.frida_portal_cluster_port}\n }}\n}}'''
             with open(f"{gadget_dir}/{frida_config_name}", "w") as f:
                 f.write(content)
                 f.close()
@@ -286,12 +293,12 @@ class GadgetDialogClass(QtWidgets.QDialog):
         os.system("adb reboot")
 
     def eventFilter(self, obj, event):
-        self.interested_widgets = [self.gadgetui.pkgNameInput]
+        self.interested_widgets = [self.gadget_ui.pkgNameInput]
         if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
             try:
-                if self.gadgetui.pkgNameInput.isEnabled():
-                    self.interested_widgets.append(self.gadgetui.sleepTimeInput)
-                index = self.interested_widgets.index(self.gadgetdialog.focusWidget())
+                if self.gadget_ui.pkgNameInput.isEnabled():
+                    self.interested_widgets.append(self.gadget_ui.sleepTimeInput)
+                index = self.interested_widgets.index(self.gadget_dialog.focusWidget())
 
                 self.interested_widgets[(index + 1) % len(self.interested_widgets)].setFocus()
             except ValueError:

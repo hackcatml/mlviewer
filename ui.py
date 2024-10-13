@@ -8,9 +8,9 @@
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-import hexviewer
-import listimgviewer
-import utilviewer
+import hex_viewer
+import list_img_viewer
+import util_viewer
 
 
 class Ui_MainWindow(object):
@@ -104,7 +104,7 @@ class Ui_MainWindow(object):
         self.memDumpBtn.setObjectName("memDumpBtn")
         self.gridLayout_4.addWidget(self.memDumpBtn, 2, 1, 1, 1)
         # self.listImgViewer = QtWidgets.QTextBrowser(self.tab_4)
-        self.listImgViewer = listimgviewer.ListImgViewerClass(self.tab_4)
+        self.listImgViewer = list_img_viewer.ListImgViewerClass(self.tab_4)
         self.listImgViewer.setMinimumSize(QtCore.QSize(0, 0))
         self.listImgViewer.setObjectName("listImgViewer")
         self.gridLayout_4.addWidget(self.listImgViewer, 0, 0, 1, 2)
@@ -152,7 +152,7 @@ class Ui_MainWindow(object):
         self.memSearchBtn.setObjectName("memSearchBtn")
         self.gridLayout_5.addWidget(self.memSearchBtn, 2, 4, 1, 1)
         # self.memSearchResult = QtWidgets.QTextBrowser(self.tab_5)
-        self.memSearchResult = listimgviewer.MemSearchResultBrowserClass(self.tab_5)
+        self.memSearchResult = list_img_viewer.MemSearchResultBrowserClass(self.tab_5)
         self.memSearchResult.setMinimumSize(QtCore.QSize(0, 0))
         self.memSearchResult.setObjectName("memSearchResult")
         self.gridLayout_5.addWidget(self.memSearchResult, 7, 0, 2, 5)
@@ -229,7 +229,7 @@ class Ui_MainWindow(object):
         self.tabWidget2.addTab(self.tab_5, "")
         self.gridLayout_2.addWidget(self.tabWidget2, 9, 2, 11, 2)
         # self.hexViewer = QtWidgets.QTextEdit(self.tab)
-        self.hexViewer = hexviewer.HexViewerClass(self.tab)
+        self.hexViewer = hex_viewer.HexViewerClass(self.tab)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(2)
         sizePolicy.setVerticalStretch(0)
@@ -416,6 +416,7 @@ class Ui_MainWindow(object):
         self.watchMemorySpinBox.setMaximumSize(QtCore.QSize(45, 16777215))
         self.watchMemorySpinBox.setDecimals(1)
         self.watchMemorySpinBox.setSingleStep(0.1)
+        self.watchMemorySpinBox.setValue(0.5)
         self.watchMemorySpinBox.setObjectName("watchMemorySpinBox")
         self.horizontalLayout_4.addWidget(self.watchMemorySpinBox)
         self.refreshBtn = QtWidgets.QPushButton(self.tab)
@@ -479,7 +480,7 @@ class Ui_MainWindow(object):
         self.gridLayout_7 = QtWidgets.QGridLayout(self.tab_2)
         self.gridLayout_7.setObjectName("gridLayout_7")
         # self.utilViewer = QtWidgets.QTextEdit(self.tab_2)
-        self.utilViewer = utilviewer.UtilViewerClass(self.tab_2)
+        self.utilViewer = util_viewer.UtilViewerClass(self.tab_2)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(2)
         sizePolicy.setVerticalStretch(0)
@@ -590,7 +591,7 @@ class Ui_MainWindow(object):
         self.parse_img_base.setObjectName("parse_img_base")
         self.gridLayout_6.addWidget(self.parse_img_base, 1, 1, 1, 3)
         # self.parseImgListImgViewer = QtWidgets.QTextBrowser(self.tab_7)
-        self.parseImgListImgViewer = utilviewer.ParseImgListImgViewerClass(self.tab_7)
+        self.parseImgListImgViewer = util_viewer.ParseImgListImgViewerClass(self.tab_7)
         self.parseImgListImgViewer.setMinimumSize(QtCore.QSize(0, 0))
         self.parseImgListImgViewer.setObjectName("parseImgListImgViewer")
         self.gridLayout_6.addWidget(self.parseImgListImgViewer, 3, 0, 1, 4)

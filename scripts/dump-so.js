@@ -9,14 +9,14 @@ const ensureCodeReadableModule = new CModule(`
 var ensure_code_readable = new NativeFunction(ensureCodeReadableModule.ensure_code_readable, 'void', ['pointer', 'uint64']);
 
 rpc.exports = {
-    findmodule: function(so_name) {
+    findModule: function(so_name) {
         var libso = Process.findModuleByName(so_name);
         if (libso == null) {
             return -1;
         }
         return libso;
     },
-    dumpmodule: function(so_name) {
+    dumpModule: function(so_name) {
         var libso = Process.findModuleByName(so_name);
         if (libso == null) {
             return -1;
@@ -27,7 +27,7 @@ rpc.exports = {
         var libso_buffer = ptr(libso.base).readByteArray(libso.size);
         return libso_buffer;
     },
-    dumpmodulechunk: function(offset, size) {
+    dumpModuleChunk: function(offset, size) {
         ensure_code_readable(ptr(offset), size);
 
         var chunk = ptr(offset).readByteArray(size);

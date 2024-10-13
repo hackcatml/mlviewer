@@ -115,7 +115,7 @@ var LC_ENCRYPTION_INFO_64 = 0x2C;
 var export_dumpmodpath;
 // You can dump .app or dylib (Encrypt/No Encrypt)
 rpc.exports = {
-    dumpmodule: function dumpModule(name) {
+    dumpModule: function dumpModule(name) {
         if (modules == null) {
             modules = getAllAppModules();
         }
@@ -213,5 +213,5 @@ rpc.exports = {
         export_dumpmodpath = newmodpath
         return 1;
     },
-    dumpmodulepath: () => { return export_dumpmodpath },
+    dumpModulePath: () => { return export_dumpmodpath },
 }

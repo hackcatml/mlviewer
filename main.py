@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInp
 
 import code
 import gadget
-import globvar
+import gvar
 import spawn
 import ui
 import ui_win
@@ -20,32 +20,33 @@ from history import HistoryViewClass
 
 
 def is_readable_addr(addr):
-    for i in range(len(globvar.enumerateRanges)):
-        if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
+    for i in range(len(gvar.enumerate_ranges)):
+        if int(gvar.enumerate_ranges[i][0], 16) <= int(addr, 16) <= int(gvar.enumerate_ranges[i][1], 16):
             return True
     return False
 
 
 def size_to_read(addr):
-    for i in range(len(globvar.enumerateRanges)):
-        if int(globvar.enumerateRanges[i][0], 16) <= int(addr, 16) <= int(globvar.enumerateRanges[i][1], 16):
-            return int(globvar.enumerateRanges[i][1], 16) - int(addr, 16)
+    print(addr)
+    for i in range(len(gvar.enumerate_ranges)):
+        if int(gvar.enumerate_ranges[i][0], 16) <= int(addr, 16) <= int(gvar.enumerate_ranges[i][1], 16):
+            return int(gvar.enumerate_ranges[i][1], 16) - int(addr, 16)
 
 
 def set_mem_range(prot):
     try:
-        result = globvar.fridaInstrument.mem_enumerate_ranges(prot)
+        result = gvar.frida_instrument.mem_enumerate_ranges(prot)
         # print("[hackcatml] mem_enumerate_ranges result: ", result)
     except Exception as e:
         print(e)
         return
     # enumerateRanges --> [(base, base + size - 1, prot, size), ... ]
-    globvar.enumerateRanges.clear()
+    gvar.enumerate_ranges.clear()
     for i in range(len(result)):
-        globvar.enumerateRanges.append(
+        gvar.enumerate_ranges.append(
             (result[i]['base'], hex(int(result[i]['base'], 16) + result[i]['size'] - 1), result[i]['protection'],
              result[i]['size']))
-    # print("[hackcatml] globvar.enumerateRanges: ", globvar.enumerateRanges)
+    # print("[hackcatml] gvar.enumerate_ranges: ", gvar.enumerate_ranges)
 
 
 def hex_calculator(s):
@@ -95,39 +96,39 @@ def process_read_mem_result(result: str) -> str:
 
 
 class MemScanWorker(QThread):
-    memscansig = QtCore.pyqtSignal(int)
+    mem_scan_signal = QtCore.pyqtSignal(int)
 
     def __init__(self):
         super(MemScanWorker, self).__init__()
 
     def run(self) -> None:
         while True:
-            self.memscansig.emit(0)
+            self.mem_scan_signal.emit(0)
             if type(code.MESSAGE) is str and code.MESSAGE.find('[!] Memory Scan Done') != -1:
                 # print(code.MESSAGE)
-                self.memscansig.emit(1)
+                self.mem_scan_signal.emit(1)
                 break
             self.msleep(100)
 
 
 class Il2CppDumpWorker(QThread):
-    il2cppdumpsig = QtCore.pyqtSignal(str)
+    il2cpp_dump_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, il2cppFridaInstrument, statusBar):
+    def __init__(self, il2cpp_frida_instrument, statusBar):
         super(Il2CppDumpWorker, self).__init__()
-        self.il2cppFridaInstrument = il2cppFridaInstrument
+        self.il2cpp_frida_instrument = il2cpp_frida_instrument
         self.statusBar = statusBar
 
     def run(self) -> None:
         self.statusBar.showMessage("il2cpp dumping...stay")
         try:
-            result = self.il2cppFridaInstrument.il2cpp_dump()
+            result = self.il2cpp_frida_instrument.il2cpp_dump()
             if result is not None:
-                self.il2cppdumpsig.emit(result)
+                self.il2cpp_dump_signal.emit(result)
         except Exception as e:
-            if str(e) == globvar.errorType1:
+            if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
                 self.statusBar.showMessage(f"{e}...try again")
-                self.il2cppFridaInstrument.sessions.clear()
+                self.il2cpp_frida_instrument.sessions.clear()
             return
 
 
@@ -157,46 +158,47 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        self.spawndialog = None
+        self.spawn_dialog = None
         self.gadgetBtn.clicked.connect(self.prepare_gadget)
-        self.prepareGadgetDialog = None
+        self.prepare_gadget_dialog = None
         self.statusBar()
-        self.statusLight = QLabel()
+        self.status_light = QLabel()
         self.set_status_light()
-        self.memscanworker = MemScanWorker()
-        self.memscanworker.memscansig.connect(self.memscansig_func)
-        self.isil2cppchecked = None
-        self.il2cppdumpworker = None
-        self.il2cppFridaInstrument = None
-        self.hexEditShortcut = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
-        self.ismemscanstrchecked = False
-        self.isremoteattachchecked = False
-        self.ismemsearchreplacechecked = False
-        self.isspawnchecked = False
-        self.ismemsearchwithimgchecked = False
+        self.mem_scan_worker = MemScanWorker()
+        self.mem_scan_worker.mem_scan_signal.connect(self.mem_scan_sig)
+        self.is_il2cpp_checked = None
+        self.il2cpp_dump_worker = None
+        self.il2cpp_frida_instrument = None
+        self.hex_edit_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
+        self.is_mem_scan_str_checked = False
+        self.is_remote_attach_checked = False
+        self.is_mem_search_replace_checked = False
+        self.is_spawn_checked = False
+        self.is_mem_search_with_img_checked = False
         self.memReplaceBtn.setEnabled(False)
         self.memReplacePattern.setEnabled(False)
-        self.hexViewer.wheelupsig.connect(self.wheelupsig_func)
-        self.hexViewer.movesig.connect(self.movesig_func)
-        self.hexViewer.refreshsig.connect(self.refreshsig_func)
+        self.hexViewer.wheel_up_signal.connect(self.wheel_up_sig_func)
+        self.hexViewer.move_signal.connect(self.move_sig_func)
+        self.hexViewer.refresh_signal.connect(self.refresh_sig_func)
         self.hexViewer.statusBar = self.statusBar()
-        self.defaultcolor = QLabel().palette().color(QPalette.ColorRole.WindowText)
-        self.listImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "listImgViewer"))
-        self.parseImgListImgViewer.modulenamesig.connect(lambda sig: self.modulenamesig_func(sig, "parseImgListImgViewer"))
-        self.memSearchResult.searchresultaddrsig.connect(self.searchresultaddrsig_func)
+        self.default_color = QLabel().palette().color(QPalette.ColorRole.WindowText)
+        self.listImgViewer.module_name_signal.connect(lambda sig: self.module_name_sig_func(sig, "listImgViewer"))
+        self.parseImgListImgViewer.module_name_signal.connect(
+            lambda sig: self.module_name_sig_func(sig, "parseImgListImgViewer"))
+        self.memSearchResult.search_result_addr_signal.connect(self.search_result_addr_sig_func)
         self.arrangedresult = None
         self.arrangedresult2 = None
         self.platform = None
-        self.islistpidchecked = False
-        self.attachtargetname = None    # name to attach. need to provide on the AppList widget
-        self.attachtargetnamereserved = None
-        self.attachedname = None    # main module name after frida attached successfully
-        self.spawntargetid = None   # target identifier to do frida spawn. need to provide on the AppList widget
-        self.remoteaddr = ''
-        self.memrefreshworker = None
-        self.refreshCurrentAddressShortcut = QShortcut(QKeySequence(Qt.Key.Key_F3), self)
-        self.refreshCurrentAddressShortcut.activated.connect(self.refresh_curr_addr)
-        self.isPalera1n = False
+        self.is_list_pid_checked = False
+        self.attach_target_name = None  # name to attach. need to provide on the AppList widget
+        self.attach_target_name_reserved = None
+        self.attached_name = None  # main module name after frida attached successfully
+        self.spawn_target_id = None  # target identifier to do frida spawn. need to provide on the AppList widget
+        self.remote_addr = ''
+        self.mem_refresh_worker = None
+        self.refresh_curr_addr_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F3), self)
+        self.refresh_curr_addr_shortcut.activated.connect(self.refresh_curr_addr)
+        self.is_palera1n = False
 
         self.attachBtn.clicked.connect(lambda: self.attach_frida("attachBtnClicked"))
         self.detachBtn.clicked.connect(self.detach_frida)
@@ -212,7 +214,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         self.hexEditBtn.clicked.connect(self.hex_edit)
         self.hexEditDoneBtn.clicked.connect(self.hex_edit)
-        self.hexEditShortcut.activated.connect(self.hex_edit)
+        self.hex_edit_shortcut.activated.connect(self.hex_edit)
 
         self.memSearchBtn.clicked.connect(self.mem_search_func)
         self.memReplaceBtn.clicked.connect(self.mem_search_replace_func)
@@ -235,16 +237,16 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         self.disasm_thread = QThread()
         self.disasm_worker = DisassembleWorker()
-        self.disasm_worker.hexviewer = self.hexViewer
-        self.disasm_worker.hexviewer.wheelsig.connect(self.disasm_worker.hexviewer_wheelsig_func)
-        self.disasm_worker.hexviewer.scrollsig.connect(self.disasm_worker.hexviewer_scrollsig_func)
+        self.disasm_worker.hex_viewer = self.hexViewer
+        self.disasm_worker.hex_viewer.wheel_signal.connect(self.disasm_worker.hex_viewer_wheel_sig_func)
+        self.disasm_worker.hex_viewer.scroll_signal.connect(self.disasm_worker.hex_viewer_scroll_sig_func)
         self.disasm_worker.moveToThread(self.disasm_thread)
         self.disasm_thread.start()
         self.disassemBtnClickedCount = 0
         self.disassemBtn.clicked.connect(self.show_disassemble_result)
 
         self.history_view = HistoryViewClass()
-        self.history_view.historyaddrsig.connect(self.history_addr_sig_func)
+        self.history_view.history_addr_signal.connect(self.history_addr_sig_func)
         self.historyBtn.clicked.connect(self.show_history)
         self.historyBtnClickedCount = 0
 
@@ -280,110 +282,106 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         QApplication.instance().installEventFilter(self)
 
     @pyqtSlot(int)
-    def sig_func(self, onoffsig: int):
-        if onoffsig:
-            self.set_status_light()
-
-    @pyqtSlot(int)
-    def memscansig_func(self, memscansig: int):
+    def mem_scan_sig(self, sig: int):
         # mem scan progressing...
-        if memscansig == 0:
-            self.progressBar.setValue(globvar.scanProgressRatio)
+        if sig == 0:
+            self.progressBar.setValue(gvar.scan_progress_ratio)
         # mem scan completed
-        if memscansig == 1:
+        if sig == 1:
             self.mem_scan_retrieve_result()
             self.memSearchBtn.setText("GO")
 
     @pyqtSlot(str)
-    def wheelupsig_func(self, wheelupsig: str):
-        # print(wheelupsig)
-        if self.status_img_base.toPlainText() == hex_calculator(f"{wheelupsig}"):
+    def wheel_up_sig_func(self, sig: str):
+        # print(sig)
+        if self.status_img_base.toPlainText() == hex_calculator(f"{sig}"):
             return
-        addr = hex_calculator(f"{wheelupsig} - 10")
+        addr = hex_calculator(f"{sig} - 10")
         # print(addr)
         self.addrInput.setText(addr)
         self.addr_btn_func()
 
     @pyqtSlot(int)
-    def movesig_func(self, movesig: int):
-        self.move_backward() if movesig == 0 else self.move_forward()
+    def move_sig_func(self, sig: int):
+        self.move_backward() if sig == 0 else self.move_forward()
 
     @pyqtSlot(int)
-    def refreshsig_func(self, refreshsig: int):
-        if refreshsig:
+    def refresh_sig_func(self, sig: int):
+        if sig:
             self.refresh_curr_addr()
 
     @pyqtSlot(str)
-    def modulenamesig_func(self, modulenamesig: str, caller):
+    def module_name_sig_func(self, sig: str, caller):
         if caller == "listImgViewer":
-            self.memDumpModuleName.setText(modulenamesig)
+            self.memDumpModuleName.setText(sig)
         elif caller == "parseImgListImgViewer":
-            self.parseImgName.setText(modulenamesig)
+            self.parseImgName.setText(sig)
 
     @pyqtSlot(str)
-    def searchresultaddrsig_func(self, searchresultaddrsig: str):
-        self.addrInput.setText(searchresultaddrsig)
+    def search_result_addr_sig_func(self, sig: str):
+        self.addrInput.setText(sig)
         self.addr_btn_func()
 
     @pyqtSlot(str)
-    def targetsig_func(self, targetsig: str):
-        if self.isspawnchecked:
-            self.spawntargetid = targetsig
+    def target_sig_func(self, sig: str):
+        if self.is_spawn_checked:
+            self.spawn_target_id = sig
         else:
-            self.attachtargetname = targetsig
-            self.attachtargetnamereserved = targetsig
-        if self.isremoteattachchecked is True:
-            if re.search(r"^\d+\.\d+\.\d+\.\d+:\d+$", self.spawndialog.spawnui.remoteAddrInput.text()) is None:
+            self.attach_target_name = sig
+            self.attach_target_name_reserved = sig
+        if self.is_remote_attach_checked is True:
+            if re.search(r"^\d+\.\d+\.\d+\.\d+:\d+$", self.spawn_dialog.spawn_ui.remoteAddrInput.text()) is None:
                 QMessageBox.information(self, "info", "Enter IP:PORT")
-                self.spawntargetid = None
-                self.attachtargetname = None
+                self.spawn_target_id = None
+                self.attach_target_name = None
                 return
-            self.remoteaddr = self.spawndialog.spawnui.remoteAddrInput.text()
-        self.attach_frida("targetsig_func")
-        self.spawndialog = None
-        self.spawntargetid = None
-        self.attachtargetname = None
-        self.remoteaddr = ''
+            self.remote_addr = self.spawn_dialog.spawn_ui.remoteAddrInput.text()
+        self.attach_frida("target_sig_func")
+        self.spawn_dialog = None
+        self.spawn_target_id = None
+        self.attach_target_name = None
+        self.remote_addr = ''
 
     @pyqtSlot(str)
-    def il2cppdumpsig_func(self, il2cppdumpsig: str):
-        if il2cppdumpsig is not None:
+    def il2cpp_dump_sig_func(self, sig: str):
+        if sig is not None:
             QThread.msleep(100)
             self.statusBar().showMessage("il2cpp Dump Done!", 5000)
             self.listImgViewer.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
             self.listImgViewer.setTextColor(QColor("Red"))
             dir_to_save = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
-            if self.isremoteattachchecked:
-                os.system(f"frida-pull -H {self.il2cppFridaInstrument.remoteaddr} \"{il2cppdumpsig}\" {dir_to_save}")
+            if self.is_remote_attach_checked:
+                os.system(
+                    f"frida-pull -H {self.il2cpp_frida_instrument.remote_addr} \"{sig}\" {dir_to_save}")
             else:
-                os.system(f"frida-pull -U \"{il2cppdumpsig}\" {dir_to_save}")
-            self.listImgViewer.insertPlainText(f"Dumped file at: {dir_to_save}{il2cppdumpsig.split('/')[-1]}\n\n")
-            self.listImgViewer.setTextColor(self.defaultcolor)
+                os.system(f"frida-pull -U \"{sig}\" {dir_to_save}")
+            self.listImgViewer.insertPlainText(f"Dumped file at: {dir_to_save}{sig.split('/')[-1]}\n\n")
+            self.listImgViewer.setTextColor(self.default_color)
             # after il2cpp dump some android apps crash
-            self.il2cppdumpworker.terminate()
+            self.il2cpp_dump_worker.terminate()
             self.memDumpBtn.setEnabled(True)
 
     @pyqtSlot(int)
-    def fridaattachsig_func(self, attach_sig: int):
-        if attach_sig:
-            globvar.isFridaAttached = True
-            if self.isremoteattachchecked:
-                globvar.remote = True
+    def frida_attach_sig_func(self, sig: int):
+        if sig:
+            gvar.is_frida_attached = True
+            if self.is_remote_attach_checked:
+                gvar.remote = True
         else:
-            globvar.isFridaAttached = False
+            gvar.is_frida_attached = False
             self.detach_frida()
         self.set_status_light()
 
     @pyqtSlot(list)
-    def frida_portal_sig_func(self, nodeinfo: list):
-        if nodeinfo:
-            self.remoteaddr = "localhost"
-            self.attachtargetname = nodeinfo[0]
-            self.attach_frida("frida_portal_sig_func")
+    def frida_portal_node_info_sig_func(self, sig: list):  # node info signal
+        if sig:
+            self.remote_addr = "localhost"
+            self.attach_target_name = sig[0]
+            self.attach_frida("frida_portal_node_info_sig_func")
 
     @pyqtSlot(str)
-    def history_addr_sig_func(self, addr: str):
-        self.addrInput.setText(addr)
+    def history_addr_sig_func(self, sig: str):
+        self.addrInput.setText(sig)
         self.addr_btn_func()
 
     def adjust_label_pos(self):
@@ -397,79 +395,81 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.label_3.setIndent(28 - (77 - text_length) * 7)
 
     def list_pid(self, state):
-        self.islistpidchecked = state == Qt.CheckState.Checked.value
+        self.is_list_pid_checked = state == Qt.CheckState.Checked.value
 
     def remote_attach(self, state):
-        self.isremoteattachchecked = state == Qt.CheckState.Checked.value
+        self.is_remote_attach_checked = state == Qt.CheckState.Checked.value
 
     def spawn_mode(self, state):
-        self.isspawnchecked = state == Qt.CheckState.Checked.value
+        self.is_spawn_checked = state == Qt.CheckState.Checked.value
 
     def prepare_gadget(self):
         try:
-            self.prepareGadgetDialog = gadget.GadgetDialogClass()
-            self.prepareGadgetDialog.fridaportalsig.connect(self.frida_portal_sig_func)
+            self.prepare_gadget_dialog = gadget.GadgetDialogClass()
+            self.prepare_gadget_dialog.frida_portal_node_info_signal.connect(self.frida_portal_node_info_sig_func)
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
             return
 
     def attach_frida(self, caller: str):
-        if globvar.isFridaAttached is True:
+        if gvar.is_frida_attached is True:
             try:
                 # check if script is still alive. if not exception will occur
-                globvar.fridaInstrument.dummy_script()
+                gvar.frida_instrument.dummy_script()
                 QMessageBox.information(self, "info", "Already attached")
             except Exception as e:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-                globvar.fridaInstrument.sessions.clear()
+                gvar.frida_instrument.sessions.clear()
             return
 
         try:
-            if not caller == "frida_portal_sig_func":
-                if (self.islistpidchecked and not self.isspawnchecked and self.attachtargetname is None) or \
-                        (self.isspawnchecked and self.spawntargetid is None):
-                    self.spawndialog = spawn.SpawnDialogClass()
-                    if self.islistpidchecked and not self.isspawnchecked:
-                        self.spawndialog.ispidlistchecked = True
-                        self.spawndialog.spawnui.spawnTargetIdInput.setPlaceholderText("AppStore")
-                        self.spawndialog.spawnui.appListLabel.setText("PID           Name")
-                        self.spawndialog.spawnui.spawnBtn.setText("Attach")
-                        self.spawndialog.attachtargetnamesig.connect(self.targetsig_func)
+            if not caller == "frida_portal_node_info_sig_func":
+                if (self.is_list_pid_checked and not self.is_spawn_checked and self.attach_target_name is None) or \
+                        (self.is_spawn_checked and self.spawn_target_id is None):
+                    self.spawn_dialog = spawn.SpawnDialogClass()
+                    if self.is_list_pid_checked and not self.is_spawn_checked:
+                        self.spawn_dialog.is_pid_list_checked = True
+                        self.spawn_dialog.spawn_ui.spawnTargetIdInput.setPlaceholderText("AppStore")
+                        self.spawn_dialog.spawn_ui.appListLabel.setText("PID           Name")
+                        self.spawn_dialog.spawn_ui.spawnBtn.setText("Attach")
+                        self.spawn_dialog.attach_target_name_signal.connect(self.target_sig_func)
 
-                    self.spawndialog.spawntargetidsig.connect(self.targetsig_func)
+                    self.spawn_dialog.spawn_target_id_signal.connect(self.target_sig_func)
 
-                    if self.isremoteattachchecked is False:
-                        self.spawndialog.spawnui.remoteAddrInput.setEnabled(False)
-                        self.spawndialog.spawnui.spawnTargetIdInput.setFocus()
+                    if self.is_remote_attach_checked is False:
+                        self.spawn_dialog.spawn_ui.remoteAddrInput.setEnabled(False)
+                        self.spawn_dialog.spawn_ui.spawnTargetIdInput.setFocus()
                     else:
-                        self.spawndialog.spawnui.remoteAddrInput.setFocus()
+                        self.spawn_dialog.spawn_ui.remoteAddrInput.setFocus()
                     return
 
-                if self.isremoteattachchecked and self.remoteaddr == '':
-                    self.remoteaddr, ok = QInputDialog.getText(self, 'Remote Attach', 'Enter IP:PORT')
+                if self.is_remote_attach_checked and self.remote_addr == '':
+                    self.remote_addr, ok = QInputDialog.getText(self, 'Remote Attach', 'Enter IP:PORT')
                     if ok is False:
                         return
 
-                globvar.fridaInstrument = code.Instrument("scripts/default.js",
-                                                          self.isremoteattachchecked,
-                                                          self.remoteaddr,
-                                                          self.attachtargetname if (self.islistpidchecked and not self.isspawnchecked) else self.spawntargetid,
-                                                          self.isspawnchecked)
+                gvar.frida_instrument = code.Instrument("scripts/default.js",
+                                                        self.is_remote_attach_checked,
+                                                        self.remote_addr,
+                                                        self.attach_target_name if (
+                                                                    self.is_list_pid_checked and not self.is_spawn_checked) else self.spawn_target_id,
+                                                        self.is_spawn_checked)
                 # connect frida attach signal function
-                globvar.fridaInstrument.attachsig.connect(self.fridaattachsig_func)
-                msg = globvar.fridaInstrument.instrument(caller)
-            elif caller == "frida_portal_sig_func":
-                globvar.fridaInstrument = code.Instrument("scripts/default.js",
-                                                          True,
-                                                          self.remoteaddr,
-                                                          self.attachtargetname,
-                                                          False)
+                gvar.frida_instrument.attach_signal.connect(self.frida_attach_sig_func)
+                msg = gvar.frida_instrument.instrument(caller)
+            elif caller == "frida_portal_node_info_sig_func":
+                gvar.frida_instrument = code.Instrument("scripts/default.js",
+                                                        True,
+                                                        self.remote_addr,
+                                                        self.attach_target_name,
+                                                        False)
                 # connect frida attach signal function
-                globvar.fridaInstrument.attachsig.connect(self.fridaattachsig_func)
-                msg = globvar.fridaInstrument.instrument(caller)
+                gvar.frida_instrument.attach_signal.connect(self.frida_attach_sig_func)
+                msg = gvar.frida_instrument.instrument(caller)
 
-            self.remoteaddr = ''
+            self.remote_addr = ''
         except Exception as e:
+            print(e)
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
             return
 
@@ -481,40 +481,40 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         set_mem_range('r--')
 
         try:
-            self.platform = globvar.fridaInstrument.platform()
+            self.platform = gvar.frida_instrument.platform()
             if self.platform == 'darwin':
-                self.isPalera1n = globvar.fridaInstrument.is_palera1n()
+                self.is_palera1n = gvar.frida_instrument.is_palera1n()
             self.utilViewer.platform = self.platform
-            globvar.arch = globvar.fridaInstrument.arch()
-            name = globvar.fridaInstrument.list_modules()[0]['name']
-            self.attachedname = name
+            gvar.arch = gvar.frida_instrument.arch()
+            name = gvar.frida_instrument.list_modules()[0]['name']
+            self.attached_name = name
             self.set_status(name)
         except Exception as e:
             print(e)
             return
 
     def detach_frida(self):
-        if globvar.fridaInstrument is None:
+        if gvar.frida_instrument is None:
             pass
         else:
             try:
-                for session in globvar.fridaInstrument.sessions:
+                for session in gvar.frida_instrument.sessions:
                     session.detach()
-                globvar.fridaInstrument.sessions.clear()
-                globvar.enumerateRanges.clear()
-                globvar.hexEdited.clear()
-                globvar.listModules.clear()
-                globvar.arch = None
-                globvar.isFridaAttached = False
-                globvar.fridaInstrument = None
-                globvar.visitedAddress.clear()
-                globvar.fridaPortalMode = False
-                self.remoteaddr = ''
-                self.il2cppFridaInstrument = None
+                gvar.frida_instrument.sessions.clear()
+                gvar.enumerate_ranges.clear()
+                gvar.hex_edited.clear()
+                gvar.list_modules.clear()
+                gvar.arch = None
+                gvar.is_frida_attached = False
+                gvar.frida_instrument = None
+                gvar.visited_address.clear()
+                gvar.frida_portal_mode = False
+                self.remote_addr = ''
+                self.il2cpp_frida_instrument = None
                 if self.hexViewer.new_watch_widget is not None:
                     self.hexViewer.new_watch_widget.close()
-                if self.utilViewer.pullIpaWorker is not None:
-                    self.utilViewer.pullIpaWorker.quit()
+                if self.utilViewer.pull_ipa_worker is not None:
+                    self.utilViewer.pull_ipa_worker.quit()
                 if self.history_view is not None:
                     self.history_view.history_window.close()
                     self.history_view.clear_table()
@@ -531,15 +531,15 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.is_cmd_pressed = QApplication.instance().keyboardModifiers() & (
                 Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
         if self.is_cmd_pressed in (Qt.KeyboardModifier.ControlModifier, Qt.KeyboardModifier.MetaModifier):
-            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(True)
+            if gvar.is_frida_attached: gvar.frida_instrument.force_read_mem_addr(True)
         else:
-            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(False)
+            if gvar.is_frida_attached: gvar.frida_instrument.force_read_mem_addr(False)
 
         if caller == "returnPressed":
             self.offset_ok_btn_func()
 
     def offset_ok_btn_func(self):
-        if globvar.isFridaAttached is False:
+        if gvar.is_frida_attached is False:
             QMessageBox.information(self, "info", "Attach first")
             self.offsetInput.clear()
             return
@@ -561,36 +561,36 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # print(f'name: {name}')
         try:
             if self.status_img_base.toPlainText() == '':
-                result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
+                result = gvar.frida_instrument.read_mem_offset(name, offset, 8192)
             else:
                 addr = hex_calculator(f"{self.status_img_base.toPlainText()} + {offset} + 2000")
                 # check addr in mem regions
                 if is_readable_addr(addr):
-                    result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
+                    result = gvar.frida_instrument.read_mem_offset(name, offset, 8192)
                 else:
                     # not in mem regions. but check module existence
-                    if globvar.fridaInstrument.get_module_name_by_addr(addr) != '':
+                    if gvar.frida_instrument.get_module_name_by_addr(addr) != '':
                         # there is a module
-                        size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + \
-                               globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
+                        size = int(gvar.frida_instrument.get_module_name_by_addr(addr)['base'], 16) + \
+                               gvar.frida_instrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
                         if size < 8192:
-                            result = globvar.fridaInstrument.read_mem_offset(name, offset, size)
+                            result = gvar.frida_instrument.read_mem_offset(name, offset, size)
                         else:
-                            result = globvar.fridaInstrument.read_mem_offset(name, offset, 8192)
+                            result = gvar.frida_instrument.read_mem_offset(name, offset, 8192)
                     else:
                         # there is no module. just try to read
                         size = size_to_read(hex_calculator(f"{self.status_img_base.toPlainText()} + {offset}"))
                         if size is not None:
-                            result = globvar.fridaInstrument.read_mem_offset(name, offset, size)
+                            result = gvar.frida_instrument.read_mem_offset(name, offset, size)
                         else:
-                            result = globvar.fridaInstrument.read_mem_offset(name, offset, 4096)
+                            result = gvar.frida_instrument.read_mem_offset(name, offset, 4096)
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-            if str(e) == globvar.errorType1:
-                globvar.fridaInstrument.sessions.clear()
+            if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                gvar.frida_instrument.sessions.clear()
             return
 
-        if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+        if self.is_palera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
             self.statusBar().showMessage(f"{result['palera1n']}", 3000)
             return
 
@@ -600,15 +600,15 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.is_cmd_pressed = QApplication.instance().keyboardModifiers() & (
                 Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier)
         if self.is_cmd_pressed in (Qt.KeyboardModifier.ControlModifier, Qt.KeyboardModifier.MetaModifier):
-            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(True)
+            if gvar.is_frida_attached: gvar.frida_instrument.force_read_mem_addr(True)
         else:
-            if globvar.isFridaAttached: globvar.fridaInstrument.force_read_mem_addr(False)
+            if gvar.is_frida_attached: gvar.frida_instrument.force_read_mem_addr(False)
 
         if caller == "returnPressed":
             self.addr_btn_func()
 
     def addr_btn_func(self):
-        if globvar.isFridaAttached is False:
+        if gvar.is_frida_attached is False:
             QMessageBox.information(self, "info", "Attach first")
             self.addrInput.clear()
             return
@@ -621,7 +621,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # in case it's not a hex expression on addrInput field. for example "fopen", "sysctl", ...
         if match is None:
             try:
-                func_addr = globvar.fridaInstrument.find_sym_addr_by_name(addr)
+                func_addr = gvar.frida_instrument.find_sym_addr_by_name(self.status_img_name.text(), addr)
                 if func_addr is None:
                     self.statusBar().showMessage(f"Cannot find address for {addr}", 3000)
                     return
@@ -648,17 +648,18 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             # if is_readable_addr(addr) is False:
             try:
                 # on iOS in case frida's Process.enumerateRangesSync('---') doesn't show up every memory regions
-                if globvar.fridaInstrument.get_module_name_by_addr(addr) != '':
+                if gvar.frida_instrument.get_module_name_by_addr(addr) != '':
                     # there is a module
-                    name = globvar.fridaInstrument.get_module_name_by_addr(addr)['name']
-                    size = int(globvar.fridaInstrument.get_module_name_by_addr(addr)['base'], 16) + \
-                           globvar.fridaInstrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
+                    name = gvar.frida_instrument.get_module_name_by_addr(addr)['name']
+                    size = int(gvar.frida_instrument.get_module_name_by_addr(addr)['base'], 16) + \
+                           gvar.frida_instrument.get_module_name_by_addr(addr)['size'] - 1 - int(addr, 16)
                     if size < 8192:
-                        result = globvar.fridaInstrument.read_mem_addr(addr, size)
+                        result = gvar.frida_instrument.read_mem_addr(addr, size)
                     else:
-                        result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+                        result = gvar.frida_instrument.read_mem_addr(addr, 8192)
 
-                    if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+                    if self.is_palera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(
+                            result):
                         self.statusBar().showMessage(f"{result['palera1n']}", 5000)
                         return
 
@@ -666,9 +667,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     return
                 else:
                     # there is no module. but let's try to read small mem regions anyway
-                    result = globvar.fridaInstrument.read_mem_addr(addr, 4096)
+                    result = gvar.frida_instrument.read_mem_addr(addr, 4096)
 
-                    if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+                    if self.is_palera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(
+                            result):
                         self.statusBar().showMessage(f"{result['palera1n']}", 5000)
                         return
 
@@ -676,8 +678,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     return
             except Exception as e:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-                if str(e) == globvar.errorType1:
-                    globvar.fridaInstrument.sessions.clear()
+                if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                    gvar.frida_instrument.sessions.clear()
                 return
 
         try:
@@ -686,14 +688,14 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 if size < 8192:
                     # check there's an empty memory space between from address to (address + 0x2000).
                     # if then read maximum readable size
-                    result = globvar.fridaInstrument.read_mem_addr(addr, size)
+                    result = gvar.frida_instrument.read_mem_addr(addr, size)
                 else:
-                    result = globvar.fridaInstrument.read_mem_addr(addr, 8192)
+                    result = gvar.frida_instrument.read_mem_addr(addr, 8192)
             else:
                 size = size_to_read(addr)
-                result = globvar.fridaInstrument.read_mem_addr(addr, size)
+                result = gvar.frida_instrument.read_mem_addr(addr, size)
 
-            if self.isPalera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
+            if self.is_palera1n and not self.is_cmd_pressed and not self.is_addr_in_mem_range_for_palera1n(result):
                 self.statusBar().showMessage(f"{result['palera1n']}", 5000)
                 return
 
@@ -702,13 +704,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-            if str(e) == globvar.errorType1:
-                globvar.fridaInstrument.sessions.clear()
+            if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                gvar.frida_instrument.sessions.clear()
             return
 
     def show_mem_result_on_viewer(self, name, addr, result):
         # empty changed hex list before refresh hexviewer
-        globvar.hexEdited.clear()
+        gvar.hex_edited.clear()
         # show hex dump result
         hex_dump_result = result[result.find('\n') + 1:]
         self.hexViewer.setPlainText(hex_dump_result)
@@ -716,7 +718,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.adjust_label_pos()
 
         if inspect.currentframe().f_back.f_code.co_name != "offset_ok_btn_func" and \
-                globvar.fridaInstrument.get_module_name_by_addr(addr) == '':
+                gvar.frida_instrument.get_module_name_by_addr(addr) == '':
             self.status_img_name.clear()
             self.status_img_base.clear()
             self.status_size.clear()
@@ -725,19 +727,19 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.status_current.setPlainText(self.addrInput.text())
             self.addrInput.clear()
 
-            globvar.currentFrameBlockNumber = 0
-            globvar.currentFrameStartAddress = "".join(
+            gvar.current_frame_block_number = 0
+            gvar.current_frame_start_address = "".join(
                 ("0x",
                  self.hexViewer.textCursor().block().text()[:self.hexViewer.textCursor().block().text().find(' ')]))
-            # print("[hackcatml] currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
-            # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
+            # print("[hackcatml] currentFrameBlockNumber: ", gvar.current_frame_block_number)
+            # print("[hackcatml] currentFrameStartAddress: ", gvar.current_frame_start_address)
             self.visited_addr()
             # disassemble the result of hex dump
-            self.disasm_worker.disassemble(globvar.arch, globvar.currentFrameStartAddress, hex_dump_result)
+            self.disasm_worker.disassemble(gvar.arch, gvar.current_frame_start_address, hex_dump_result)
             return
 
         if inspect.currentframe().f_back.f_code.co_name != "offset_ok_btn_func":
-            self.set_status(globvar.fridaInstrument.get_module_name_by_addr(addr)['name'])
+            self.set_status(gvar.frida_instrument.get_module_name_by_addr(addr)['name'])
             # reset address input area
             self.addrInput.clear()
         else:
@@ -749,55 +751,58 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         if self.hexViewer.textCursor().positionInBlock() == 0:
             self.hexViewer.moveCursor(QTextCursor.MoveOperation.NextWord)
         # set initial currentFrameStartAddress
-        globvar.currentFrameBlockNumber = 0
-        globvar.currentFrameStartAddress = "".join(
+        gvar.current_frame_block_number = 0
+        gvar.current_frame_start_address = "".join(
             ("0x", self.hexViewer.textCursor().block().text()[:self.hexViewer.textCursor().block().text().find(' ')]))
-        # print("[hackcatml] currentFrameBlockNumber: ", globvar.currentFrameBlockNumber)
-        # print("[hackcatml] currentFrameStartAddress: ", globvar.currentFrameStartAddress)
+        # print("[hackcatml] currentFrameBlockNumber: ", gvar.current_frame_block_number)
+        # print("[hackcatml] currentFrameStartAddress: ", gvar.current_frame_start_address)
         self.visited_addr()
 
-        self.disasm_worker.disassemble(globvar.arch, globvar.currentFrameStartAddress, hex_dump_result)
+        self.disasm_worker.disassemble(gvar.arch, gvar.current_frame_start_address, hex_dump_result)
 
     # remember visited address
     def visited_addr(self):
-        if len(inspect.stack()) > 3 and inspect.stack()[3].function == 'wheelupsig_func':
+        if len(inspect.stack()) > 3 and inspect.stack()[3].function == 'wheel_up_sig_func':
             return
         curr_addr = self.status_current.toPlainText()
         match = re.search(r'\(0x[a-fA-F0-9]+\)', curr_addr)
         visited_addr = curr_addr[:match.start()] if match is not None else curr_addr
         if visited_addr != '':
-            if len(globvar.visitedAddress) == 0:
-                globvar.visitedAddress.append(['last', visited_addr])
+            if len(gvar.visited_address) == 0:
+                gvar.visited_address.append(['last', visited_addr])
             else:
                 last_visit_index = None
-                for item in globvar.visitedAddress:
+                for item in gvar.visited_address:
                     if item[0] == 'last':
-                        last_visit_index = globvar.visitedAddress.index(item)
-                if not any(sublist[1] == visited_addr for sublist in globvar.visitedAddress):
-                    globvar.visitedAddress.append(['last', visited_addr])
+                        last_visit_index = gvar.visited_address.index(item)
+                if not any(sublist[1] == visited_addr for sublist in gvar.visited_address):
+                    gvar.visited_address.append(['last', visited_addr])
                     if last_visit_index is not None:
-                        globvar.visitedAddress[last_visit_index][0] = 'notlast'
+                        gvar.visited_address[last_visit_index][0] = 'notlast'
                 else:
                     revisit_index = None
                     # Find the index of the sublist to modify
-                    for idx, sublist in enumerate(globvar.visitedAddress):
+                    for idx, sublist in enumerate(gvar.visited_address):
                         if sublist[1] == visited_addr and sublist[0] == 'notlast':
                             revisit_index = idx
                             break
                     # Modify the sublist if we found a matching index
-                    if revisit_index is not None and (inspect.stack()[3].function != 'move_forward' and inspect.stack()[3].function != 'move_backward'):
-                        revisit_addr_mark = globvar.visitedAddress[revisit_index][0]
-                        revisit_addr = globvar.visitedAddress[revisit_index][1]
-                        globvar.visitedAddress.remove([revisit_addr_mark, revisit_addr])
-                        globvar.visitedAddress.append(['last', revisit_addr])
-                        for idx, sublist in enumerate(globvar.visitedAddress):
+                    if revisit_index is not None and (inspect.stack()[3].function != 'move_forward' and inspect.stack()[
+                        3].function != 'move_backward'):
+                        revisit_addr_mark = gvar.visited_address[revisit_index][0]
+                        revisit_addr = gvar.visited_address[revisit_index][1]
+                        gvar.visited_address.remove([revisit_addr_mark, revisit_addr])
+                        gvar.visited_address.append(['last', revisit_addr])
+                        for idx, sublist in enumerate(gvar.visited_address):
                             if sublist[1] != revisit_addr and sublist[0] == 'last':
-                                globvar.visitedAddress[idx][0] = 'notlast'
+                                gvar.visited_address[idx][0] = 'notlast'
                                 break
-                    elif revisit_index is not None and (inspect.stack()[3].function == 'move_forward' or inspect.stack()[3].function == 'move_backward'):
-                        globvar.visitedAddress[revisit_index][0] = 'last'
+                    elif revisit_index is not None and (
+                            inspect.stack()[3].function == 'move_forward' or inspect.stack()[
+                        3].function == 'move_backward'):
+                        gvar.visited_address[revisit_index][0] = 'last'
                         if revisit_index != last_visit_index:
-                            globvar.visitedAddress[last_visit_index][0] = 'notlast'
+                            gvar.visited_address[last_visit_index][0] = 'notlast'
             # add visted_addr to the history table
             self.history_view.add_row(visited_addr)
 
@@ -814,7 +819,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.history_view.history_window.show()
         if self.historyBtnClickedCount == 1:
             curr_pos = self.history_view.history_window.pos()
-            new_pos = (curr_pos + QPoint(480, -350)) if platform.system() == "Darwin" else (curr_pos + QPoint(490, -360))
+            new_pos = (curr_pos + QPoint(480, -350)) if platform.system() == "Darwin" else (
+                        curr_pos + QPoint(490, -360))
             self.history_view.history_window.move(new_pos)
 
     def util_tab_bar_click_func(self, index):
@@ -827,14 +833,14 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             text = ""
             result = []
             self.parseImgName.setText('')
-            if globvar.fridaInstrument is not None:
+            if gvar.frida_instrument is not None:
                 try:
-                    result = globvar.fridaInstrument.list_modules()
-                    globvar.listModules = result
+                    result = gvar.frida_instrument.list_modules()
+                    gvar.list_modules = result
                 except Exception as e:
-                    if str(e) == globvar.errorType1 or "'NoneType' object has no attribute" in str(e):
-                        globvar.fridaInstrument.sessions.clear()
-                        globvar.fridaInstrument = None
+                    if str(e) == gvar.ERROR_SCRIPT_DESTROYED or "'NoneType' object has no attribute" in str(e):
+                        gvar.frida_instrument.sessions.clear()
+                        gvar.frida_instrument = None
                     self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
                     return
             if len(result) > 0:
@@ -847,11 +853,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # status tab
         if index == 0:
             try:
-                if globvar.fridaInstrument is not None:
-                    globvar.fridaInstrument.dummy_script()
+                if gvar.frida_instrument is not None:
+                    gvar.frida_instrument.dummy_script()
             except Exception as e:
-                if str(e) == globvar.errorType1:
-                    globvar.fridaInstrument.sessions.clear()
+                if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                    gvar.frida_instrument.sessions.clear()
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
                 return
         # list img tab
@@ -859,22 +865,22 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             text = ""
             result = []
             self.memDumpModuleName.setText('')
-            if len(globvar.listModules) > 0 and self.memscanworker.isRunning():
-                result = globvar.listModules
-            elif globvar.fridaInstrument is not None:
+            if len(gvar.list_modules) > 0 and self.mem_scan_worker.isRunning():
+                result = gvar.list_modules
+            elif gvar.frida_instrument is not None:
                 try:
-                    result = globvar.fridaInstrument.list_modules()
-                    globvar.listModules = result
+                    result = gvar.frida_instrument.list_modules()
+                    gvar.list_modules = result
                 except Exception as e:
-                    if str(e) == globvar.errorType1:
-                        globvar.fridaInstrument.sessions.clear()
+                    if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                        gvar.frida_instrument.sessions.clear()
                     self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
                     return
             if len(result) > 0:
                 for i in range(len(result) - 1):
                     text += result[i]['name'] + '\n'
                 text += result[len(result) - 1]['name']
-            self.listImgViewer.setTextColor(self.defaultcolor)
+            self.listImgViewer.setTextColor(self.default_color)
             self.listImgViewer.setPlainText(text)
 
     def is_hex_edited_from_search(self):
@@ -883,7 +889,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         tc.movePosition(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
         if re.search(r"1\. 0x[a-f0-9]+, module:", tc.block().text()):
             # print("[hackcatml] hex edited from search")
-            for arr in globvar.hexEdited:
+            for arr in gvar.hex_edited:
                 origpos = arr[4]
                 # print("[hackcatml] origpos: ", origpos)
                 tc.setPosition(origpos, QTextCursor.MoveMode.MoveAnchor)
@@ -906,21 +912,21 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # print(self.sender().__class__.__name__)
         if self.sender().__class__.__name__ == "QShortcut" or \
                 (self.sender().__class__.__name__ != "QShortcut" and self.sender().text() == "Done"):
-            if globvar.isHexEditMode is True:
+            if gvar.is_hex_edit_mode is True:
                 self.hexViewer.setReadOnly(True)
-                if len(globvar.hexEdited) == 0:
-                    globvar.isHexEditMode = False
+                if len(gvar.hex_edited) == 0:
+                    gvar.is_hex_edit_mode = False
                     return
-                elif len(globvar.hexEdited) >= 1:
+                elif len(gvar.hex_edited) >= 1:
                     try:
-                        globvar.fridaInstrument.write_mem_addr(globvar.hexEdited)
+                        gvar.frida_instrument.write_mem_addr(gvar.hex_edited)
                     except Exception as e:
-                        if str(e) == globvar.errorType1:
-                            globvar.fridaInstrument.sessions.clear()
-                            globvar.hexEdited.clear()
+                        if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                            gvar.frida_instrument.sessions.clear()
+                            gvar.hex_edited.clear()
                         self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
                         return
-                print("[hackcatml] hex edited: ", globvar.hexEdited)
+                print("[hackcatml] hex edited: ", gvar.hex_edited)
                 # refresh mem range. it slows down hex edit func speed :(
                 # set_mem_range('r--')
 
@@ -932,7 +938,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         tc = self.hexViewer.textCursor()
                         tc.setPosition(finalpos, QTextCursor.MoveMode.MoveAnchor)
                         # read mem addr after patching
-                        result = globvar.fridaInstrument.read_mem_addr(
+                        result = gvar.frida_instrument.read_mem_addr(
                             "".join(("0x", tc.block().text()[:tc.block().text().find(' ')])), 32)
                         # process read mem result
                         result = process_read_mem_result(result)
@@ -944,19 +950,19 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                                                   QTextCursor.MoveMode.MoveAnchor)
                         self.hexViewer.moveCursor(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor)
                         self.hexViewer.moveCursor(QTextCursor.MoveOperation.NextWord, QTextCursor.MoveMode.MoveAnchor)
-                    globvar.isHexEditMode = False
+                    gvar.is_hex_edit_mode = False
                     # empty changed hex list
-                    globvar.hexEdited.clear()
+                    gvar.hex_edited.clear()
                     # reset current frame block number
-                    globvar.currentFrameBlockNumber = 0
+                    gvar.current_frame_block_number = 0
                     # reset current global mem scan hex view variable
-                    globvar.currentMemScanHexViewResult = self.hexViewer.toPlainText()
+                    gvar.current_mem_scan_hex_view_result = self.hexViewer.toPlainText()
                     return
 
                 # refresh hex viewer after patching
                 tc = self.hexViewer.textCursor()
                 finalposlist = []
-                for arr in globvar.hexEdited:
+                for arr in gvar.hex_edited:
                     origpos = arr[4]
                     tc.setPosition(origpos, QTextCursor.MoveMode.MoveAnchor)
                     tc.movePosition(QTextCursor.MoveOperation.StartOfBlock, QTextCursor.MoveMode.MoveAnchor)
@@ -966,7 +972,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 for finalpos in finalposlist:
                     tc.setPosition(finalpos, QTextCursor.MoveMode.MoveAnchor)
                     # read mem addr after patching
-                    result = globvar.fridaInstrument.read_mem_addr(
+                    result = gvar.frida_instrument.read_mem_addr(
                         "".join(("0x", tc.block().text()[:tc.block().text().find(' ')])), 16)
                     # process read mem result
                     result = process_read_mem_result(result)
@@ -976,27 +982,27 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
                 self.hexViewer.moveCursor(QTextCursor.MoveOperation.StartOfBlock, QTextCursor.MoveMode.MoveAnchor)
                 self.hexViewer.moveCursor(QTextCursor.MoveOperation.NextWord, QTextCursor.MoveMode.MoveAnchor)
-                globvar.isHexEditMode = False
+                gvar.is_hex_edit_mode = False
                 # empty changed hex list
-                globvar.hexEdited.clear()
+                gvar.hex_edited.clear()
                 # reset current frame block number
-                # globvar.currentFrameBlockNumber = 0
+                # gvar.current_frame_block_number = 0
                 return
 
         if self.sender().__class__.__name__ == "QShortcut" or (
                 self.sender().__class__.__name__ != "QShortcut" and self.sender().text() == "HexEdit"):
-            if globvar.isHexEditMode is False:
+            if gvar.is_hex_edit_mode is False:
                 self.hexViewer.setReadOnly(False)
                 self.hexViewer.setTextInteractionFlags(
                     ~Qt.TextInteractionFlag.TextSelectableByKeyboard & ~Qt.TextInteractionFlag.TextSelectableByMouse)
-                globvar.isHexEditMode = True
+                gvar.is_hex_edit_mode = True
 
     def hex_pattern_check(self, text: str):
         # memory scan pattern check
         if (pattern := text) == '':
             self.statusBar().showMessage("put some pattern", 3000)
             return None
-        if self.ismemscanstrchecked:
+        if self.is_mem_scan_str_checked:
             pattern = bytes(pattern, 'utf-8').hex()
             return pattern
         else:
@@ -1020,16 +1026,16 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         # if stop btn clicked, send scan stop signal to the frida script
         if self.memSearchBtn.text() == 'STOP':
             try:
-                globvar.fridaInstrument.stop_mem_scan()
+                gvar.frida_instrument.stop_mem_scan()
             except Exception as e:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-                if str(e) == globvar.errorType1:
-                    globvar.fridaInstrument.sessions.clear()
+                if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                    gvar.frida_instrument.sessions.clear()
                 self.memSearchBtn.setText("GO")
                 return
             return
         # memory scan thread start
-        self.memscanworker.start()
+        self.mem_scan_worker.start()
         self.memSearchFoundCount.setText("")
         # memory scan pattern check
         if inspect.currentframe().f_back.f_code.co_name == "mem_search_replace_func":
@@ -1042,33 +1048,33 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         try:
             if pattern is not None:
                 # mem scan on whole images
-                if self.ismemsearchwithimgchecked is False:
-                    result = globvar.fridaInstrument.mem_scan(globvar.enumerateRanges, pattern)
+                if self.is_mem_search_with_img_checked is False:
+                    result = gvar.frida_instrument.mem_scan(gvar.enumerate_ranges, pattern)
                     self.memSearchBtn.setText("STOP")
                 # mem scan on a specific image
-                elif self.ismemsearchwithimgchecked is True:
-                    result = globvar.fridaInstrument.mem_scan_with_img(self.memSearchTargetImgInput.text(), pattern)
+                elif self.is_mem_search_with_img_checked is True:
+                    result = gvar.frida_instrument.mem_scan_with_img(self.memSearchTargetImgInput.text(), pattern)
                     self.memSearchBtn.setText("STOP")
                     if result == 'module not found':
                         self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {result}", 3000)
                         self.memSearchBtn.setText("GO")
-                        # self.memscanworker.terminate()
-                        self.memscanworker.quit()
+                        # self.mem_scan_worker.terminate()
+                        self.mem_scan_worker.quit()
                         return False
                 return True
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-            # self.memscanworker.terminate()
-            self.memscanworker.quit()
+            # self.mem_scan_worker.terminate()
+            self.mem_scan_worker.quit()
             try:
-                globvar.fridaInstrument.stop_mem_scan()
+                gvar.frida_instrument.stop_mem_scan()
             except Exception as err:
                 self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {err}", 3000)
-                if str(err) == globvar.errorType1:
-                    globvar.fridaInstrument.sessions.clear()
+                if str(err) == gvar.ERROR_SCRIPT_DESTROYED:
+                    gvar.frida_instrument.sessions.clear()
                 return False
-            if str(e) == globvar.errorType1:
-                globvar.fridaInstrument.sessions.clear()
+            if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                gvar.frida_instrument.sessions.clear()
             return False
 
     def mem_search_replace_func(self):
@@ -1081,7 +1087,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 # memory search pattern check
                 searchpattern = self.hex_pattern_check(self.memSearchPattern.toPlainText())
                 if searchpattern is not None:
-                    globvar.fridaInstrument.mem_scan_and_replace(replacecode)
+                    gvar.frida_instrument.mem_scan_and_replace(replacecode)
                     result = self.mem_search_func(searchpattern)
                     # refresh mem ranges
                     if result is True:
@@ -1089,17 +1095,17 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                         pass
         except Exception as e:
             self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-            # self.memscanworker.terminate()
-            self.memscanworker.quit()
-            if str(e) == globvar.errorType1:
-                globvar.fridaInstrument.sessions.clear()
+            # self.mem_scan_worker.terminate()
+            self.mem_scan_worker.quit()
+            if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                gvar.frida_instrument.sessions.clear()
             return
 
     # this function retrieve above memory scan result and show it on the hexviewer
     def mem_scan_retrieve_result(self):
         # hmm...mem scan frida script sometimes sends the result multiple times.
         # so when it's empty, nothing to be appeared on the viewer
-        tempresult = globvar.fridaInstrument.get_mem_scan_result()
+        tempresult = gvar.frida_instrument.get_mem_scan_result()
         if tempresult == '':
             # print('[hackcatml] memscan result: ', tempresult)
             pass
@@ -1127,13 +1133,13 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.arrangedresult2 += f"{i[1][:index]}\n"
 
             self.hexViewer.setPlainText(self.arrangedresult)
-            globvar.currentMemScanHexViewResult = self.arrangedresult
+            gvar.current_mem_scan_hex_view_result = self.arrangedresult
             self.memSearchResult.setText(self.arrangedresult2)
             self.memSearchFoundCount.setText(str(matchcount) + ' found')
             # terminate memory scan thread
             code.MESSAGE = ''
-            # self.memscanworker.terminate()
-            self.memscanworker.quit()
+            # self.mem_scan_worker.terminate()
+            self.mem_scan_worker.quit()
 
     def search_mem_search_result(self):
         if self.arrangedresult2 != '':
@@ -1147,35 +1153,35 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
     def mem_search_with_img_checkbox(self, state):
         isChecked = state == Qt.CheckState.Checked.value
-        self.ismemsearchwithimgchecked = isChecked
+        self.is_mem_search_with_img_checked = isChecked
         self.memSearchTargetImgInput.setEnabled(isChecked)
 
     def mem_scan_pattern_checkbox(self, state):
-        self.ismemscanstrchecked = state == Qt.CheckState.Checked.value
+        self.is_mem_scan_str_checked = state == Qt.CheckState.Checked.value
 
     def mem_search_replace_checkbox(self, state):
         isChecked = state == Qt.CheckState.Checked.value
         self.memReplaceBtn.setEnabled(isChecked)
         self.memReplacePattern.setEnabled(isChecked)
-        self.ismemsearchreplacechecked = isChecked
+        self.is_mem_search_replace_checked = isChecked
 
     def il2cpp_checkbox(self, state):
         isChecked = state == Qt.CheckState.Checked.value
-        self.isil2cppchecked = isChecked
+        self.is_il2cpp_checked = isChecked
         self.memDumpModuleName.setEnabled(not isChecked)
 
     def watch_mem_checkbox(self, state):
         isChecked = state == Qt.CheckState.Checked.value
-        if isChecked and globvar.isFridaAttached:
-            self.memrefreshworker = MemRefreshWorker()
-            self.memrefreshworker.status_current = self.status_current
-            self.memrefreshworker.addrInput = self.addrInput
-            self.memrefreshworker.watchMemorySpinBox = self.watchMemorySpinBox
-            self.memrefreshworker.update_signal.connect(self.addr_btn_func)
-            self.memrefreshworker.start()
+        if isChecked and gvar.is_frida_attached:
+            self.mem_refresh_worker = MemRefreshWorker()
+            self.mem_refresh_worker.status_current = self.status_current
+            self.mem_refresh_worker.addr_input = self.addrInput
+            self.mem_refresh_worker.watch_memory_spin_box = self.watchMemorySpinBox
+            self.mem_refresh_worker.update_signal.connect(self.addr_btn_func)
+            self.mem_refresh_worker.start()
         else:
-            if self.memrefreshworker is not None:
-                self.memrefreshworker.terminate()
+            if self.mem_refresh_worker is not None:
+                self.mem_refresh_worker.terminate()
 
     def refresh_curr_addr(self):
         curr_addr = self.status_current.toPlainText()
@@ -1195,10 +1201,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         elif re.search(r"\d+\. 0x[a-f0-9]+, module:", tc.block().text()):
             return
 
-        if len(globvar.visitedAddress) > 0:
-            for idx, sublist in enumerate(globvar.visitedAddress):
+        if len(gvar.visited_address) > 0:
+            for idx, sublist in enumerate(gvar.visited_address):
                 if sublist[0] == 'last' and idx > 0:
-                    addr_to_visit = globvar.visitedAddress[idx - 1][1]
+                    addr_to_visit = gvar.visited_address[idx - 1][1]
                     self.addrInput.setText(addr_to_visit)
                     self.addr_btn_func()
                     break
@@ -1211,45 +1217,50 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         elif re.search(r"\d+\. 0x[a-f0-9]+, module:", tc.block().text()):
             return
 
-        if len(globvar.visitedAddress) > 0:
-            for idx, sublist in enumerate(globvar.visitedAddress):
-                if sublist[0] == 'last' and idx < len(globvar.visitedAddress) - 1:
-                    addr_to_visit = globvar.visitedAddress[idx + 1][1]
+        if len(gvar.visited_address) > 0:
+            for idx, sublist in enumerate(gvar.visited_address):
+                if sublist[0] == 'last' and idx < len(gvar.visited_address) - 1:
+                    addr_to_visit = gvar.visited_address[idx + 1][1]
                     self.addrInput.setText(addr_to_visit)
                     self.addr_btn_func()
                     break
 
     def dump_module(self):
         # il2cpp dump
-        if self.isil2cppchecked is True:
-            if globvar.isFridaAttached is False:
+        if self.is_il2cpp_checked is True:
+            if gvar.is_frida_attached is False:
                 QMessageBox.information(self, "info", "Attach first")
                 return
-            elif globvar.isFridaAttached is True:
+            elif gvar.is_frida_attached is True:
                 try:
-                    globvar.fridaInstrument.dummy_script()
+                    gvar.frida_instrument.dummy_script()
                 except Exception as e:
-                    if str(e) == globvar.errorType1:
-                        globvar.fridaInstrument.sessions.clear()
+                    if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                        gvar.frida_instrument.sessions.clear()
                     self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
                     return
 
-            # print("[hackcatml] il2cppFridaInstrument: ", self.il2cppFridaInstrument)
-            if self.il2cppFridaInstrument is None or len(self.il2cppFridaInstrument.sessions) == 0:
-                self.il2cppFridaInstrument = code.Instrument("scripts/il2cppdump.js",
-                                                             self.isremoteattachchecked,
-                                                             globvar.fridaInstrument.remoteaddr,
-                                                             self.attachtargetnamereserved if self.islistpidchecked else None,
-                                                             False)
-                msg = self.il2cppFridaInstrument.instrument("dump_module")
+            if self.il2cpp_frida_instrument is None or len(self.il2cpp_frida_instrument.sessions) == 0:
+                if self.is_list_pid_checked:
+                    target = self.attach_target_name_reserved
+                elif gvar.frida_portal_mode:
+                    target = self.attach_target_name
+                else:
+                    target = None
+                self.il2cpp_frida_instrument = code.Instrument("scripts/il2cpp-dump.js",
+                                                               True if gvar.frida_portal_mode is True else self.is_remote_attach_checked,
+                                                               gvar.frida_instrument.remote_addr,
+                                                               target,
+                                                               False)
+                msg = self.il2cpp_frida_instrument.instrument("dump_module")
                 if msg is not None:
                     QMessageBox.information(self, "info", msg)
                     return
 
             # il2cpp dump thread worker start
-            self.il2cppdumpworker = Il2CppDumpWorker(self.il2cppFridaInstrument, self.statusBar())
-            self.il2cppdumpworker.il2cppdumpsig.connect(self.il2cppdumpsig_func)
-            self.il2cppdumpworker.start()
+            self.il2cpp_dump_worker = Il2CppDumpWorker(self.il2cpp_frida_instrument, self.statusBar())
+            self.il2cpp_dump_worker.il2cpp_dump_signal.connect(self.il2cpp_dump_sig_func)
+            self.il2cpp_dump_worker.start()
             self.memDumpBtn.setEnabled(False)
             return
 
@@ -1261,10 +1272,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         result = False
         if self.platform == 'darwin':
             code.change_frida_script("scripts/dump-ios-module.js")
-            result = globvar.fridaInstrument.dump_ios_module(self.memDumpModuleName.text())
+            result = gvar.frida_instrument.dump_ios_module(self.memDumpModuleName.text())
         elif self.platform == 'linux':
             code.change_frida_script("scripts/dump-so.js")
-            result = globvar.fridaInstrument.dump_so(self.memDumpModuleName.text())
+            result = gvar.frida_instrument.dump_so(self.memDumpModuleName.text())
 
         if result is False:
             self.statusBar().showMessage("dump fail. try again", 3000)
@@ -1273,15 +1284,15 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             self.listImgViewer.setTextColor(QColor("Red"))
             dir_to_save = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
             if self.platform == 'darwin':
-                if self.isremoteattachchecked:
-                    os.system(f"frida-pull -H {globvar.fridaInstrument.remoteaddr} \"{result}\" {dir_to_save}")
+                if self.is_remote_attach_checked:
+                    os.system(f"frida-pull -H {gvar.frida_instrument.remote_addr} \"{result}\" {dir_to_save}")
                 else:
                     os.system(f"frida-pull -U \"{result}\" {dir_to_save}")
                 self.listImgViewer.insertPlainText(f"Dumped file at: {dir_to_save}{result.split('/')[-1]}\n\n")
             elif self.platform == 'linux':
                 self.listImgViewer.insertPlainText(
                     'Dumped file at: ' + result + "\n\nYou need to fix so file using SoFixer\n\n")
-            self.listImgViewer.setTextColor(self.defaultcolor)  # Revert to the default color
+            self.listImgViewer.setTextColor(self.default_color)  # Revert to the default color
         code.revert_frida_script()
 
     def search_img(self, caller):
@@ -1296,8 +1307,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
             viewer = self.parseImgListImgViewer
 
         matched = ''
-        if len(globvar.listModules) > 0:
-            for module in globvar.listModules:
+        if len(gvar.list_modules) > 0:
+            for module in gvar.list_modules:
                 if module['name'].lower().find(text_to_find) != -1:
                     # print(module['name'])
                     matched += module['name'] + '\n'
@@ -1306,7 +1317,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     def set_status(self, name):
         # print(inspect.currentframe().f_back.f_code.co_name)
         # print(inspect.stack()[0][3] + ':', name)
-        result = globvar.fridaInstrument.module_status(name)
+        result = gvar.frida_instrument.module_status(name)
         if result is None: return
 
         self.status_img_name.setText(result['name'])
@@ -1333,8 +1344,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.offsetInput.clear()
                 self.addrInput.clear()
             # show the function name if it can be found
-            if name is not None and current_addr != "" and globvar.isFridaAttached:
-                if (sym_name := globvar.fridaInstrument.find_sym_name_by_addr(name, addr)) is not None:
+            if name is not None and current_addr != "" and gvar.is_frida_attached:
+                if (sym_name := gvar.frida_instrument.find_sym_name_by_addr(name, addr)) is not None:
                     current_addr += f"({sym_name})"
         except Exception as e:
             print(e)
@@ -1351,21 +1362,23 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         onicon = QPixmap("icon/greenlight.png").scaledToHeight(13)
         officon = QPixmap("icon/redlight.png").scaledToHeight(13)
 
-        self.statusLight.setPixmap(officon)
-        if globvar.isFridaAttached is True:
-            self.statusLight.setPixmap(onicon)
+        self.status_light.setPixmap(officon)
+        if gvar.is_frida_attached is True:
+            self.status_light.setPixmap(onicon)
 
-        self.statusBar().removeWidget(self.statusLight)
-        self.statusBar().addPermanentWidget(self.statusLight)
-        self.statusLight.show()
+        self.statusBar().removeWidget(self.status_light)
+        self.statusBar().addPermanentWidget(self.status_light)
+        self.status_light.show()
 
     def eventFilter(self, obj, event):
         self.interested_widgets = [self.offsetInput, self.addrInput]
         if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
             try:
-                if self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Viewer" and self.tabWidget2.currentIndex() == 0:
+                if self.tabWidget.tabText(
+                        self.tabWidget.currentIndex()) == "Viewer" and self.tabWidget2.currentIndex() == 0:
                     self.interested_widgets.append(self.status_img_name)
-                elif self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Viewer" and self.tabWidget2.currentIndex() == 2:
+                elif self.tabWidget.tabText(
+                        self.tabWidget.currentIndex()) == "Viewer" and self.tabWidget2.currentIndex() == 2:
                     self.interested_widgets.append(self.memSearchPattern)
                 elif self.tabWidget.tabText(self.tabWidget.currentIndex()) == "Util":
                     self.interested_widgets = [self.parse_img_name, self.parseImgName]
@@ -1385,8 +1398,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         return super().eventFilter(obj, event)
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
-        if self.prepareGadgetDialog is not None:
-            self.prepareGadgetDialog.gadgetdialog.close()
+        if self.prepare_gadget_dialog is not None:
+            self.prepare_gadget_dialog.gadget_dialog.close()
         if self.disasm_worker is not None:
             self.disasm_worker.disasm_window.close()
         if self.utilViewer.dex_dump_worker is not None:

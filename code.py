@@ -10,18 +10,18 @@ from PyQt6 import QtCore
 from PyQt6.QtCore import QObject
 from frida_tools.application import Reactor
 
-import globvar
+import gvar
 
 MESSAGE = ""
 ERRMESSAGE = ""
 
 
 def change_frida_script(script_text):
-    globvar.fridaInstrument.script_text = script_text
-    globvar.fridaInstrument.script = globvar.fridaInstrument.sessions[0].create_script(
-        globvar.fridaInstrument.read_frida_js_source())
-    globvar.fridaInstrument.script.on('message', globvar.fridaInstrument.on_message)
-    globvar.fridaInstrument.script.load()
+    gvar.frida_instrument.script_text = script_text
+    gvar.frida_instrument.script = gvar.frida_instrument.sessions[0].create_script(
+        gvar.frida_instrument.read_frida_js_source())
+    gvar.frida_instrument.script.on('message', gvar.frida_instrument.on_message)
+    gvar.frida_instrument.script.load()
 
 
 def revert_frida_script():
@@ -34,74 +34,74 @@ def clean_message():
 
 
 class Instrument(QObject):
-    attachsig = QtCore.pyqtSignal(int)
-    messagesig = QtCore.pyqtSignal(str)
-    parsesig = QtCore.pyqtSignal(dict)
-    appinfosig = QtCore.pyqtSignal(dict)
+    attach_signal = QtCore.pyqtSignal(int)
+    message_signal = QtCore.pyqtSignal(str)
+    parse_signal = QtCore.pyqtSignal(dict)
+    app_info_signal = QtCore.pyqtSignal(dict)
 
-    def __init__(self, script_text, isremote, remoteaddr, target, isspawn):
+    def __init__(self, script_text, is_remote, remote_addr, target, is_spawn):
         super().__init__()
         self.name = None
         self.sessions = []
         self.script = None
         self.script_text = script_text
         self.device = None
-        self.isspawn = isspawn
-        self.attachtarget = None
-        self.spawntarget = None
-        self.remoteaddr = ''
+        self.is_spawn = is_spawn
+        self.attach_target = None
+        self.spawn_target = None
+        self.remote_addr = ''
         self.pid = None
-        if isremote is True and remoteaddr != '':
-            if remoteaddr == 'localhost':
-                self.remoteaddr = remoteaddr
-                self.device = frida.get_device_manager().add_remote_device(self.remoteaddr)
+        if is_remote is True and remote_addr != '':
+            if remote_addr == 'localhost':
+                self.remote_addr = remote_addr
+                self.device = frida.get_device_manager().add_remote_device(self.remote_addr)
             else:
-                self.remoteip = remoteaddr[:remoteaddr.find(':')].strip()
-                self.remoteport = remoteaddr[remoteaddr.find(':') + 1:].strip()
-                self.remoteaddr = self.remoteip + ':' + self.remoteport
-                self.device = frida.get_device_manager().add_remote_device(self.remoteip + ':' + self.remoteport)
+                self.remote_ip = remote_addr[:remote_addr.find(':')].strip()
+                self.remote_port = remote_addr[remote_addr.find(':') + 1:].strip()
+                self.remote_addr = self.remote_ip + ':' + self.remote_port
+                self.device = frida.get_device_manager().add_remote_device(self.remote_ip + ':' + self.remote_port)
         else:
             self.device = frida.get_usb_device(1)
 
         # spawn mode
-        if target is not None and isspawn:
-            self.spawntarget = target
+        if target is not None and is_spawn:
+            self.spawn_target = target
         # list pid mode
         else:
-            self.attachtarget = target
+            self.attach_target = target
 
     def __del__(self):
         for session in self.sessions:
             session.detach()
 
-    def is_attached(self, attached: bool):
-        self.attachsig.emit(1) if attached is True else self.attachsig.emit(0)
+    def is_attached(self, sig: bool):
+        self.attach_signal.emit(1) if sig is True else self.attach_signal.emit(0)
 
     def on_destroyed(self):
-        self.attachsig.emit(0)
+        self.attach_signal.emit(0)
 
     # frida script에서 send 함수로 보내는 메시지는 on_message에서 처리됨
     def on_message(self, message, data):
         # print(message)
         global MESSAGE
         if 'payload' in message and message['payload'] is not None:
-            if 'scancompletedratio' in message['payload']:
-                globvar.scanProgressRatio = floor(message['payload']['scancompletedratio'])
-                # print(globvar.scanProgressRatio)
-            if 'watchArgs' in message['payload']:
-                self.messagesig.emit(message['payload']['watchArgs'])
+            if 'scan_completed_ratio' in message['payload']:
+                gvar.scan_progress_ratio = floor(message['payload']['scan_completed_ratio'])
+                # print(gvar.scan_progress_ratio)
+            if 'watch_args' in message['payload']:
+                self.message_signal.emit(message['payload']['watch_args'])
                 return
-            if 'watchRegs' in message['payload']:
-                self.messagesig.emit(message['payload']['watchRegs'])
+            if 'watch_regs' in message['payload']:
+                self.message_signal.emit(message['payload']['watch_regs'])
                 return
-            if 'parseMachO' in message['payload']:
-                self.parsesig.emit(message['payload']['parseMachO'])
+            if 'parse_macho' in message['payload']:
+                self.parse_signal.emit(message['payload']['parse_macho'])
                 return
-            if 'parseElf' in message['payload']:
-                self.parsesig.emit(message['payload']['parseElf'])
+            if 'parse_elf' in message['payload']:
+                self.parse_signal.emit(message['payload']['parse_elf'])
                 return
-            if (key := "appInfo") in message['payload']:
-                self.appinfosig.emit(message['payload'][key])
+            if (key := "app_info") in message['payload']:
+                self.app_info_signal.emit(message['payload'][key])
                 return
             MESSAGE = message['payload']
         if message['type'] == 'error':
@@ -116,15 +116,17 @@ class Instrument(QObject):
             return f.read()
 
     def instrument(self, caller):
-        if not caller == "frida_portal_sig_func" and not any([self.spawntarget, self.attachtarget, self.device.get_frontmost_application()]):
+        if not caller == "frida_portal_node_info_sig_func" \
+                and not any([self.spawn_target, self.attach_target] if gvar.frida_portal_mode else
+                            [self.spawn_target, self.attach_target, self.device.get_frontmost_application()]):
             return "Launch the target app first"
 
-        if self.attachtarget:  # list pid mode
-            session = self.device.attach(self.attachtarget)
-            self.name = self.attachtarget
+        if self.attach_target:  # list pid mode
+            session = self.device.attach(self.attach_target)
+            self.name = self.attach_target
         else:
-            if self.spawntarget:  # spawn mode
-                self.pid = self.device.spawn([self.spawntarget])
+            if self.spawn_target:  # spawn mode
+                self.pid = self.device.spawn([self.spawn_target])
                 session = self.device.attach(self.pid)
                 self.device.resume(self.pid)
             else:  # attach frontmost application
@@ -158,8 +160,8 @@ class Instrument(QObject):
         self.script.exports.platform()
         return MESSAGE
 
-    def find_sym_addr_by_name(self, name):
-        result = self.script.exports.findsymaddrbyname(name)
+    def find_sym_addr_by_name(self, module_name, sym_name):
+        result = self.script.exports.find_sym_addr_by_name(module_name, sym_name)
         return result
 
     def find_sym_name_by_addr(self, module, addr):
@@ -167,75 +169,75 @@ class Instrument(QObject):
         return result
 
     def list_modules(self):
-        self.script.exports.listmodules()
+        self.script.exports.list_modules()
         return MESSAGE
 
     def get_module_name_by_addr(self, addr):
         clean_message()
-        self.script.exports.getmodulenamebyaddr(addr)
+        self.script.exports.get_module_name_by_addr(addr)
         return MESSAGE
 
     def mem_enumerate_ranges(self, prot):
-        enumranges = self.script.exports.enumerateranges(prot)
-        return enumranges
+        enum_ranges = self.script.exports.enumerate_ranges(prot)
+        return enum_ranges
 
     def read_mem_offset(self, name, offset, size):
         if name == "" or name is None:
             # print(f'self.name = {self.name}')
             self.name = self.list_modules()[0]['name']
-            self.script.exports.hexdumpoffset(self.name, offset, size)
+            self.script.exports.hex_dump_offset(self.name, offset, size)
         else:
-            self.script.exports.hexdumpoffset(name, offset, size)
+            self.script.exports.hex_dump_offset(name, offset, size)
         return MESSAGE
 
     def read_mem_addr(self, addr, size):
-        self.script.exports.hexdumpaddr(addr, size)
+        self.script.exports.hex_dump_addr(addr, size)
         return MESSAGE
 
     def force_read_mem_addr(self, yes_or_no):
-        self.script.exports.forcereadmemaddr(yes_or_no)
+        self.script.exports.force_read_mem_addr(yes_or_no)
 
     def write_mem_addr(self, arg):
         for target in arg:
-            targetAddr = target[0]
-            targetPatchCode = target[1]
-            targetProt = target[3]
-            self.script.exports.writememaddr(targetAddr, targetPatchCode, targetProt)
+            target_addr = target[0]
+            target_patch_code = target[1]
+            target_prot = target[3]
+            self.script.exports.write_mem_addr(target_addr, target_patch_code, target_prot)
 
     def mem_scan(self, ranges, pattern):
         global MESSAGE
         MESSAGE = ''
         # memory scan start
-        self.script.exports.memscan(ranges, pattern)
+        self.script.exports.mem_scan(ranges, pattern)
         # return MESSAGE
 
     def mem_scan_with_img(self, name, pattern):
         global MESSAGE
         MESSAGE = ''
-        result = self.script.exports.memscanwithimg(name, pattern)
+        result = self.script.exports.mem_scan_with_img(name, pattern)
         if result == 'module not found':
             return result
 
     def mem_scan_and_replace(self, replacecode):
-        self.script.exports.memscanandreplace(replacecode)
+        self.script.exports.mem_scan_and_replace(replacecode)
 
     def get_mem_scan_result(self):
         return MESSAGE
 
     def stop_mem_scan(self):
-        self.script.exports.stopmemscan()
+        self.script.exports.stop_mem_scan()
 
     def dump_ios_module(self, name):
-        dumpresult = self.script.exports.dumpmodule(name)
-        if dumpresult == 1:
-            dumpmodule_path = self.script.exports.dumpmodulepath()
-            return dumpmodule_path
+        dump_result = self.script.exports.dump_module(name)
+        if dump_result == 1:
+            dump_module_path = self.script.exports.dump_module_path()
+            return dump_module_path
         else:
             return False
 
     def dump_so(self, name):
         MAX_SIZE = 100 * 1024 * 1024  # 100MB in bytes.  Maximum message length is 128MiB
-        module_info = self.script.exports.findmodule(name)
+        module_info = self.script.exports.find_module(name)
         if module_info != -1:
             base = module_info["base"]
             size = module_info["size"]
@@ -245,21 +247,21 @@ class Instrument(QObject):
                 for i in range(math.ceil(size / MAX_SIZE)):
                     chunk_base = int(base, 16) + (i * MAX_SIZE)
                     chunk_size = min(MAX_SIZE, size - (i * MAX_SIZE))  # Calculate the chunk size
-                    chunk = self.script.exports.dumpmodulechunk(chunk_base, chunk_size)
+                    chunk = self.script.exports.dump_module_chunk(chunk_base, chunk_size)
                     if chunk is not None:
                         module_chunks.append(chunk)
                     else:
                         print(f"Warning: Received a None chunk for {name} at base {chunk_base}")
             else:
-                module_buffer = self.script.exports.dumpmodule(name)
+                module_buffer = self.script.exports.dump_module(name)
                 if module_buffer is not None:
                     module_chunks.append(module_buffer)
                 else:
                     print(f"Warning: Received a None buffer for {name}")
 
-            dumpdir = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
-            os.makedirs(dumpdir, exist_ok=True)  # Ensure the dump directory exists
-            dump_so_name = f"{dumpdir}{name}_{base}_{size}.dump.so"
+            dump_dir = os.getcwd() + "\\dump\\" if platform.system() == "Windows" else os.getcwd() + "/dump/"
+            os.makedirs(dump_dir, exist_ok=True)  # Ensure the dump directory exists
+            dump_so_name = f"{dump_dir}{name}_{base}_{size}.dump.so"
 
             with open(dump_so_name, "wb") as f:
                 for chunk in module_chunks:
@@ -271,38 +273,38 @@ class Instrument(QObject):
 
     def module_status(self, name):
         clean_message()
-        self.script.exports.modulestatus(name)
+        self.script.exports.module_status(name)
         return MESSAGE
 
     def il2cpp_dump(self):
-        result = self.script.exports.il2cppdump()
+        result = self.script.exports.il2cpp_dump()
         return result
 
     # set the number of arguments to watch
     def set_nargs(self, nargs):
-        self.script.exports.setnargs(nargs)
+        self.script.exports.set_nargs(nargs)
 
     # set watch on address
     def set_watch(self, addr, is_reg_watch):
         clean_message()
-        self.script.exports.setwatch(addr, is_reg_watch)
+        self.script.exports.set_watch(addr, is_reg_watch)
 
     def detach_all(self):
-        self.script.exports.detachall()
+        self.script.exports.detach_all()
 
     def set_read_args_options(self, addr, index, option, on_leave):
-        self.script.exports.setreadargsoptions(addr, index, option, on_leave)
+        self.script.exports.set_read_args_options(addr, index, option, on_leave)
 
     def set_read_retval_options(self, addr, option):
-        self.script.exports.setreadretvalsoptions(addr, option)
+        self.script.exports.set_read_retval_options(addr, option)
 
     def parse_macho(self, base):
         clean_message()
-        self.script.exports.machoparse(base)
+        self.script.exports.parse_macho(base)
 
     def parse_elf(self, base):
         clean_message()
-        self.script.exports.elfparse(base)
+        self.script.exports.parse_elf(base)
 
     def app_info(self):
         clean_message()
@@ -329,12 +331,12 @@ class Instrument(QObject):
 
 
 def frida_shell_exec(command, thread_instance):  # It's not working on Dopamine JB
-    if globvar.fridaInstrument.is_rootless():
+    if gvar.frida_instrument.is_rootless():
         shell = "/var/jb/usr/bin/sh"
         command = "/var/jb/usr/bin/" + command
     else:
         shell = "/bin/sh"
-    cmd = Shell([shell, '-c', command], None, globvar.fridaInstrument.device, thread_instance)
+    cmd = Shell([shell, '-c', command], None, gvar.frida_instrument.device, thread_instance)
     cmd.exec()
     for chunk in cmd.output:
         print(chunk.strip().decode())
@@ -365,7 +367,7 @@ class Shell(object):
     def _start(self):
         print(f"✔ spawn(argv={self.argv})")
         cwd = "/var/mobile/Documents/"
-        if globvar.fridaInstrument.is_rootless():
+        if gvar.frida_instrument.is_rootless():
             cwd = "/var/jb/var/mobile/"
         pid = self._device.spawn(self.argv, env=self.env, cwd=cwd, stdio='pipe', aslr='auto')
         self._instrument(pid)

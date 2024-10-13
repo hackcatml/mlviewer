@@ -159,7 +159,7 @@ var read = getExportFunction("read", "int", ["int", "pointer", "int"]);
 /* stuffs for elf parsing end */
 
 rpc.exports = {
-    machoparse: (base) => {
+    parseMacho: (base) => {
         base = ptr(base)
         var magic = base.readU32();
         var is64bit = false;
@@ -191,7 +191,7 @@ rpc.exports = {
             console.log('Unknown magic:' + magic);
         }
         var cmdnum = base.add(number_of_commands_offset).readU32();
-        send({'parseMachO': {'cmdnum': cmdnum}})
+        send({'parse_macho': {'cmdnum': cmdnum}})
         var cmdoff = is64bit ? 0x20 : 0x1C;
         for (var i = 0; i < cmdnum; i++) {
             var cmd = base.add(cmdoff).readU32();
@@ -204,7 +204,7 @@ rpc.exports = {
                 var nsects = base.add(cmdoff + number_of_sections_offset).readU8();
                 var secbase = base.add(cmdoff + section64_header_base_offset);
                 send({
-                        'parseMachO': {
+                        'parse_macho': {
                             'command': load_commands.LC_SEGMENT_64.name,
                             'segname': segname,
                             'segment_offset': parseInt(cmdoff).toString(16),
@@ -228,7 +228,7 @@ rpc.exports = {
                             la_symbol_ptr_section_start_addr = base.add(section_start_offset)
                         }
                         send({
-                            'parseMachO': {
+                            'parse_macho': {
                                 'command': load_commands.LC_SEGMENT_64.name,
                                 'secname': secname,
                                 'section_start': parseInt(section_start_offset).toString(16)
@@ -266,7 +266,7 @@ rpc.exports = {
                             indirect_symbol_table_addr = base.add(indirect_symbol_table_offset)
                         }
                         send({
-                                'parseMachO': {
+                                'parse_macho': {
                                     'command': load_commands[key].name,
                                     'command_offset': parseInt(cmdoff).toString(16),
                                     'name': name,
@@ -306,8 +306,8 @@ rpc.exports = {
                 var got_symbol_addr = got_section_start_addr.add(got_section_alignment * i).readPointer()
                 var location = Process.findModuleByAddress(got_symbol_addr) == null ? null : Process.findModuleByAddress(got_symbol_addr)['name']
                 send({
-                    'parseMachO': {
-                        'secdetail': got_section_header.readUtf8String(),
+                    'parse_macho': {
+                        'sec_detail': got_section_header.readUtf8String(),
                         'symbol': got_symbol,
                         'symbol_addr': got_symbol_addr,
                         'location': location,
@@ -335,8 +335,8 @@ rpc.exports = {
                 var la_symbol_ptr_symbol_addr = la_symbol_ptr_section_start_addr.add(la_symbol_ptr_section_alignment * i).readPointer()
                 var location = Process.findModuleByAddress(la_symbol_ptr_symbol_addr) == null ? null : Process.findModuleByAddress(la_symbol_ptr_symbol_addr)['name']
                 send({
-                    'parseMachO': {
-                        'secdetail': la_symbol_ptr_section_header.readUtf8String(),
+                    'parse_macho': {
+                        'sec_detail': la_symbol_ptr_section_header.readUtf8String(),
                         'symbol': la_symbol_ptr_symbol,
                         'symbol_addr': la_symbol_ptr_symbol_addr,
                         'location': location,
@@ -345,7 +345,7 @@ rpc.exports = {
             }
         }
     },
-    elfparse: (base) => {
+    parseElf: (base) => {
         base = ptr(base);
         var module = Process.findModuleByAddress(base);
         var fd = null;
@@ -450,7 +450,7 @@ rpc.exports = {
             console.log(`[*] shnum from the file: ${shnum}, shstrndx from the file: ${shstrndx}`)
         }
         // console.log(`phoff: ${phoff}, shoff: ${shoff}, phentsize: ${phentsize}, phnum: ${phnum}, shentsize: ${shentsize}, shnum: ${shnum}, shstrndx: ${shstrndx}`)
-        send({'parseElf': {
+        send({'parse_elf': {
                 'header':'Elf_Ehdr',
                 'e_phoff':ptr(phoff),
                 'e_shoff':ptr(shoff),
@@ -514,7 +514,7 @@ rpc.exports = {
             }
 
             send({
-                'parseElf': {
+                'parse_elf': {
                     'header': 'Elf_Phdr',
                     'p_type': p_type_sym,
                     'p_offset': ptr(p_offset),
@@ -536,7 +536,7 @@ rpc.exports = {
         }
 
         // Parse .dynamic section
-        send({'parseElf': {
+        send({'parse_elf': {
                 'section':'Dynamic Tags[.dynamic]',
                 'section_offset':dynamic_section_addr.sub(base),
             }
@@ -576,7 +576,7 @@ rpc.exports = {
                     d_tag_name = key;
                 }
             }
-            send({'parseElf': {
+            send({'parse_elf': {
                     'section':section_name,
                     'section_offset':ptr(d_value),
                     'd_tag':d_tag,
@@ -634,7 +634,7 @@ rpc.exports = {
             }
             // console.log(`${id}. st_name: ${st_name} --> ${symbol_name}, st_value: ${st_value}, st_size: ${st_size}, st_info: ${st_info}, st_other: ${st_other}, st_shndx: ${st_shndx}`)
             send({
-                'parseElf':{
+                'parse_elf':{
                     'section_detail':'Symbol Table[.dynsym]',
                     'section_offset':dynsym_section_addr.sub(base),
                     'st_name': st_name,
@@ -651,7 +651,7 @@ rpc.exports = {
         // Just send .dynstr section info
         if (dynstr_section_addr != null) {
             send({
-                'parseElf':{
+                'parse_elf':{
                     'section_detail':'String Table[.dynstr]',
                     'section_offset':dynstr_section_addr.sub(base),
                 }
@@ -675,7 +675,7 @@ rpc.exports = {
             var symptr_in_got_plt = base.add(r_offset).readPointer();
             var r_addend = rela_plt_section_entaddr.add(0x10).readU64();
             var location = Process.findModuleByAddress(symptr_in_got_plt) === null ? 'None' : Process.findModuleByAddress(symptr_in_got_plt).name
-            send({'parseElf': {
+            send({'parse_elf': {
                     'section_detail': 'RELA[.rela.plt]',
                     'section_offset': rela_plt_section_addr.sub(base),
                     'r_offset': ptr(r_offset),
@@ -692,7 +692,7 @@ rpc.exports = {
 
         // Just send .got.plt section info
         send({
-            'parseElf':{
+            'parse_elf':{
                 'section_detail':'.got.plt',
                 'section_offset':got_plt_secition_addr.sub(base),
             }
@@ -750,7 +750,7 @@ rpc.exports = {
                 var symbol_name = strtab_from_file.add(st_name).readUtf8String();
 
                 send({
-                    'parseElf':{
+                    'parse_elf':{
                         'section_detail': 'Symbol Table[.symtab]',
                         'st_name': st_name,
                         'symbol_name': symbol_name,
@@ -779,7 +779,7 @@ rpc.exports = {
             var bundle_path = main_bundle.bundlePath();
             var data_container_path = ObjC.classes.NSProcessInfo.processInfo().environment().objectForKey_("HOME");
             send({
-                'appInfo':{
+                'app_info':{
                     'pid':pid === null ? pid : pid.toString(),
                     'display_name':display_name === null ? display_name : display_name.toString(),
                     'executable_name':executable_name === null ? executable_name : executable_name.toString(),
@@ -804,7 +804,7 @@ rpc.exports = {
             var data_dir = package_info.applicationInfo.value.dataDir.value
 
             send({
-                'appInfo':{
+                'app_info':{
                     'pid':pid,
                     'application_main':application_main,
                     'package_name':package_name,

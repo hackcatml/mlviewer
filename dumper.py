@@ -71,24 +71,24 @@ def strings(filename, directory, min=4):
 
 
 class FullMemoryDumpWorker(QThread):
-    fullmemorydumpsig = QtCore.pyqtSignal(int)
-    progresssig = QtCore.pyqtSignal(list)
+    full_memory_dump_signal = QtCore.pyqtSignal(int)
+    progress_signal = QtCore.pyqtSignal(list)
 
-    def __init__(self, fridaInstrument, statusBar):
+    def __init__(self, frida_instrument, statusBar):
         super(FullMemoryDumpWorker, self).__init__()
-        self.fridaInstrument = fridaInstrument
-        self.agent = self.fridaInstrument.get_agent()
+        self.frida_instrument = frida_instrument
+        self.agent = self.frida_instrument.get_agent()
         self.statusBar = statusBar
 
         self.ranges = self.agent.enumerate_ranges(PERMS)
-        self.PLATFORM = self.agent.get_platform()
-        self.IS_PALERA1N = self.agent.is_palera1n_jb()
+        self.platform = self.agent.get_platform()
+        self.is_palera1n = self.agent.is_palera1n_jb()
 
     def run(self) -> None:
         global mem_access_viol
         # filter out ranges that are not useful before performing the dump on iOS15+
         # also It can reduce the chance of memory access violation
-        if self.PLATFORM == "darwin" and self.IS_PALERA1N:
+        if self.platform == "darwin" and self.is_palera1n:
             self.ranges = [range_dict for range_dict in self.ranges if 'file' not in range_dict or all(
                 substr not in range_dict['file']['path'] for substr in
                 ["/System", "/MobileSubstrate/", "substitute", "substrate", "/private/preboot/", "/tmp/frida-",
@@ -111,7 +111,7 @@ class FullMemoryDumpWorker(QThread):
             mem_access_viol = dump_to_file(
                 self.agent, range["base"], range["size"], mem_access_viol, DIRECTORY)
             i += 1
-            printProgress("memdump", self.progresssig, i, l, prefix='Progress:', suffix='Complete', bar=50)
+            printProgress("memdump", self.progress_signal, i, l, prefix='Progress:', suffix='Complete', bar=50)
 
         # Run Strings if selected
         if STRINGS:
@@ -122,7 +122,7 @@ class FullMemoryDumpWorker(QThread):
             for f1 in files:
                 strings(f1, DIRECTORY)
                 i += 1
-                printProgress("strdump", self.progresssig, i, l, prefix='Progress:',
+                printProgress("strdump", self.progress_signal, i, l, prefix='Progress:',
                                     suffix='Complete', bar=50)
         print("Finished!")
-        self.fullmemorydumpsig.emit(1)
+        self.full_memory_dump_signal.emit(1)
