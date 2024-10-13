@@ -1,7 +1,7 @@
 import platform
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import Qt, QObject
+from PyQt6.QtCore import Qt, QObject, pyqtSlot
 from PyQt6.QtWidgets import QTableWidgetItem, QWidget
 
 
@@ -36,9 +36,13 @@ class Ui_Form(object):
 
 
 class EscapableWidget(QWidget):
+    history_remove_row_signal = QtCore.pyqtSignal()
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
             self.close()
+        elif event.key() == Qt.Key.Key_Delete:
+            self.history_remove_row_signal.emit()
         else:
             super().keyPressEvent(event)
 
@@ -49,6 +53,7 @@ class HistoryViewClass(QObject):
     def __init__(self):
         super().__init__()
         self.history_window = EscapableWidget()
+        self.history_window.history_remove_row_signal.connect(self.remove_row)
         self.history_ui = Ui_Form()
         self.history_ui.setupUi(self.history_window)
 
@@ -80,3 +85,10 @@ class HistoryViewClass(QObject):
         self.history_ui.historyTableWidget.clearContents()
         while self.history_ui.historyTableWidget.rowCount() > 0:
             self.history_ui.historyTableWidget.removeRow(0)
+
+    @pyqtSlot()
+    def remove_row(self):
+        selected_items = self.history_ui.historyTableWidget.selectedItems()
+        if selected_items:
+            selected_row = selected_items[0].row()
+            self.history_ui.historyTableWidget.removeRow(selected_row)
