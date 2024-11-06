@@ -1,50 +1,16 @@
 import platform
 
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import Qt, QObject, pyqtSlot
+from PyQt6 import QtCore
+from PyQt6.QtCore import Qt, QObject, pyqtSlot, QPoint
 from PyQt6.QtWidgets import QTableWidgetItem, QWidget
 
-
-class Ui_Form(object):
-    def setupUi(self, Form):
-        Form.setObjectName("Form")
-        Form.resize(450, 170)
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font_size = 13 if platform.system() == "Darwin" else 9
-        font.setPointSize(font_size)
-        Form.setFont(font)
-        self.gridLayout = QtWidgets.QGridLayout(Form)
-        self.gridLayout.setObjectName("gridLayout")
-        self.historyTableWidget = QtWidgets.QTableWidget(Form)
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        self.historyTableWidget.setFont(font)
-        self.historyTableWidget.setColumnCount(2)
-        self.historyTableWidget.setColumnWidth(0, 130)
-        self.historyTableWidget.setColumnWidth(1, 250)
-        self.historyTableWidget.setHorizontalHeaderLabels(['Address', 'Description'])
-        self.historyTableWidget.setObjectName("historyTableWidget")
-        self.gridLayout.addWidget(self.historyTableWidget, 0, 0, 1, 1)
-
-        self.retranslateUi(Form)
-        QtCore.QMetaObject.connectSlotsByName(Form)
-
-    def retranslateUi(self, Form):
-        _translate = QtCore.QCoreApplication.translate
-        Form.setWindowTitle(_translate("Form", "History"))
+import history_ui
 
 
 class EscapableWidget(QWidget):
-    history_remove_row_signal = QtCore.pyqtSignal()
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Escape:
-            self.close()
-        elif event.key() == Qt.Key.Key_Delete:
-            self.history_remove_row_signal.emit()
-        else:
-            super().keyPressEvent(event)
+    @pyqtSlot()
+    def key_escape_pressed_sig_func(self):
+        self.close()
 
 
 class HistoryViewClass(QObject):
@@ -53,11 +19,24 @@ class HistoryViewClass(QObject):
     def __init__(self):
         super().__init__()
         self.history_window = EscapableWidget()
-        self.history_window.history_remove_row_signal.connect(self.remove_row)
-        self.history_ui = Ui_Form()
+        self.history_ui = history_ui.Ui_Form()
         self.history_ui.setupUi(self.history_window)
 
+        self.history_ui.historyTableWidget.key_escape_pressed_signal.connect(self.history_window.key_escape_pressed_sig_func)
+        self.history_ui.historyTableWidget.history_remove_row_signal.connect(self.history_remove_row_sig_func)
         self.history_ui.historyTableWidget.itemClicked.connect(self.addr_clicked)
+
+        self.historyBtnClickedCount = 0
+
+    def show_history(self):
+        self.historyBtnClickedCount += 1
+        self.history_window.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+        self.history_window.show()
+        if self.historyBtnClickedCount == 1:
+            curr_pos = self.history_window.pos()
+            new_pos = (curr_pos + QPoint(480, -350)) if platform.system() == "Darwin" else (
+                    curr_pos + QPoint(490, -360))
+            self.history_window.move(new_pos)
 
     def add_row(self, addr):
         for row in range(self.history_ui.historyTableWidget.rowCount()):
@@ -77,6 +56,10 @@ class HistoryViewClass(QObject):
         description_item = QTableWidgetItem("Description")
         self.history_ui.historyTableWidget.setItem(row_position, 1, description_item)
 
+        # Stat column (non-editable)
+        stat_item = QTableWidgetItem("")
+        self.history_ui.historyTableWidget.setItem(row_position, 2, stat_item)
+
     def addr_clicked(self, item):
         if item.column() == 0:
             self.history_addr_signal.emit(item.text())
@@ -86,8 +69,8 @@ class HistoryViewClass(QObject):
         while self.history_ui.historyTableWidget.rowCount() > 0:
             self.history_ui.historyTableWidget.removeRow(0)
 
-    @pyqtSlot()
-    def remove_row(self):
+    @pyqtSlot(str)
+    def history_remove_row_sig_func(self, sig: str):
         selected_items = self.history_ui.historyTableWidget.selectedItems()
         if selected_items:
             selected_row = selected_items[0].row()

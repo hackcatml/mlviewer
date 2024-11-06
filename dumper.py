@@ -26,7 +26,7 @@ def dump_to_file(agent, base, size, error, directory):
         f.close()
         return error
     except Exception as e:
-        print("Oops, memory access violation!")
+        print(f"[dumper] Oops, memory access violation!")
         return error
 
 
@@ -63,7 +63,7 @@ def strings(filename, directory, min=4):
     strings_file = os.path.join(directory, "strings.txt")
     path = os.path.join(directory, filename)
     with open(path, encoding='Latin-1') as infile:
-        str_list = re.findall("[A-Za-z0-9/\-:;.,_$%'!()[\]<> \#]+", infile.read())
+        str_list = re.findall("[A-Za-z0-9/-:;.,_$%'!()[]<> #]+", infile.read())
         with open(strings_file, "a") as st:
             for string in str_list:
                 if len(string) > min:
@@ -86,8 +86,8 @@ class FullMemoryDumpWorker(QThread):
 
     def run(self) -> None:
         global mem_access_viol
-        # filter out ranges that are not useful before performing the dump on iOS15+
-        # also It can reduce the chance of memory access violation
+        # Filter out ranges that are not useful before performing the dump on iOS15+
+        # Also It can reduce the chance of memory access violation
         if self.platform == "darwin" and self.is_palera1n:
             self.ranges = [range_dict for range_dict in self.ranges if 'file' not in range_dict or all(
                 substr not in range_dict['file']['path'] for substr in
@@ -106,7 +106,8 @@ class FullMemoryDumpWorker(QThread):
         # Performing the memory dump
         for range in self.ranges:
             if range["size"] > MAX_SIZE:
-                mem_access_viol = splitter(self.agent, range["base"], range["size"], MAX_SIZE, mem_access_viol, DIRECTORY)
+                mem_access_viol = splitter(self.agent, range["base"], range["size"], MAX_SIZE, mem_access_viol,
+                                           DIRECTORY)
                 continue
             mem_access_viol = dump_to_file(
                 self.agent, range["base"], range["size"], mem_access_viol, DIRECTORY)
@@ -118,11 +119,11 @@ class FullMemoryDumpWorker(QThread):
             files = os.listdir(DIRECTORY)
             i = 0
             l = len(files)
-            print("Running strings on all files:")
+            print(f"[dumper] Running strings on all files:")
             for f1 in files:
                 strings(f1, DIRECTORY)
                 i += 1
                 printProgress("strdump", self.progress_signal, i, l, prefix='Progress:',
-                                    suffix='Complete', bar=50)
-        print("Finished!")
+                              suffix='Complete', bar=50)
+        print(f"[dumper] Finished!")
         self.full_memory_dump_signal.emit(1)

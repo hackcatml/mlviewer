@@ -839,4 +839,23 @@ rpc.exports = {
     getExecutableName: function() {
         return ObjC.classes.NSBundle.mainBundle().infoDictionary().objectForKey_("CFBundleExecutable").toString();
     },
+    showMaps: function() {
+        let maps_file = new File('/proc/self/maps', 'rb');
+        let lines = ''
+        let line;
+        if (!maps_file) {
+            console.log(`${log_tag}[showMaps] Failed to open file: ${maps_file}`);
+            return;
+        }
+        while (true) {
+            try {
+                if ((line = maps_file.readLine()).length > 0) {
+                    lines += line;
+                } else {
+                    break;
+                }
+            } catch (e) {}
+        }
+        return lines;
+    }
 }

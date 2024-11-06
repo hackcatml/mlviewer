@@ -5,7 +5,7 @@ import shutil
 import warnings
 import zipfile
 
-from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import pyqtSlot, QThread, Qt
 from PyQt6.QtGui import QAction, QTextCursor
 from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QPushButton, QCheckBox, \
@@ -68,7 +68,7 @@ class PullIPAWorker(QThread):
             shell_cmd = f"ln -s {payload_path} Payload"
             code.frida_shell_exec(shell_cmd, self)
 
-            self.statusBar.showMessage("Creating IPA...")
+            self.statusBar.showMessage("\tCreating IPA...")
             # just in case, zip command isn't installed on the device
             shell_cmd = "apt-get install zip -y"
             code.frida_shell_exec(shell_cmd, self)
@@ -76,7 +76,7 @@ class PullIPAWorker(QThread):
             shell_cmd = f"zip -r {app_name}.ipa Payload"
             code.frida_shell_exec(shell_cmd, self)
 
-            self.statusBar.showMessage("Pulling IPA...")
+            self.statusBar.showMessage("\tPulling IPA...")
             remote_path_to_pull = f"/var/mobile/Documents/{app_name}.ipa"
             if gvar.frida_instrument.is_rootless():
                 remote_path_to_pull = f"/var/jb/var/mobile/{app_name}.ipa"
@@ -156,6 +156,10 @@ class UtilViewerClass(QTextEdit):
         self.parse_img_base = QTextBrowser(None)
         self.parse_img_path = QTextBrowser(None)
         self.parseImgName = QLineEdit(None)
+        self.search_input = QLineEdit(None)
+        self.search_button = QPushButton(None)
+        self.last_search_query = ""
+        self.search_start_position = 0
 
         self.got_detail = ''
         self.la_symbol_ptr_detail = ''
@@ -187,6 +191,8 @@ class UtilViewerClass(QTextEdit):
         self.dex_dump_check_box = QCheckBox(None)
         self.is_deep_dex_dump_checked = False
         self.dex_dump_worker = None
+
+        self.show_proc_self_maps_btn = QPushButton(None)
 
     @pyqtSlot(dict)
     def parse_sig_func(self, sig: dict):
@@ -271,53 +277,6 @@ class UtilViewerClass(QTextEdit):
                 self.append(text)
                 self.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
 
-    def parse(self, caller):
-        self.setPlainText('')
-        if gvar.frida_instrument is None:
-            self.statusBar.showMessage(f"Attach first", 3000)
-            return
-        elif gvar.frida_instrument is not None:
-            try:
-                name = self.parse_img_name.text() if caller == "parse_img_name" else self.parseImgName.text()
-                if self.platform == 'linux' and ('.so.1' in name or '.odex' in name):
-                    self.statusBar.showMessage(f"Can't parse {name}", 5000)
-                    return
-                result = gvar.frida_instrument.module_status(name)
-                if result != '':
-                    self.parse_img_name.setText(result['name'])
-                    self.parse_img_base.setText(result['base'])
-                    self.parse_img_path.setText(result['path'])
-                    code.change_frida_script("scripts/util.js")
-                    gvar.frida_instrument.parse_signal.connect(self.parse_sig_func)
-
-                    if self.platform == 'darwin':
-                        # If module is not in an ".app/" directory (ex. /System/Library/Frameworks/Security.framework/Security)
-                        # Parsing result seems wrong...
-                        self.got_detail = ''
-                        self.la_symbol_ptr_detail = ''
-                        gvar.frida_instrument.parse_macho(self.parse_img_base.toPlainText())
-                    elif self.platform == 'linux':
-                        self.dynsym_header_checked = False
-                        self.dynsym_detail = ''
-                        self.dynsym_detail_list.clear()
-                        self.rela_plt_detail = ''
-                        self.got_plt_detail = ''
-                        self.symtab_header_checked = False
-                        self.symtab_detail = ''
-                        self.symtab_detail_list.clear()
-                        gvar.frida_instrument.parse_elf(self.parse_img_base.toPlainText())
-                else:
-                    self.statusBar.showMessage(f"No module {self.parse_img_name.text() if caller == 'parse_img_name' else self.parseImgName.text()} found")
-                    return
-            except Exception as e:
-                # self.statusBar.showMessage(f"Error: {e}")
-                print(f"Error: {e}")
-                gvar.frida_instrument.parse_signal.disconnect(self.parse_sig_func)
-                code.revert_frida_script()
-                return
-            gvar.frida_instrument.parse_signal.disconnect(self.parse_sig_func)
-            code.revert_frida_script()
-
     @pyqtSlot(dict)
     def app_info_sig_func(self, sig: dict):
         text = ''
@@ -366,66 +325,20 @@ class UtilViewerClass(QTextEdit):
             self.append(text)
             self.moveCursor(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
 
-    def app_info(self):
-        self.setPlainText('')
-        if gvar.frida_instrument is None or gvar.is_frida_attached is False:
-            self.statusBar.showMessage(f"Attach first", 3000)
-            return
-        elif gvar.frida_instrument is not None:
-            try:
-                code.change_frida_script("scripts/util.js")
-                gvar.frida_instrument.app_info_signal.connect(self.app_info_sig_func)
-                gvar.frida_instrument.app_info()
-            except Exception as e:
-                print(f"Error: {e}")
-                gvar.frida_instrument.app_info_signal.disconnect(self.app_info_sig_func)
-                code.revert_frida_script()
-                return
-            gvar.frida_instrument.app_info_signal.disconnect(self.app_info_sig_func)
-            code.revert_frida_script()
-
     @pyqtSlot(list)
     def pull_ipa_sig_func(self, sig: list):
         if len(sig) != 0:
             QThread.msleep(100)
             app_name = sig[0]
             dir_to_save = sig[1]
-            self.statusBar.showMessage(f"Done! pulled ipa at {dir_to_save}/{app_name}", 5000)
+            self.statusBar.showMessage(f"\tDone! pulled ipa at {dir_to_save}/{app_name}", 5000)
             self.pull_ipa_worker.terminate()
             return
         else:
             QThread.msleep(100)
-            self.statusBar.showMessage("")
+            self.statusBar.showMessage("\t")
             self.pull_ipa_worker.terminate()
             return
-
-    def pull_package(self):
-        if gvar.frida_instrument is None or gvar.is_frida_attached is False:
-            self.statusBar.showMessage(f"Attach first", 3000)
-            return
-
-        if self.platform == "darwin" and gvar.frida_instrument is not None:
-            self.pull_ipa_worker = PullIPAWorker(gvar.frida_instrument, self.statusBar)
-            self.pull_ipa_worker.pull_ipa_signal.connect(self.pull_ipa_sig_func)
-            self.pull_ipa_worker.start()
-        elif self.platform == "linux" and gvar.frida_instrument is not None:
-            try:
-                code.change_frida_script("scripts/util.js")
-                package_name = gvar.frida_instrument.pull_package("getPackageName")
-                paths_to_pull = gvar.frida_instrument.pull_package("getApkPaths")
-                dir_to_save = os.getcwd() + f"/dump/{package_name}"
-                os.makedirs(dir_to_save)
-                for path in paths_to_pull:
-                    if gvar.remote is False:
-                        os.system(f"adb pull {path} {dir_to_save}")
-                    else:
-                        os.system(f"frida-pull -H {gvar.frida_instrument.remote_addr} {path} {dir_to_save}")
-                self.statusBar.showMessage(f"Done! pulled at {dir_to_save}", 10000)
-            except Exception as e:
-                self.statusBar.showMessage(f"Error: {e}", 5000)
-                code.revert_frida_script()
-                return
-            code.revert_frida_script()
 
     @pyqtSlot(int)
     def full_memory_dump_sig_func(self, sig: int):
@@ -434,93 +347,14 @@ class UtilViewerClass(QTextEdit):
             self.full_memory_dump_worker.terminate()
             self.full_memory_dump_instrument.sessions.clear()
             self.full_memory_dump_instrument = None
-            self.statusBar.showMessage(f"Done! check dump/full_memory_dump directory", 5000)
+            self.statusBar.showMessage(f"\tDone! check dump/full_memory_dump directory", 5000)
 
     @pyqtSlot(list)
     def progress_sig_func(self, sig: list):
         if sig is not None and sig[0] == "memdump":
-            self.statusBar.showMessage(f"Memory dumping...{sig[1]}%")
+            self.statusBar.showMessage(f"\tMemory dumping...{sig[1]}%")
         elif sig is not None and sig[0] == "strdump":
-            self.statusBar.showMessage(f"Running strings...{sig[1]}%")
-
-    def full_memory_dump(self):
-        if gvar.is_frida_attached is False:
-            self.statusBar.showMessage("Attach first", 5000)
-            return
-        elif gvar.is_frida_attached is True:
-            try:
-                gvar.frida_instrument.dummy_script()
-            except Exception as e:
-                if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
-                    gvar.frida_instrument.sessions.clear()
-                self.statusBar().showMessage(f"{inspect.currentframe().f_code.co_name}: {e}", 3000)
-                return
-
-        if self.full_memory_dump_instrument is None or len(self.full_memory_dump_instrument.sessions) == 0:
-            self.full_memory_dump_instrument = code.Instrument("scripts/full-memory-dump.js",
-                                                            gvar.remote,
-                                                            gvar.frida_instrument.remote_addr,
-                                                            gvar.frida_instrument.attachtarget,
-                                                            False)
-            msg = self.full_memory_dump_instrument.instrument("full_memory_dump")
-            if msg is not None:
-                self.statusBar.showMessage(f"{inspect.currentframe().f_code.co_name}: {msg}", 3000)
-                return
-        # full memory dump thread worker start
-        self.full_memory_dump_worker = dumper.FullMemoryDumpWorker(self.full_memory_dump_instrument, self.statusBar)
-        self.full_memory_dump_worker.full_memory_dump_signal.connect(self.full_memory_dump_sig_func)
-        self.full_memory_dump_worker.progress_signal.connect(self.progress_sig_func)
-        self.full_memory_dump_worker.start()
-        self.statusBar.showMessage("Start memory dump...")
-        return
-
-    def binary_diff(self):
-        if self.binary_diff_dialog is not None and self.binary_diff_dialog.diff_result is not None:
-            reply = QMessageBox.question(
-                self,
-                "Binary Diff",
-                "There's a binary diff result already done. Show the result?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.Yes
-            )
-
-            if reply == QMessageBox.StandardButton.Yes:
-                self.binary_diff_dialog.binary_diff_result_window.show()
-                return
-            else:
-                self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
-                self.binary_diff_dialog.diff_dialog.show()
-                return
-        elif self.binary_diff_dialog is not None and self.binary_diff_dialog.binary_diff_result_window is not None:
-            self.binary_diff_dialog.binary_diff_result_window.show()
-            return
-        else:
-            self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
-            self.binary_diff_dialog.diff_dialog.show()
-
-    @pyqtSlot(bool)
-    def dex_dump_finished_sig_func(self, sig: bool):
-        if sig is True:
-            self.statusBar.showMessage(f"Dex dump done!", 3000)
-            self.dex_dump_worker.quit()
-        elif sig is False:
-            self.statusBar.showMessage(f"Dex dump failed", 3000)
-            self.dex_dump_worker.quit()
-
-    def dex_dump_checkbox(self, state):
-        self.is_deep_dex_dump_checked = state == Qt.CheckState.Checked.value
-
-    def dex_dump(self):
-        if not gvar.is_frida_attached:
-            self.statusBar.showMessage(f"Attach first", 5000)
-            return
-        if self.platform == 'darwin':
-            self.statusBar.showMessage(f"Dex dump is only for Android", 5000)
-            return
-
-        self.dex_dump_worker = DexDumpWorker(gvar.frida_instrument, self.is_deep_dex_dump_checked)
-        self.dex_dump_worker.dex_dump_finished_signal.connect(self.dex_dump_finished_sig_func)
-        self.dex_dump_worker.start()
+            self.statusBar.showMessage(f"\tRunning strings...{sig[1]}%")
 
     def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
         menu = super(UtilViewerClass, self).createStandardContextMenu()  # Get the default context menu
@@ -550,6 +384,209 @@ class UtilViewerClass(QTextEdit):
 
         menu.exec(e.globalPos())
 
+    @pyqtSlot(bool)
+    def dex_dump_finished_sig_func(self, sig: bool):
+        if sig is True:
+            self.statusBar.showMessage(f"\tDex dump done!", 3000)
+            self.dex_dump_worker.quit()
+        elif sig is False:
+            self.statusBar.showMessage(f"\tDex dump failed", 3000)
+            self.dex_dump_worker.quit()
+
+    def parse(self, caller):
+        self.setPlainText('')
+        if gvar.frida_instrument is None:
+            self.statusBar.showMessage(f"\tAttach first", 3000)
+            return
+        elif gvar.frida_instrument is not None:
+            try:
+                name = self.parse_img_name.text() if caller == "parse_img_name" else self.parseImgName.text()
+                if self.platform == 'linux' and ('.so.1' in name or '.odex' in name):
+                    self.statusBar.showMessage(f"\tCan't parse {name}", 5000)
+                    return
+                hex_regex_pattern = r'(\b0x[a-fA-F0-9]+\b)'
+                hex_regex = re.compile(hex_regex_pattern)
+                addr_match = hex_regex.match(name)
+                if addr_match is not None:
+                    result = gvar.frida_instrument.get_module_by_addr(addr_match[0])
+                else:
+                    result = gvar.frida_instrument.module_status(name)
+                if result != '':
+                    self.parse_img_name.setText(result['name'])
+                    self.parse_img_base.setText(result['base'])
+                    self.parse_img_path.setText(result['path'])
+                elif result == '' and addr_match is not None:
+                    self.parse_img_name.setText('')
+                    self.parse_img_base.setText(addr_match[0])
+                    self.parse_img_path.setText('')
+                else:
+                    self.statusBar.showMessage(
+                        f"No module {self.parse_img_name.text() if caller == 'parse_img_name' else self.parseImgName.text()} found")
+                    return
+
+                code.change_frida_script("scripts/util.js")
+                gvar.frida_instrument.parse_signal.connect(self.parse_sig_func)
+                if self.platform == 'darwin':
+                    # If module is not in an ".app/" directory (ex. /System/Library/Frameworks/Security.framework/Security)
+                    # Parsing result seems wrong...
+                    self.got_detail = ''
+                    self.la_symbol_ptr_detail = ''
+                    gvar.frida_instrument.parse_macho(self.parse_img_base.toPlainText())
+                elif self.platform == 'linux':
+                    self.dynsym_header_checked = False
+                    self.dynsym_detail = ''
+                    self.dynsym_detail_list.clear()
+                    self.rela_plt_detail = ''
+                    self.got_plt_detail = ''
+                    self.symtab_header_checked = False
+                    self.symtab_detail = ''
+                    self.symtab_detail_list.clear()
+                    gvar.frida_instrument.parse_elf(self.parse_img_base.toPlainText())
+            except Exception as e:
+                # self.statusBar.showMessage(f"\tError: {e}")
+                print(f"Error: {e}")
+                gvar.frida_instrument.parse_signal.disconnect(self.parse_sig_func)
+                code.revert_frida_script()
+                return
+            gvar.frida_instrument.parse_signal.disconnect(self.parse_sig_func)
+            code.revert_frida_script()
+
+    def app_info(self):
+        self.setPlainText('')
+        if gvar.frida_instrument is None or gvar.is_frida_attached is False:
+            self.statusBar.showMessage(f"\tAttach first", 3000)
+            return
+        elif gvar.frida_instrument is not None:
+            try:
+                code.change_frida_script("scripts/util.js")
+                gvar.frida_instrument.app_info_signal.connect(self.app_info_sig_func)
+                gvar.frida_instrument.app_info()
+            except Exception as e:
+                print(f"Error: {e}")
+                gvar.frida_instrument.app_info_signal.disconnect(self.app_info_sig_func)
+                code.revert_frida_script()
+                return
+            gvar.frida_instrument.app_info_signal.disconnect(self.app_info_sig_func)
+            code.revert_frida_script()
+
+    def pull_package(self):
+        if gvar.frida_instrument is None or gvar.is_frida_attached is False:
+            self.statusBar.showMessage(f"\tAttach first", 3000)
+            return
+
+        if self.platform == "darwin" and gvar.frida_instrument is not None:
+            self.pull_ipa_worker = PullIPAWorker(gvar.frida_instrument, self.statusBar)
+            self.pull_ipa_worker.pull_ipa_signal.connect(self.pull_ipa_sig_func)
+            self.pull_ipa_worker.start()
+        elif self.platform == "linux" and gvar.frida_instrument is not None:
+            try:
+                code.change_frida_script("scripts/util.js")
+                package_name = gvar.frida_instrument.pull_package("getPackageName")
+                paths_to_pull = gvar.frida_instrument.pull_package("getApkPaths")
+                dir_to_save = os.getcwd() + f"/dump/{package_name}"
+                os.makedirs(dir_to_save)
+                for path in paths_to_pull:
+                    if gvar.remote is False:
+                        os.system(f"adb pull {path} {dir_to_save}")
+                    else:
+                        os.system(f"frida-pull -H {gvar.frida_instrument.remote_addr} {path} {dir_to_save}")
+                self.statusBar.showMessage(f"\tDone! pulled at {dir_to_save}", 10000)
+            except Exception as e:
+                self.statusBar.showMessage(f"\tError: {e}", 5000)
+                code.revert_frida_script()
+                return
+            code.revert_frida_script()
+
+    def full_memory_dump(self):
+        if gvar.is_frida_attached is False:
+            self.statusBar.showMessage("\tAttach first", 5000)
+            return
+        elif gvar.is_frida_attached is True:
+            try:
+                gvar.frida_instrument.dummy_script()
+            except Exception as e:
+                if str(e) == gvar.ERROR_SCRIPT_DESTROYED:
+                    gvar.frida_instrument.sessions.clear()
+                self.statusBar.showMessage(f"\t{inspect.currentframe().f_code.co_name}: {e}", 3000)
+                return
+
+        if self.full_memory_dump_instrument is None or len(self.full_memory_dump_instrument.sessions) == 0:
+            self.full_memory_dump_instrument = code.Instrument("scripts/full-memory-dump.js",
+                                                            gvar.remote,
+                                                            gvar.frida_instrument.remote_addr,
+                                                            gvar.frida_instrument.attachtarget,
+                                                            False)
+            msg = self.full_memory_dump_instrument.instrument("full_memory_dump")
+            if msg is not None:
+                self.statusBar.showMessage(f"\t{inspect.currentframe().f_code.co_name}: {msg}", 3000)
+                return
+        # full memory dump thread worker start
+        self.full_memory_dump_worker = dumper.FullMemoryDumpWorker(self.full_memory_dump_instrument, self.statusBar)
+        self.full_memory_dump_worker.full_memory_dump_signal.connect(self.full_memory_dump_sig_func)
+        self.full_memory_dump_worker.progress_signal.connect(self.progress_sig_func)
+        self.full_memory_dump_worker.start()
+        self.statusBar.showMessage("\tStart memory dump...")
+        return
+
+    def binary_diff(self):
+        if self.binary_diff_dialog is not None and self.binary_diff_dialog.diff_result is not None:
+            reply = QMessageBox.question(
+                self,
+                "Binary Diff",
+                "There's a binary diff result already done. Show the result?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self.binary_diff_dialog.binary_diff_result_window.show()
+                return
+            else:
+                self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
+                self.binary_diff_dialog.diff_dialog.show()
+                return
+        elif self.binary_diff_dialog is not None and self.binary_diff_dialog.binary_diff_result_window is not None:
+            self.binary_diff_dialog.binary_diff_result_window.show()
+            return
+        else:
+            self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
+            self.binary_diff_dialog.diff_dialog.show()
+
+    def dex_dump_checkbox(self, state):
+        self.is_deep_dex_dump_checked = state == Qt.CheckState.Checked.value
+
+    def dex_dump(self):
+        if not gvar.is_frida_attached:
+            self.statusBar.showMessage(f"\tAttach first", 5000)
+            return
+        if self.platform == 'darwin':
+            self.statusBar.showMessage(f"\tDex dump is only for Android", 5000)
+            return
+
+        self.dex_dump_worker = DexDumpWorker(gvar.frida_instrument, self.is_deep_dex_dump_checked)
+        self.dex_dump_worker.dex_dump_finished_signal.connect(self.dex_dump_finished_sig_func)
+        self.dex_dump_worker.start()
+
+    def show_maps(self):
+        self.setPlainText('')
+        if not gvar.is_frida_attached:
+            self.statusBar.showMessage(f"\tAttach first", 5000)
+            return
+        if self.platform == 'darwin':
+            self.statusBar.showMessage(f"\tShow maps is only for Android", 5000)
+            return
+        if gvar.frida_instrument is not None:
+            try:
+                code.change_frida_script("scripts/util.js")
+                result = gvar.frida_instrument.show_maps()
+            except Exception as e:
+                print(f"Error: {e}")
+                code.revert_frida_script()
+                return
+            if result is not None:
+                self.setPlainText(result)
+            code.revert_frida_script()
+
     def detail(self, title):
         detail_of_what = None
         if title == "__got":
@@ -568,6 +605,31 @@ class UtilViewerClass(QTextEdit):
             detail_of_what = self.symtab_detail
         self.new_detail_widget = NewDetailWidget(title, detail_of_what)
         self.new_detail_widget.show()
+
+    def search_text(self):
+        search_query = self.search_input.text()
+        if not search_query:
+            return
+
+        if search_query != self.last_search_query:
+            self.search_start_position = 0
+            self.last_search_query = search_query
+
+        cursor = self.textCursor()
+        cursor.setPosition(self.search_start_position)
+        self.setTextCursor(cursor)
+
+        found = self.find(search_query)
+
+        if found:
+            self.search_start_position = self.textCursor().position()
+            # Highlight the line containing the found text
+            cursor = self.textCursor()
+            cursor.select(QTextCursor.SelectionType.LineUnderCursor)
+            self.setTextCursor(cursor)
+        else:
+            # Reset to the beginning for the next search
+            self.search_start_position = 0
 
 
 class ParseImgListImgViewerClass(QTextBrowser):

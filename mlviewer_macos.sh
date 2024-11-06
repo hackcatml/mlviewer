@@ -28,12 +28,7 @@ if [ ! -d "venv" ]; then
     pip install -r requirements.txt
 
     # Install capstone based on architecture
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "arm64" ]; then
-        pip install --pre --no-binary capstone capstone
-    else
-        pip install capstone
-    fi
+	  pip install capstone
 else
     # Activate venv
     source venv/bin/activate

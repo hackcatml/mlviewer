@@ -27,14 +27,26 @@
       </font>
      </property>
      <property name="rowCount">
-      <number>1</number>
+      <number>0</number>
      </property>
      <property name="columnCount">
-      <number>2</number>
+      <number>3</number>
      </property>
-     <row/>
-     <column/>
-     <column/>
+     <column>
+      <property name="text">
+       <string>Address</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Description</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Stat</string>
+      </property>
+     </column>
     </widget>
    </item>
   </layout>
