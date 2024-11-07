@@ -59,6 +59,7 @@ class HexViewerClass(QTextEdit):
     watch_list_signal = QtCore.pyqtSignal(list)
     mem_patch_addr_signal = QtCore.pyqtSignal(str)
     set_watchpoint_addr_signal = QtCore.pyqtSignal(str)
+    add_address_to_history_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, args):
         super(HexViewerClass, self).__init__(args)
@@ -335,12 +336,16 @@ class HexViewerClass(QTextEdit):
                     watch_regs_action = create_action("Set Watch Regs", True,
                                                       lambda: self.set_watch_on_addr("watch_regs", addr_match[0], ""))
                     mem_patch_action = create_action("Memory patch", True, lambda: self.mem_patch(addr_match[0]))
-                    set_watchpoint_action = create_action("Set watchpoint", True, lambda: self.set_watchpoint(addr_match[0]))
+                    set_watchpoint_action = create_action("Set watchpoint", True,
+                                                          lambda: self.set_watchpoint(addr_match[0]))
+                    add_to_history_action = create_action("Add to history", True,
+                                                          lambda: self.add_to_history(addr_match[0]))
 
                     menu.insertAction(select_all_action, watch_action)
                     menu.insertAction(select_all_action, watch_regs_action)
                     menu.insertAction(select_all_action, mem_patch_action)
                     menu.insertAction(select_all_action, set_watchpoint_action)
+                    menu.insertAction(select_all_action, add_to_history_action)
 
             if copy_hex_action is not None:
                 menu.insertAction(select_all_action, copy_hex_action)
@@ -627,6 +632,11 @@ class HexViewerClass(QTextEdit):
         if (prefix := '0x') not in addr:
             addr = ''.join((prefix, addr))
         self.set_watchpoint_addr_signal.emit(addr)
+
+    def add_to_history(self, addr):
+        if (prefix := '0x') not in addr:
+            addr = ''.join((prefix, addr))
+        self.add_address_to_history_signal.emit(addr)
 
 
 class HexToArmWidget(QWidget):

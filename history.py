@@ -75,3 +75,7 @@ class HistoryViewClass(QObject):
         if selected_items:
             selected_row = selected_items[0].row()
             self.history_ui.historyTableWidget.removeRow(selected_row)
+
+    @pyqtSlot(str)
+    def add_address_to_history_sig_func(self, sig: str):
+        self.add_row(sig)

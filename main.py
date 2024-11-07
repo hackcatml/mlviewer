@@ -208,6 +208,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.statusBar()
         self.status_light = QLabel()
         self.set_status_light()
+        self.text_length = None
 
         self.is_il2cpp_checked = None
         self.il2cpp_dump_worker = None
@@ -331,6 +332,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.history_view.history_ui.historyTableWidget.history_remove_row_signal.connect(
             self.hexViewer.history_remove_row_sig_func)
         self.hexViewer.watch_list_signal.connect(self.history_view.history_ui.historyTableWidget.watch_list_sig_func)
+        self.hexViewer.add_address_to_history_signal.connect(self.history_view.add_address_to_history_sig_func)
         self.historyBtn.clicked.connect(self.history_view.show_history)
 
         self.utilViewer.parse_img_name = self.parse_img_name
@@ -850,6 +852,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
     def adjust_label_pos(self):
         tc = self.hexViewer.textCursor()
         text_length = len(tc.block().text())
+        if self.text_length == text_length:
+            return
+        else:
+            self.text_length = text_length
         current_height = self.height()
         if text_length >= 83:
             resize_width = text_length * 14 + round(text_length / 10)
