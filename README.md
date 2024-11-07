@@ -9,34 +9,7 @@ Running frida-server on your device
 ```
 
 # Usage
-Two ways to run<br>
-1.&nbsp;Python Virtual Environment (recommended)<br>
-```
-# Git clone
-git clone https://github.com/hackcatml/mlviewer
-cd mlviewer
-
-# Run
-.\mlviewer_wincon.bat (for Windows)
-./mlviewer_macos.sh (for macOS)
-```
-
-2.&nbsp;Current Python Environment
-```
-# Git clone
-git clone https://github.com/hackcatml/mlviewer
-cd mlviewer
-
-# Install requirements
-pip install -r requirements.txt
-
-# Install capstoen
-pip install capstone
-pip install --pre --no-binary capstone capstone (for m1, m2 macOS)
-
-# Run
-python main.py
-```
+Check the [wiki](https://github.com/hackcatml/mlviewer/wiki) for details.
 
 # Update
 ```
