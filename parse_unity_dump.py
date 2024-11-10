@@ -3,7 +3,7 @@ import re
 
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtCore import Qt, pyqtSlot
-from PyQt6.QtGui import QStandardItemModel, QStandardItem
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
 from PyQt6.QtWidgets import QFileDialog, QTableView, QLineEdit, QVBoxLayout, QDialog
 
 import gvar
@@ -19,9 +19,11 @@ class ParseResultTableView(QDialog):
         self.resize(800, 400)
 
         self.table_view = QTableView()
+        self.table_view.setAutoScroll(False)
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(['Class', 'Field', 'Method', 'Offset'])
         self.table_view.setModel(self.model)
+        self.previous_row = -1
 
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText("Search...")
@@ -118,6 +120,20 @@ class ParseResultTableView(QDialog):
                 self.add_row_to_table(class_name, field, method, offset)
 
     def table_click(self, index):
+        # Remove highlight from the previous row if it exists
+        if self.previous_row != -1:
+            for col in range(self.model.columnCount()):
+                self.model.setData(self.model.index(self.previous_row, col), Qt.GlobalColor.transparent,
+                                   Qt.ItemDataRole.BackgroundRole)
+
+        # Highlight the current row without selecting it
+        row = index.row()
+        for col in range(self.model.columnCount()):
+            self.model.setData(self.model.index(row, col), QColor("gray"), Qt.ItemDataRole.BackgroundRole)
+
+        # Update the previous_row to the current row
+        self.previous_row = row
+
         # Method click
         if index.column() == 2:
             if self.model.data(index) != '':
