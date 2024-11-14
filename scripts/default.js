@@ -46,11 +46,6 @@ function readArgs(args, index, addr) {
         // get the option from the read_args_options
         var option = read_args_options[addr][index]["readOption"];
         // read the argument based on the option
-        if (option === "readByteArray") {
-            let data = new Uint8Array(args[option](32))
-            return Object.keys(data).map(key => data[key].toString(16).padStart(2, '0')).join(' ');
-        }
-
         if (option === "hexdump") {
             let dump_target_address = args;
             let dump_result = null;
@@ -87,6 +82,19 @@ function readArgs(args, index, addr) {
             }
 
             return args;
+        }
+
+        if (option === 'readStdString') {
+            let isTiny = (ptr(args).readU8() & 1) === 0;
+            if (isTiny) {
+                return ptr(args).add(1).readUtf8String();
+            }
+            return ptr(args).add(2 * Process.pointerSize).readPointer().readUtf8String();
+        }
+
+        if (option === "readByteArray") {
+            let data = new Uint8Array(args[option](32))
+            return Object.keys(data).map(key => data[key].toString(16).padStart(2, '0')).join(' ');
         }
 
         if (option === '') {

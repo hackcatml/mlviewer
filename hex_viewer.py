@@ -746,6 +746,7 @@ class WatchOnAddrTextEdit(QTextEdit):
                     ("readPointer", self.read_pointer),
                     ("readUtf8String", self.read_utf8_string),
                     ("readUtf16String", self.read_utf16_string),
+                    ("readStdString", self.read_std_string),
                     ("readU8", self.read_u8),
                     ("readU16", self.read_u16),
                     ("readU32", self.read_u32),
@@ -809,6 +810,9 @@ class WatchOnAddrTextEdit(QTextEdit):
 
     def read_utf16_string(self):
         self.read_args_with_options("readUtf16String")
+
+    def read_std_string(self):
+        self.read_args_with_options("readStdString")
 
     def read_u8(self):
         self.read_args_with_options("readU8")
