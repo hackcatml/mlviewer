@@ -57,6 +57,7 @@ class MemPatchWidget(QWidget):
                 row_layout = QHBoxLayout()
                 label = QLabel(f"{address}")
                 label.setMinimumSize(QtCore.QSize(100, 26))
+                label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 combobox = QComboBox()
                 combobox.setMinimumSize(QtCore.QSize(100, 26))
                 combobox.addItems(["writeU8", "writeU16", "writeU32", "writeU64", "writeInt",
