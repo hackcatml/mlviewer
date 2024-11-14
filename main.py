@@ -972,6 +972,11 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     break
             self.attached_name = name
             self.set_status(name)
+
+            for module in modules:
+                if module['name'] == 'libpairipcore.so':
+                    gvar.frida_instrument.set_exception()
+                    break
         except Exception as e:
             print(e)
             return

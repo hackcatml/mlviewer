@@ -452,6 +452,9 @@ class Instrument(QObject):
     def show_maps(self):
         return self.script.exports.show_maps()
 
+    def set_exception(self):
+        self.script.exports.set_exception()
+
 
 def frida_shell_exec(command, thread_instance):  # It's not working on Dopamine JB
     if gvar.frida_instrument.is_rootless():

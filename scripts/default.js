@@ -914,5 +914,17 @@ rpc.exports = {
         }
         send('get_file_from_device', new ArrayBuffer(0));
         file.close();
+    },
+    setException: () => {
+        Process.setExceptionHandler(e => {
+            let module = Process.findModuleByAddress(e.address);
+            if (module !== null &&  module.name === 'libpairipcore.so') {
+                // console.log(`${log_tag}[setException] type: ${e.type}, module: ${module.name}, base: ${module.base}, offset: ${e.address.sub(module.base)}, address: ${e.address}`);
+                Memory.protect(ptr(e.address), 8, 'rwx');
+                ptr(e.address).writeByteArray([0xC0, 0x03, 0x5F, 0xD6]);
+                return true;
+            }
+            return false;
+        });
     }
 }
