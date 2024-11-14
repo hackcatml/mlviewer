@@ -4,9 +4,6 @@ let scan_destroyed = false;
 let scanned_addresses = [];
 let set_update_scanned_value_interval = null;
 
-let count = 0;
-let modules = [];
-
 let num_args_to_watch = 0;
 let read_args_options = {};
 let read_retval_options = {};
@@ -42,29 +39,6 @@ const ensureCodeReadableModule = new CModule(`
 `);
 
 let ensure_code_readable = new NativeFunction(ensureCodeReadableModule.ensure_code_readable, 'void', ['pointer', 'uint64']);
-
-function getMemProtection(name, addr){
-    count++;
-    let result;
-    if (count === 1) {
-        let re = new RegExp(name + "$");
-        Process.enumerateRangesSync('r--')
-            .filter(function(m){
-                if(m.file != null) {
-                    if(m.file.path.match(re) != null){ modules.push(m) }
-                    // For android
-                    if(m.file.path.match(/split_config\.arm/) != null){ modules.push(m) }
-                }
-            })
-    }
-    for (const idx in modules) {
-        if (ptr(addr) >= modules[idx].base && ptr(addr) < modules[idx].base.add(modules[idx].size)) {
-            result = modules[idx].protection
-            break
-        }
-    }
-    return result
-}
 
 function readArgs(args, index, addr) {
     // if the argument's index is in the read_args_options for the current address
@@ -273,7 +247,7 @@ rpc.exports = {
         }
         Memory.protect(ptr(addr), 4, newprot)
         Memory.writeByteArray(ptr(addr), [code])
-        if(prot == "---") return    // if mem protection '---' then remain else back to orig prot
+        if(prot == "---") return    // If memory protection is '---', then keep it as is, else revert to the original protection.
         Memory.protect(ptr(addr), 4, prot)
     },
     moduleStatus: (name) => {
@@ -285,7 +259,6 @@ rpc.exports = {
         }
     },
     memScan: function scan(ranges, pattern) {
-        // const locations = new Set();
         let return_message = '';
         let scan_completed = 0;
         let total_scan_count = ranges.length;
@@ -333,7 +306,7 @@ rpc.exports = {
         }, 100);
 
         function scanMemory(range, pattern) {
-            // ensure_code_readable(ptr(range[0]), range[3]);
+            ensure_code_readable(ptr(range[0]), range[3]);
             Memory.scan(ptr(range[0]), range[3], pattern, {
                 onMatch: function (address, size) {
                     if (scan_destroyed) {
@@ -782,7 +755,30 @@ rpc.exports = {
     },
     memPatch: (addr, value, option) => {
         try {
+            let orig_prot = Memory.queryProtection(ptr(addr));
+            let size;
+            if (option === 'writeU8') {
+                size = 1;
+            } else if (option === 'writeU16') {
+                size = 2;
+            } else if (option === 'writeU32') {
+                size = 4;
+            } else if (option === 'writeU64') {
+                size = 8;
+            } else if (option === 'writeInt') {
+                size = 4;
+            } else if (option === 'writeFloat') {
+                size = 4;
+            } else if (option === 'writeDouble') {
+                size = 8;
+            } else if (option === 'writeUtf8String') {
+                size = value.length;
+            } else if (option === 'writeByteArray') {
+                size = value.length;
+            }
+            Memory.protect(ptr(addr), size, 'rwx');
             ptr(addr)[option](value);
+            Memory.protect(ptr(addr), size, orig_prot);
         } catch (e) {
             console.log(`${log_tag}[memPatch] ${e}`);
         }
