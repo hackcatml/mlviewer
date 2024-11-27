@@ -26,4 +26,5 @@ git pull origin main
 [capstone](https://www.capstone-engine.org/)<br>
 [frida-dexdump](https://github.com/hluwa/frida-dexdump)<br>
 [bindiff](https://github.com/dadadel/bindiff)<br>
-[cheat-engine](https://github.com/cheat-engine/cheat-engine)
+[cheat-engine](https://github.com/cheat-engine/cheat-engine)<br>
+[r2pipe](https://github.com/radareorg/radare2-r2pipe)
