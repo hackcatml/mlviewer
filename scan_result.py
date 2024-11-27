@@ -7,7 +7,7 @@ from PyQt6 import QtCore
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSlot, QPoint
 from PyQt6.QtWidgets import QWidget, QTableWidgetItem
 
-import code
+import frida_code
 import gvar
 import misc
 import scan_result_ui
@@ -23,7 +23,7 @@ class MemScanSignalEmitWorker(QThread):
     def run(self) -> None:
         while True:
             self.mem_scan_signal.emit(0)
-            if type(code.MESSAGE) is str and code.MESSAGE.find('[!] Memory Scan Done') != -1:
+            if type(frida_code.MESSAGE) is str and frida_code.MESSAGE.find('[!] Memory Scan Done') != -1:
                 print(f"[scan_result][MemScanSignalEmitWorker][run] Memory Scan Done")
                 break
             self.msleep(100)

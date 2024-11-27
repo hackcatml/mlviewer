@@ -9,7 +9,7 @@ from PyQt6.QtCore import QThread, pyqtSlot, Qt, QEvent, QPoint, QMutex, QWaitCon
 from PyQt6.QtGui import QPixmap, QTextCursor, QShortcut, QKeySequence, QColor, QIcon, QPalette
 from PyQt6.QtWidgets import QLabel, QMainWindow, QMessageBox, QApplication, QInputDialog, QTableWidgetItem
 
-import code
+import frida_code
 import gadget
 import gvar
 import hex_viewer
@@ -923,7 +923,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     if ok is False:
                         return
 
-                gvar.frida_instrument = code.Instrument("scripts/default.js",
+                gvar.frida_instrument = frida_code.Instrument("scripts/default.js",
                                                         self.is_remote_attach_checked,
                                                         self.remote_addr,
                                                         self.attach_target_name if (
@@ -934,7 +934,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 gvar.frida_instrument.change_frida_script_signal.connect(self.change_frida_script_sig_func)
                 msg = gvar.frida_instrument.instrument(caller)
             elif caller == "frida_portal_node_info_sig_func":
-                gvar.frida_instrument = code.Instrument("scripts/default.js",
+                gvar.frida_instrument = frida_code.Instrument("scripts/default.js",
                                                         True,
                                                         self.remote_addr,
                                                         self.attach_target_name,
@@ -1638,7 +1638,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                     target = self.attach_target_name
                 else:
                     target = None
-                self.il2cpp_frida_instrument = code.Instrument("scripts/il2cpp-dump.js",
+                self.il2cpp_frida_instrument = frida_code.Instrument("scripts/il2cpp-dump.js",
                                                                True if gvar.frida_portal_mode is True else self.is_remote_attach_checked,
                                                                gvar.frida_instrument.remote_addr,
                                                                target,
@@ -1662,10 +1662,10 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
 
         result = False
         if self.platform == 'darwin':
-            code.change_frida_script("scripts/dump-ios-module.js")
+            frida_code.change_frida_script("scripts/dump-ios-module.js")
             result = gvar.frida_instrument.dump_ios_module(self.memDumpModuleName.text())
         elif self.platform == 'linux':
-            code.change_frida_script("scripts/dump-so.js")
+            frida_code.change_frida_script("scripts/dump-so.js")
             result = gvar.frida_instrument.dump_so(self.memDumpModuleName.text())
 
         if result is False:
@@ -1684,7 +1684,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 self.listImgViewer.insertPlainText(
                     'Dumped file at: ' + result + "\n\nYou need to fix so file using SoFixer\n\n")
             self.listImgViewer.setTextColor(self.default_color)  # Revert to the default color
-        code.revert_frida_script()
+        frida_code.revert_frida_script()
 
     def search_img(self, caller):
         # print(self.memDumpModuleName.text())

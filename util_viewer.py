@@ -11,7 +11,7 @@ from PyQt6.QtGui import QAction, QTextCursor
 from PyQt6.QtWidgets import QTextBrowser, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QPushButton, QCheckBox, \
     QMessageBox
 
-import code
+import frida_code
 import diff
 import dumper
 import gvar
@@ -37,11 +37,11 @@ class PullIPAWorker(QThread):
 
     def run(self) -> None:
         try:
-            code.change_frida_script("scripts/util.js")
+            frida_code.change_frida_script("scripts/util.js")
             bundle_path = self.frida_instrument.get_bundle_path()
             bundle_id = self.frida_instrument.get_bundle_id()
             executable_name = self.frida_instrument.get_executable_name()
-            code.revert_frida_script()
+            frida_code.revert_frida_script()
 
             payload_path = bundle_path.rpartition("/")[0]
             app_name = bundle_path.rpartition("/")[-1].partition(".")[0]
@@ -52,7 +52,7 @@ class PullIPAWorker(QThread):
             os.makedirs(dir_to_save)
 
             # dump decrypted binary
-            code.change_frida_script("scripts/dump-ios-module.js")
+            frida_code.change_frida_script("scripts/dump-ios-module.js")
             remote_path_to_pull_executable = self.frida_instrument.dump_ios_module(executable_name)
             if remote_path_to_pull_executable is not False:
                 if gvar.remote is False:
@@ -60,21 +60,21 @@ class PullIPAWorker(QThread):
                 else:
                     os.system(
                         f"frida-pull -H {gvar.frida_instrument.remote_addr} \"{remote_path_to_pull_executable}\" {dir_to_save}")
-            code.revert_frida_script()
+            frida_code.revert_frida_script()
 
             shell_cmd = f"rm -rf Payload"
-            code.frida_shell_exec(shell_cmd, self)
+            frida_code.frida_shell_exec(shell_cmd, self)
 
             shell_cmd = f"ln -s {payload_path} Payload"
-            code.frida_shell_exec(shell_cmd, self)
+            frida_code.frida_shell_exec(shell_cmd, self)
 
             self.statusBar.showMessage("\tCreating IPA...")
             # just in case, zip command isn't installed on the device
             shell_cmd = "apt-get install zip -y"
-            code.frida_shell_exec(shell_cmd, self)
+            frida_code.frida_shell_exec(shell_cmd, self)
             # zip it
             shell_cmd = f"zip -r {app_name}.ipa Payload"
-            code.frida_shell_exec(shell_cmd, self)
+            frida_code.frida_shell_exec(shell_cmd, self)
 
             self.statusBar.showMessage("\tPulling IPA...")
             remote_path_to_pull = f"/var/mobile/Documents/{app_name}.ipa"
@@ -92,11 +92,11 @@ class PullIPAWorker(QThread):
             # clean up
             os.remove(f"{dir_to_save}/{executable_name}.decrypted")
             shell_cmd = f"rm -rf Payload"
-            code.frida_shell_exec(shell_cmd, self)
+            frida_code.frida_shell_exec(shell_cmd, self)
             shell_cmd = f"rm -rf {app_name}.ipa"
-            code.frida_shell_exec(shell_cmd, self)
+            frida_code.frida_shell_exec(shell_cmd, self)
             shell_cmd = f"rm -rf {remote_path_to_pull_executable}"
-            code.frida_shell_exec(shell_cmd, self)
+            frida_code.frida_shell_exec(shell_cmd, self)
 
             self.pull_ipa_signal.emit([app_name, dir_to_save])
 
@@ -424,7 +424,7 @@ class UtilViewerClass(QTextEdit):
                         f"No module {self.parse_img_name.text() if caller == 'parse_img_name' else self.parseImgName.text()} found")
                     return
 
-                code.change_frida_script("scripts/util.js")
+                frida_code.change_frida_script("scripts/util.js")
                 gvar.frida_instrument.parse_signal.connect(self.parse_sig_func)
                 if self.platform == 'darwin':
                     # If module is not in an ".app/" directory (ex. /System/Library/Frameworks/Security.framework/Security)
@@ -446,10 +446,10 @@ class UtilViewerClass(QTextEdit):
                 # self.statusBar.showMessage(f"\tError: {e}")
                 print(f"Error: {e}")
                 gvar.frida_instrument.parse_signal.disconnect(self.parse_sig_func)
-                code.revert_frida_script()
+                frida_code.revert_frida_script()
                 return
             gvar.frida_instrument.parse_signal.disconnect(self.parse_sig_func)
-            code.revert_frida_script()
+            frida_code.revert_frida_script()
 
     def app_info(self):
         self.setPlainText('')
@@ -458,16 +458,16 @@ class UtilViewerClass(QTextEdit):
             return
         elif gvar.frida_instrument is not None:
             try:
-                code.change_frida_script("scripts/util.js")
+                frida_code.change_frida_script("scripts/util.js")
                 gvar.frida_instrument.app_info_signal.connect(self.app_info_sig_func)
                 gvar.frida_instrument.app_info()
             except Exception as e:
                 print(f"Error: {e}")
                 gvar.frida_instrument.app_info_signal.disconnect(self.app_info_sig_func)
-                code.revert_frida_script()
+                frida_code.revert_frida_script()
                 return
             gvar.frida_instrument.app_info_signal.disconnect(self.app_info_sig_func)
-            code.revert_frida_script()
+            frida_code.revert_frida_script()
 
     def pull_package(self):
         if gvar.frida_instrument is None or gvar.is_frida_attached is False:
@@ -480,7 +480,7 @@ class UtilViewerClass(QTextEdit):
             self.pull_ipa_worker.start()
         elif self.platform == "linux" and gvar.frida_instrument is not None:
             try:
-                code.change_frida_script("scripts/util.js")
+                frida_code.change_frida_script("scripts/util.js")
                 package_name = gvar.frida_instrument.pull_package("getPackageName")
                 paths_to_pull = gvar.frida_instrument.pull_package("getApkPaths")
                 dir_to_save = os.getcwd() + f"/dump/{package_name}"
@@ -493,9 +493,9 @@ class UtilViewerClass(QTextEdit):
                 self.statusBar.showMessage(f"\tDone! pulled at {dir_to_save}", 10000)
             except Exception as e:
                 self.statusBar.showMessage(f"\tError: {e}", 5000)
-                code.revert_frida_script()
+                frida_code.revert_frida_script()
                 return
-            code.revert_frida_script()
+            frida_code.revert_frida_script()
 
     def full_memory_dump(self):
         if gvar.is_frida_attached is False:
@@ -511,7 +511,7 @@ class UtilViewerClass(QTextEdit):
                 return
 
         if self.full_memory_dump_instrument is None or len(self.full_memory_dump_instrument.sessions) == 0:
-            self.full_memory_dump_instrument = code.Instrument("scripts/full-memory-dump.js",
+            self.full_memory_dump_instrument = frida_code.Instrument("scripts/full-memory-dump.js",
                                                             gvar.remote,
                                                             gvar.frida_instrument.remote_addr,
                                                             gvar.frida_instrument.attachtarget,
@@ -540,14 +540,12 @@ class UtilViewerClass(QTextEdit):
 
             if reply == QMessageBox.StandardButton.Yes:
                 self.binary_diff_dialog.binary_diff_result_window.show()
-                return
             else:
                 self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
                 self.binary_diff_dialog.diff_dialog.show()
-                return
-        elif self.binary_diff_dialog is not None and self.binary_diff_dialog.binary_diff_result_window is not None:
-            self.binary_diff_dialog.binary_diff_result_window.show()
-            return
+        elif self.binary_diff_dialog is not None:   # and self.binary_diff_dialog.binary_diff_result_window is not None:
+            # self.binary_diff_dialog.binary_diff_result_window.show()
+            self.binary_diff_dialog.diff_dialog.show()
         else:
             self.binary_diff_dialog = diff.DiffDialogClass(self.statusBar)
             self.binary_diff_dialog.diff_dialog.show()
@@ -577,15 +575,15 @@ class UtilViewerClass(QTextEdit):
             return
         if gvar.frida_instrument is not None:
             try:
-                code.change_frida_script("scripts/util.js")
+                frida_code.change_frida_script("scripts/util.js")
                 result = gvar.frida_instrument.show_maps()
             except Exception as e:
                 print(f"Error: {e}")
-                code.revert_frida_script()
+                frida_code.revert_frida_script()
                 return
             if result is not None:
                 self.setPlainText(result)
-            code.revert_frida_script()
+            frida_code.revert_frida_script()
 
     def detail(self, title):
         detail_of_what = None

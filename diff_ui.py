@@ -61,6 +61,10 @@ class Ui_DiffDialog(object):
         self.doDiffBtn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.gridLayout.addWidget(self.doDiffBtn, 2, 0, 1, 2)
 
+        self.checkboxGridLayout = QtWidgets.QGridLayout()
+        self.gridLayout.addLayout(self.checkboxGridLayout, 4, 0, 1, 2)
+        self.checkboxes = []
+
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 

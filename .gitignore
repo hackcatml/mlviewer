@@ -5,6 +5,8 @@ __pycache__
 .idea
 scripts/script_test
 test
+/dump/*
+!/dump/dummyfile
 ui_test.py
 ui_test.ui
 ui_test2.ui
