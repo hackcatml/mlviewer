@@ -84,8 +84,8 @@ class BinaryCompareWorker(QThread):
         self.file1 = file1
         self.file2 = file2
 
-        self.file1_contents = None
-        self.file2_contents = None
+        self.file1_contents = []
+        self.file2_contents = []
 
         self.sections = sections
 
@@ -148,13 +148,11 @@ class BinaryCompareWorker(QThread):
             if not result:
                 self.message = "content"
                 self.offset = hex(offset)
+                self.file1_contents.append(data1)
+                self.file2_contents.append(data2)
 
         # Sort the diff_list by offset in ascending order
         self.diff_list.sort(key=lambda x: x[0])
-
-        # Read file contents into lists after comparison
-        self.file1_contents = self.read_file_contents(self.file1, None, None)
-        self.file2_contents = self.read_file_contents(self.file2, None, None)
 
         if result:
             self.message = "identical"
