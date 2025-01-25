@@ -566,13 +566,13 @@ class UtilViewerClass(QTextEdit):
         self.dex_dump_worker.start()
 
     def show_maps(self):
-        self.setPlainText('')
         if not gvar.is_frida_attached:
             self.statusBar.showMessage(f"\tAttach first", 5000)
             return
         if self.platform == 'darwin':
             self.statusBar.showMessage(f"\tShow maps is only for Android", 5000)
             return
+        self.setPlainText('')
         if gvar.frida_instrument is not None:
             try:
                 frida_code.change_frida_script("scripts/util.js")
