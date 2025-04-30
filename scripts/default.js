@@ -217,7 +217,7 @@ rpc.exports = {
         send(Process.findModuleByName(name));
     },
     getModuleByAddr:(addr) => {
-        send(Process.findModuleByAddress(addr));
+        send(Process.findModuleByAddress(ptr(addr)));
     },
     hexDumpOffset: (name, offset, size) => {
         var base = Process.findModuleByName(name).base
