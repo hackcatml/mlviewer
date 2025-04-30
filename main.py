@@ -241,7 +241,7 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
         self.prepare_gadget_dialog.frida_portal_node_info_signal.connect(self.frida_portal_node_info_sig_func)
         self.prepare_gadget_dialog.gadget_ui.fridaPortalModeCheckBox.setChecked(True)
         self.gadgetBtn.clicked.connect(self.prepare_gadget)
-        self.statusBar().showMessage(f"\tWelcome! frida-portal is listening on {gadget.get_local_ip()}:{gvar.frida_portal_cluster_port}", 10000)
+        self.statusBar().showMessage(f"\tWelcome!", 3000)
 
         self.platform = None
         self.is_list_pid_checked = False
@@ -977,6 +977,8 @@ class WindowClass(QMainWindow, ui.Ui_MainWindow if (platform.system() == 'Darwin
                 if module['name'] == 'libpairipcore.so':
                     gvar.frida_instrument.set_exception()
                     break
+
+            self.offset_ok_btn_func()
         except Exception as e:
             print(e)
             return
