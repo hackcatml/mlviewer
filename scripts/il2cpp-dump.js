@@ -1,6 +1,6 @@
 📦
-1036 /index.js
-154976 /node_modules/frida-il2cpp-bridge/dist/index.js
+1448 /index.js
+156012 /node_modules/frida-il2cpp-bridge/dist/index.js
 ↻ frida-il2cpp-bridge
 ✄
 import "frida-il2cpp-bridge";
@@ -11,12 +11,19 @@ rpc.exports = {
         console.log(`Unity Version: ${Il2Cpp.unityVersion}`);
         console.log("Dump Start");
         fname = filename ?? `${Il2Cpp.application.identifier ?? "unknown"}_${Il2Cpp.application.version ?? "unknown"}.cs`;
-        if (Process.platform === 'linux' && Il2Cpp.application.dataPath === null) {
-            var pm = Java.use('android.app.ActivityThread').currentApplication();
-            var package_name = pm.getApplicationContext().getPackageName();
-            var package_info = pm.getApplicationContext().getPackageManager().getPackageInfo(package_name, 4096);
-            var data_dir = package_info.applicationInfo.value.dataDir.value;
-            destination = `${data_dir}/${fname}`;
+        if (Il2Cpp.application.dataPath === null) {
+            if (Process.platform === 'linux') {
+                var pm = Java.use('android.app.ActivityThread').currentApplication();
+                var package_name = pm.getApplicationContext().getPackageName();
+                var package_info = pm.getApplicationContext().getPackageManager().getPackageInfo(package_name, 4096);
+                var data_dir = package_info.applicationInfo.value.dataDir.value;
+                destination = `${data_dir}/${fname}`;
+            }
+            else if (Process.platform === 'darwin') {
+                var data_container_path = ObjC.classes.NSProcessInfo.processInfo().environment().objectForKey_("HOME").toString();
+                var data_container_documents_path = data_container_path + "/Documents";
+                destination = `${data_container_documents_path}/${fname}`;
+            }
         }
         else {
             destination = `${path ?? Il2Cpp.application.dataPath}/${fname}`;
@@ -112,6 +119,18 @@ var Il2Cpp;
                 }
             }
         }
+        const another_searchPattern = "55 6e 69 74 79 20 54 65 63 68 6e 6f 6c 6f 67 69 65 73"   // Unity Technologies
+        for (const range of Il2Cpp.module.enumerateRanges("r--").concat(Process.getRangeByAddress(Il2Cpp.module.base))) {
+            for (let { address } of Memory.scanSync(range.base, range.size, another_searchPattern)) {
+                while (address.readU8() != 0) {
+                    address = address.add(1);
+                }
+                const match = UnityVersion.find(address.add(1).readCString());
+                if (match != undefined) {
+                    return match;
+                }
+            }
+        }
         raise("couldn't determine the Unity version, please specify it manually");
     }, lazy);
     // prettier-ignore
@@ -191,13 +210,19 @@ var Il2Cpp;
      */
     function dump(fileName, path) {
         fileName = fileName ?? `${Il2Cpp.application.identifier}_${Il2Cpp.application.version}.cs`;
-        path = path ?? Il2Cpp.application.dataPath ?? Process.getCurrentDir();
-        if (Process.platform === 'linux' && Il2Cpp.application.dataPath === null) {
-            var pm = Java.use('android.app.ActivityThread').currentApplication();
-            var package_name = pm.getApplicationContext().getPackageName();
-            var package_info = pm.getApplicationContext().getPackageManager().getPackageInfo(package_name, 4096);
-            var data_dir = package_info.applicationInfo.value.dataDir.value;
-            path = data_dir;
+        // path = path ?? Il2Cpp.application.dataPath ?? Process.getCurrentDir();
+        if (Il2Cpp.application.dataPath === null) {
+            if (Process.platform === 'linux') {
+                var pm = Java.use('android.app.ActivityThread').currentApplication();
+                var package_name = pm.getApplicationContext().getPackageName();
+                var package_info = pm.getApplicationContext().getPackageManager().getPackageInfo(package_name, 4096);
+                var data_dir = package_info.applicationInfo.value.dataDir.value;
+                path = data_dir;
+            } else if (Process.platform === 'darwin') {
+                var data_container_path = ObjC.classes.NSProcessInfo.processInfo().environment().objectForKey_("HOME").toString();
+                var data_container_documents_path = data_container_path + "/Documents";
+                path = data_container_documents_path;
+            }
         }
         // createDirectoryRecursively(path);
         const destination = `${path}/${fileName}`;
@@ -211,7 +236,7 @@ var Il2Cpp;
         file.flush();
         file.close();
         ok(`dump saved to ${destination}`);
-        showDeprecationNotice();
+        // showDeprecationNotice();
     }
     Il2Cpp.dump = dump;
     /**
